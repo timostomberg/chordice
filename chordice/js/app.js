@@ -7,6 +7,7 @@ import { buildLibrary, generate } from './generator.js';
 import { applyAction, parseCookie, sanitizeState, serializeCookie } from './state.js';
 import { renderOptions, renderRows } from './render.js';
 import { createNotesDialog } from './notes-dialog.js';
+import { bindZoom, blockZoom } from './zoom.js';
 
 const DATA_URL = new URL('../data/chord_progressions.yaml', import.meta.url);
 
@@ -28,16 +29,35 @@ function start(library) {
   const notes = createNotesDialog(document.querySelector('#notes'));
   let currentRows = [];
 
+  // Only the chords zoom, with Ctrl + scroll or a pinch. The options never zoom; Ctrl + scroll there does nothing.
+  const content = document.querySelector('.content');
+  bindZoom(content, rows);
+  blockZoom(sidePanel);
+
   function render() {
+    // Re-rendering replaces the markup, which would otherwise scroll the progression list and the chords back to the top.
+    const listScroll = optionList.querySelector('.progression-list')?.scrollTop ?? 0;
+    const contentScroll = content.scrollTop;
     sidePanel.hidden = !state.showOptions;
     options.hidden = !state.showOptions;
     optionList.innerHTML = renderOptions(state, library);
+    const list = optionList.querySelector('.progression-list');
+    if (list) {
+      list.scrollTop = listScroll;
+    }
     currentRows = generate({ ...state, library });
-    rows.innerHTML = renderRows(currentRows, { colour: state.colour, details: state.details });
+    rows.innerHTML = renderRows(currentRows, {
+      colour: state.colour,
+      details: state.details,
+      melody: state.inversions,
+    });
+    content.scrollTop = contentScroll;
     document.documentElement.dataset.theme = state.theme;
     document.querySelector('[data-action="toggle-colour"]').setAttribute('aria-pressed', String(state.colour));
     document.querySelector('[data-action="toggle-details"]').setAttribute('aria-pressed', String(state.details));
-    document.querySelector('[data-action="toggle-options"]').setAttribute('aria-expanded', String(state.showOptions));
+    document.querySelector('[data-action="toggle-inversions"]').setAttribute('aria-pressed', String(state.inversions));
+    // The options button is the element with the class; the header carries the same action but is not the button.
+    document.querySelector('.options-toggle').setAttribute('aria-expanded', String(state.showOptions));
     document.querySelector('[data-action="toggle-theme"]').setAttribute('aria-pressed', String(state.theme === 'dark'));
     document.cookie = serializeCookie(state);
   }

@@ -1,12 +1,13 @@
 /**
- * Voicings for the notes window, free of any rendering. The bass note is fixed for the whole window: the chord's bass,
- * or its root. The treble staff shows all chord tones, stacked upwards. An inversion is a rotation of the chord tones:
- * the tone at the chosen position is the lowest treble note, and the remaining tones follow in their order.
+ * Voicings for the notes window, free of any rendering. The bass note is fixed for the whole window: the chord's slash
+ * bass, or its root. The treble staff shows all chord tones, stacked upwards.
+ * An inversion is a rotation of the chord tones (see invertedTones): its first tone is the lowest treble note.
  *
  * Pitches are spelled names with octave, e.g. "Bb3", as tonal spells them.
  */
 
 import { Note } from 'tonal';
+import { bassOf, invertedTones } from './theory.js';
 
 // Bass notes stay within G2 to F#3, which sits on and around the bass staff.
 const BASS_LOWEST = 43;
@@ -31,16 +32,17 @@ export function lowestAtLeast(tone, minimum) {
 
 /**
  * The inversions of a chord: each is the chord tones in one rotation, the first one being the lowest treble note.
- * `start` is the index of the inversion shown first: the one whose lowest treble note is the chord's bass, or the
- * root position when the bass is not a chord tone. `bass` is the fixed bass tone of the whole window.
+ * `start` is the inversion shown first, i.e. the chord's own inversion. `bass` is the fixed bass tone of the whole
+ * window: the chord's slash bass if it has one, otherwise the root. The inversion does not change the bass.
  */
-export function inversionOrders(tones, bass = null) {
+export function inversionOrders(tones, inversion = 0, bass = null) {
   if (tones.length === 0) {
     throw new Error('A chord needs at least one tone');
   }
-  const orders = tones.map((_, index) => [...tones.slice(index), ...tones.slice(0, index)]);
-  const bassIndex = bass === null ? -1 : tones.findIndex((tone) => Note.chroma(tone) === Note.chroma(bass));
-  return { orders, start: Math.max(0, bassIndex), bass: bass ?? tones[0] };
+  const orders = tones.map((_, index) => invertedTones(tones, index));
+  // Throws for an inversion the chord does not have.
+  invertedTones(tones, inversion);
+  return { orders, start: inversion, bass: bassOf(tones, bass) };
 }
 
 /**

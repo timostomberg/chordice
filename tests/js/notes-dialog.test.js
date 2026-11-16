@@ -42,7 +42,8 @@ class FakeDialog extends FakeNode {
   }
 }
 
-const E_OVER_C = { displaySymbol: 'C/E', tones: ['C', 'E', 'G'], bass: 'E' };
+// The first inversion of C, shown over its bass E.
+const E_OVER_C = { displaySymbol: 'C/E', tones: ['C', 'E', 'G'], bass: 'E', inversion: 1 };
 
 function setup() {
   const dialog = new FakeDialog();
@@ -51,12 +52,24 @@ function setup() {
   return { dialog, drawn, notes };
 }
 
-test('opening a chord shows its bass first, with the treble starting on that bass tone', () => {
+test('opening a chord shows its inversion first, with the treble starting on its lowest tone and the bass staff on the same tone', () => {
   const { dialog, drawn, notes } = setup();
   notes.open(E_OVER_C);
   assert.equal(dialog.isOpen, true);
   assert.equal(drawn[0].symbol, 'C/E');
   assert.deepEqual(drawn[0], { symbol: 'C/E', bass: 'E3', upper: ['E4', 'G4', 'C5'] });
+});
+
+test('without a slash bass, the bass stays the root while the upper tones start on the inversion', () => {
+  const { drawn, notes } = setup();
+  notes.open({ displaySymbol: 'C', tones: ['C', 'E', 'G'], bass: null, inversion: 1 });
+  assert.deepEqual(drawn[0], { symbol: 'C', bass: 'C3', upper: ['E4', 'G4', 'C5'] });
+});
+
+test('a slash chord in root position opens in root position, with its bass in the bass staff', () => {
+  const { drawn, notes } = setup();
+  notes.open({ displaySymbol: 'C/E', tones: ['C', 'E', 'G'], bass: 'E', inversion: 0 });
+  assert.deepEqual(drawn[0], { symbol: 'C/E', bass: 'E3', upper: ['C4', 'E4', 'G4'] });
 });
 
 test('each click on the staff shows the next inversion with the same bass, and wraps back to the root position', () => {

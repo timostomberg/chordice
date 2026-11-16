@@ -21,6 +21,7 @@ export const SEED_NAMES = [
   'extensionChoice',
   'bassActive',
   'bassChoice',
+  'inversionChoice',
   'permutationActive',
   'permutationOrder',
   'rotationActive',
@@ -151,6 +152,13 @@ function chordEntry(progression, numeral, tonic, slot, settings) {
     }
   }
 
+  // With inversions on, every position of the chord is equally likely, the root position (0) included.
+  // The number of positions follows the chord's tones, so an extended chord has all of its inversions too.
+  let inversion = 0;
+  if (settings.inversions) {
+    inversion = pick(seeds.inversionChoice, slot, chord.tones.length);
+  }
+
   return {
     roman: numeral,
     function: harmonicFunction(numeral),
@@ -159,6 +167,7 @@ function chordEntry(progression, numeral, tonic, slot, settings) {
     extension,
     symbol: chord.symbol,
     tones: chord.tones,
+    inversion,
     bass,
     displaySymbol: bass ? `${chord.symbol}/${bass}` : chord.symbol,
   };

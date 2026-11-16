@@ -71,10 +71,12 @@ async function startApp({ cookie = '', yaml = YAML_TEXT, ok = true } = {}) {
     '#options': new FakeElement(),
     '#option-list': new FakeElement(),
     '#rows': new FakeElement(),
-    '[data-action="toggle-options"]': new FakeElement(),
+    '.options-toggle': new FakeElement(),
+    '.content': new FakeElement(),
     '[data-action="toggle-theme"]': new FakeElement(),
     '[data-action="toggle-colour"]': new FakeElement(),
     '[data-action="toggle-details"]': new FakeElement(),
+    '[data-action="toggle-inversions"]': new FakeElement(),
     '#notes': new FakeDialog(),
   };
   const listeners = {};
@@ -137,7 +139,7 @@ test('app.js loads the YAML library and renders the circle, option sections, row
     assert.ok(app.elements['#option-list'].innerHTML.includes('<span class="section-title">Progressions</span>'));
     assert.equal(app.elements['#options'].hidden, false);
     assert.equal(rowCount(app.elements['#rows'].innerHTML), 4);
-    assert.equal(app.elements['[data-action="toggle-options"]'].attributes['aria-expanded'], 'true');
+    assert.equal(app.elements['.options-toggle'].attributes['aria-expanded'], 'true');
     assert.ok(app.document.cookie.startsWith('chordice_state='));
   } finally {
     uninstall();
@@ -187,10 +189,25 @@ test('app.js hides the whole left panel, with the options and the circle, and ma
     app.dispatch({ action: 'toggle-options' });
     assert.equal(app.elements['#side-panel'].hidden, true);
     assert.equal(app.elements['#options'].hidden, true);
-    assert.equal(app.elements['[data-action="toggle-options"]'].attributes['aria-expanded'], 'false');
+    assert.equal(app.elements['.options-toggle'].attributes['aria-expanded'], 'false');
     app.dispatch({ action: 'toggle-options' });
     assert.equal(app.elements['#side-panel'].hidden, false);
     assert.equal(app.elements['#options'].hidden, false);
+  } finally {
+    uninstall();
+  }
+});
+
+test('app.js keeps the scroll position of the progression list when a progression is toggled', async () => {
+  try {
+    const app = await startApp();
+    // The first query finds the list before the re-render, the second finds the freshly rendered one.
+    const before = { scrollTop: 120 };
+    const after = { scrollTop: 0 };
+    let calls = 0;
+    app.elements['#option-list'].querySelector = () => (calls++ === 0 ? before : after);
+    app.dispatch({ action: 'toggle-progression', id: LIBRARY[0].id });
+    assert.equal(after.scrollTop, 120);
   } finally {
     uninstall();
   }
@@ -202,6 +219,21 @@ test('app.js applies a probability slider change to the options', async () => {
     app.dispatch({ action: 'toggle-section', section: 'probabilities' });
     app.change(new FakeInput('range', 'rotation', '30'));
     assert.ok(app.elements['#option-list'].innerHTML.includes('Rotation <output>30%</output>'));
+  } finally {
+    uninstall();
+  }
+});
+
+test('app.js shows the top melody notes while inversions are on, and hides them when they are off', async () => {
+  try {
+    const app = await startApp();
+    assert.ok(!app.elements['#rows'].innerHTML.includes('Top melody note'));
+    assert.equal(app.elements['[data-action="toggle-inversions"]'].attributes['aria-pressed'], 'false');
+    app.dispatch({ action: 'toggle-inversions' });
+    assert.ok(app.elements['#rows'].innerHTML.includes('class="melody" title="Top melody note"'));
+    assert.equal(app.elements['[data-action="toggle-inversions"]'].attributes['aria-pressed'], 'true');
+    app.dispatch({ action: 'toggle-inversions' });
+    assert.ok(!app.elements['#rows'].innerHTML.includes('Top melody note'));
   } finally {
     uninstall();
   }

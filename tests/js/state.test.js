@@ -10,6 +10,7 @@ import {
   sanitizeState,
   serializeCookie,
   setCount,
+  FLAGS,
   SECTIONS,
   setProbability,
   toggleExtension,
@@ -166,18 +167,27 @@ test('toggleGroup selects or clears all progressions of a group', () => {
   assert.deepEqual(state.selection, ['Pop / A', 'Pop / B', 'Rock / C']);
   state = toggleGroup(state, 'Pop', LIBRARY);
   assert.deepEqual(state.selection, ['Rock / C']);
+  // Clearing the last group leaves no progression selected, which is allowed.
   const onlyRock = toggleGroup({ ...state, selection: ['Rock / C'] }, 'Rock', LIBRARY);
-  assert.deepEqual(onlyRock.selection, ['Rock / C']);
+  assert.deepEqual(onlyRock.selection, []);
 });
 
-test('toggleProgression keeps the library order and at least one progression', () => {
+test('toggleProgression keeps the library order and allows an empty selection', () => {
   const state = defaultState(LIBRARY, FIXED);
   const without = toggleProgression(state, 'Pop / A', LIBRARY);
   assert.deepEqual(without.selection, ['Pop / B', 'Rock / C']);
   const back = toggleProgression(without, 'Pop / A', LIBRARY);
   assert.deepEqual(back.selection, IDS);
   const single = { ...state, selection: ['Pop / B'] };
-  assert.equal(toggleProgression(single, 'Pop / B', LIBRARY), single);
+  assert.deepEqual(toggleProgression(single, 'Pop / B', LIBRARY).selection, []);
+});
+
+test('toggleProgression with nothing selected leaves the other options as they are', () => {
+  const state = { ...defaultState(LIBRARY, FIXED), selection: ['Pop / B'], count: 8, rotation: 30 };
+  const cleared = toggleProgression(state, 'Pop / B', LIBRARY);
+  assert.deepEqual(cleared.selection, []);
+  assert.equal(cleared.count, 8);
+  assert.equal(cleared.rotation, 30);
 });
 
 test('setCount accepts only the allowed counts', () => {
@@ -186,13 +196,25 @@ test('setCount accepts only the allowed counts', () => {
   assert.equal(setCount(state, 3), state);
 });
 
-test('toggleExtension keeps the canonical order and at least one extension', () => {
+test('toggleExtension keeps the canonical order and allows an empty list', () => {
   let state = { ...defaultState(LIBRARY, FIXED), extensions: ['7'] };
   state = toggleExtension(state, 'maj7');
   assert.deepEqual(state.extensions, ['7', 'maj7']);
   state = toggleExtension(state, '7');
   assert.deepEqual(state.extensions, ['maj7']);
-  assert.equal(toggleExtension(state, 'maj7'), state);
+  // Removing the last extension empties the list; the extension probability stays where it is.
+  const emptied = toggleExtension({ ...state, extensionProbability: 70 }, 'maj7');
+  assert.deepEqual(emptied.extensions, []);
+  assert.equal(emptied.extensionProbability, 70);
+});
+
+test('sanitizeState keeps an empty selection and empty extensions, and defaults only lists that are missing', () => {
+  const empty = sanitizeState({ selection: [], extensions: [] }, LIBRARY, FIXED);
+  assert.deepEqual(empty.selection, []);
+  assert.deepEqual(empty.extensions, []);
+  const missing = sanitizeState({}, LIBRARY, FIXED);
+  assert.deepEqual(missing.selection, IDS);
+  assert.deepEqual(missing.extensions, EXTENSION_NAMES);
 });
 
 test('setProbability rounds to steps of 10 and clamps to 0..100', () => {
@@ -202,6 +224,28 @@ test('setProbability rounds to steps of 10 and clamps to 0..100', () => {
   assert.equal(setProbability(state, 'bassProbability', -20).bassProbability, 0);
   assert.equal(setProbability(state, 'rotation', 'abc'), state);
   assert.equal(setProbability(state, 'count', 50), state);
+});
+
+test('inversions are an on/off switch, off by default, and not a probability', () => {
+  const state = defaultState(LIBRARY, FIXED);
+  assert.equal(state.inversions, false);
+  assert.ok(FLAGS.includes('inversions'));
+  assert.equal(state.inversionProbability, undefined);
+  assert.equal(setProbability(state, 'inversions', 30), state);
+});
+
+test('the inversions switch toggles on and off, and changes nothing else', () => {
+  const state = defaultState(LIBRARY, FIXED);
+  const on = applyAction(state, 'toggle-inversions', {}, LIBRARY);
+  assert.equal(on.inversions, true);
+  assert.deepEqual({ ...on, inversions: false }, state);
+  assert.equal(applyAction(on, 'toggle-inversions', {}, LIBRARY).inversions, false);
+});
+
+test('the inversions switch is kept by cookies; a cookie without it, or with a broken value, is off', () => {
+  assert.equal(sanitizeState({ inversions: true }, LIBRARY, FIXED).inversions, true);
+  assert.equal(sanitizeState({ inversions: 'yes' }, LIBRARY, FIXED).inversions, false);
+  assert.equal(sanitizeState({ rotation: 20 }, LIBRARY, FIXED).inversions, false);
 });
 
 test('reroll changes only the seeds', () => {

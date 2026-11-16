@@ -7,9 +7,12 @@ import {
   neighbourKeysOf,
   degree,
   harmonicFunction,
+  invertedTones,
   isKeyName,
+  keySignatureOf,
   majorKeyOf,
   MAJOR_KEYS,
+  melodyTopOf,
   minorNameOf,
   parseNumeral,
   relativeMinorOf,
@@ -118,4 +121,36 @@ test('circleNameOf keeps a spelling that is on the circle and maps other spellin
   assert.equal(circleNameOf('F#'), 'F#');
   assert.equal(circleNameOf('Cb'), 'B');
   assert.equal(circleNameOf('C#'), 'Db');
+});
+
+test('keySignatureOf lists the sharps or flats of a major key in signature order', () => {
+  assert.deepEqual(keySignatureOf('C'), []);
+  assert.deepEqual(keySignatureOf('G'), ['F#']);
+  assert.deepEqual(keySignatureOf('D'), ['F#', 'C#']);
+  assert.deepEqual(keySignatureOf('F#'), ['F#', 'C#', 'G#', 'D#', 'A#', 'E#']);
+  assert.deepEqual(keySignatureOf('F'), ['Bb']);
+  assert.deepEqual(keySignatureOf('Bb'), ['Bb', 'Eb']);
+  assert.deepEqual(keySignatureOf('Gb'), ['Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb']);
+});
+
+test('invertedTones gives the root position for 0 and puts the tone at the inversion index at the bottom', () => {
+  assert.deepEqual(invertedTones(['C', 'E', 'G']), ['C', 'E', 'G']);
+  assert.deepEqual(invertedTones(['C', 'E', 'G'], 1), ['E', 'G', 'C']);
+  assert.deepEqual(invertedTones(['C', 'E', 'G'], 2), ['G', 'C', 'E']);
+  assert.deepEqual(invertedTones(['G', 'B', 'D', 'F'], 3), ['F', 'G', 'B', 'D']);
+});
+
+test('invertedTones rejects an inversion the chord does not have', () => {
+  assert.throws(() => invertedTones(['C', 'E', 'G'], 3), /does not exist/);
+  assert.throws(() => invertedTones(['C', 'E', 'G'], -1), /does not exist/);
+  assert.throws(() => invertedTones(['C', 'E', 'G'], 0.5), /does not exist/);
+  assert.throws(() => invertedTones([], 0), /does not exist/);
+});
+
+test('melodyTopOf is the highest tone of the stacked inversion: the last tone of the root position, the tone below the bass otherwise', () => {
+  assert.equal(melodyTopOf(['C', 'E', 'G']), 'G');
+  assert.equal(melodyTopOf(['C', 'E', 'G'], 1), 'C');
+  assert.equal(melodyTopOf(['C', 'E', 'G'], 2), 'E');
+  assert.equal(melodyTopOf(['Bb', 'D', 'F', 'A'], 0), 'A');
+  assert.equal(melodyTopOf(['Bb', 'D', 'F', 'A'], 2), 'D');
 });

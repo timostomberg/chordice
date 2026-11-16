@@ -59,10 +59,12 @@ body {
   height: 100%;
 }
 
+/* The side insets keep the page clear of the notch in landscape, the bottom inset of the home indicator. */
 body {
   display: flex;
   flex-direction: column;
   margin: 0;
+  padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   overflow: hidden;
   font-family: system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
   color: var(--text);
@@ -75,7 +77,8 @@ body {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 1rem;
+  /* The top inset keeps the toolbar below the status bar (clock, signal) on iPhones. */
+  padding: calc(0.5rem + env(safe-area-inset-top)) 1rem 0.5rem;
   border-bottom: 1px solid var(--line);
   background: var(--surface);
 }
@@ -95,6 +98,7 @@ body {
 .options-toggle,
 .details-toggle,
 .colour-toggle,
+.inversions-toggle,
 .theme-toggle {
   color: var(--text);
 }
@@ -108,15 +112,17 @@ body {
 .toolbar .options-toggle,
 .toolbar .details-toggle,
 .toolbar .colour-toggle,
+.toolbar .inversions-toggle,
 .toolbar .theme-toggle {
   border-color: var(--icon-blue);
   color: var(--icon-blue);
 }
 
-/* An active options, details or colour toggle is filled with the icon blue, and its symbol takes the background colour. */
+/* An active options, details, colour or inversions toggle is filled with the icon blue, and its symbol takes the background colour. */
 .toolbar .options-toggle[aria-expanded="true"],
 .toolbar .details-toggle[aria-pressed="true"],
-.toolbar .colour-toggle[aria-pressed="true"] {
+.toolbar .colour-toggle[aria-pressed="true"],
+.toolbar .inversions-toggle[aria-pressed="true"] {
   background: var(--icon-blue);
   color: var(--surface);
 }
@@ -124,6 +130,7 @@ body {
 .options-toggle svg,
 .details-toggle svg,
 .colour-toggle svg,
+.inversions-toggle svg,
 .theme-toggle svg {
   display: block;
   width: 1.5rem;
@@ -161,12 +168,14 @@ button[aria-expanded="true"] {
 }
 
 /* The options scroll on their own, independently of the chords and below the header. */
+/* touch-action leaves pinch to the zoom script, so a pinch zooms the options and not the whole page. */
 .side-panel {
   min-height: 0;
   overflow-y: auto;
   padding: 1rem;
   border-right: 1px solid var(--line);
   background: var(--surface);
+  touch-action: pan-x pan-y;
 }
 
 .side-panel[hidden] {
@@ -180,8 +189,19 @@ button[aria-expanded="true"] {
 
 .circle {
   width: 100%;
+  max-width: 18rem;
   height: auto;
   display: block;
+  margin: 0 auto;
+}
+
+/* The key signature of the selected key, below the circle. */
+.key-signature {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.3rem;
+  margin: 0.4rem 0 0;
 }
 
 .circle .ring {
@@ -245,6 +265,8 @@ button[aria-expanded="true"] {
   padding: 1rem 1rem 5rem;
   min-width: 0;
   overflow-y: auto;
+  /* As for the options: a pinch zooms the chords (see zoom.js), not the whole page. */
+  touch-action: pan-x pan-y;
 }
 
 /* The chord block is centred in the content area, vertically and, where there is room, horizontally.
@@ -257,8 +279,8 @@ button[aria-expanded="true"] {
 /* Generate floats in the bottom right corner, reachable from anywhere on the page. */
 .generate {
   position: fixed;
-  right: 1rem;
-  bottom: 1rem;
+  right: calc(1rem + env(safe-area-inset-right));
+  bottom: calc(1rem + env(safe-area-inset-bottom));
   z-index: 10;
   padding: 0.6rem 1.2rem;
   border-color: var(--icon-blue);
@@ -590,6 +612,24 @@ button[aria-expanded="true"] {
   color: var(--chord-soft);
 }
 
+/* The chord symbol and, with the inversions switch on, the top melody note to its right, inside the box. */
+.chord .symbol-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+/* The top melody note is an oval in the colour of the chord symbol, its text as large as the tones below the chord. */
+.chord .melody {
+  padding: 0.05rem 0.5rem;
+  border: 1px solid var(--chord-text);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--chord-text);
+}
+
 .chord:focus-visible {
   outline: 2px solid var(--icon-blue);
   outline-offset: 2px;
@@ -639,6 +679,27 @@ button[aria-expanded="true"] {
 }
 
 
-.empty {
-  color: var(--muted);
+/* Phones in portrait: the options sit above the chords, each in its own scrolling area. The safe-area insets are on body. */
+@media (max-width: 600px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 40%) minmax(0, 1fr);
+  }
+
+  .layout:has(> .side-panel[hidden]) {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .side-panel {
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .toolbar h1 {
+    margin: 0 0.5rem;
+  }
+
+  .toolbar button {
+    padding: 0.4rem;
+  }
 }

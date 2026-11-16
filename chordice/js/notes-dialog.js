@@ -20,7 +20,7 @@ export function createNotesDialog(dialog, drawStaff = renderScore) {
   }
 
   function open(chord) {
-    const { orders, start, bass } = inversionOrders(chord.tones, chord.bass);
+    const { orders, start, bass } = inversionOrders(chord.tones, chord.inversion, chord.bass);
     current = { orders, index: start, bass, symbol: chord.displaySymbol };
     show();
     dialog.showModal();

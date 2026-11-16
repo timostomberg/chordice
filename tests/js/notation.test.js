@@ -63,30 +63,43 @@ test('every inversion uses exactly the chord tones in the treble, one per pitch 
   }
 });
 
-test('inversionOrders without a bass gives the root position first and one order per tone', () => {
-  const { orders, start, bass } = inversionOrders(['C', 'E', 'G']);
-  assert.equal(start, 0);
-  assert.equal(bass, 'C');
-  assert.deepEqual(orders, [['C', 'E', 'G'], ['E', 'G', 'C'], ['G', 'C', 'E']]);
+test('inversionOrders without a chord bass gives all inversions, one per tone, and the bass stays the root in every inversion', () => {
+  const root = inversionOrders(['C', 'E', 'G']);
+  assert.equal(root.start, 0);
+  assert.equal(root.bass, 'C');
+  assert.deepEqual(root.orders, [['C', 'E', 'G'], ['E', 'G', 'C'], ['G', 'C', 'E']]);
+
+  const firstInversion = inversionOrders(['C', 'E', 'G'], 1);
+  assert.equal(firstInversion.start, 1);
+  assert.equal(firstInversion.bass, 'C');
+  assert.deepEqual(firstInversion.orders, root.orders);
 });
 
-test('inversionOrders starts at the inversion whose lowest treble note is the chord bass', () => {
-  const { orders, start, bass } = inversionOrders(['C', 'E', 'G'], 'E');
-  assert.equal(start, 1);
-  assert.equal(bass, 'E');
-  assert.deepEqual(orders[start], ['E', 'G', 'C']);
+test('inversionOrders starts at the chord\'s own inversion, even when a chord bass is given', () => {
+  const { orders, start, bass } = inversionOrders(['C', 'E', 'G'], 2, 'G');
+  assert.equal(start, 2);
+  assert.equal(bass, 'G');
+  assert.deepEqual(orders[start], ['G', 'C', 'E']);
 });
 
-test('inversionOrders keeps a bass with the root spelling as the root position', () => {
-  assert.equal(inversionOrders(['C', 'E', 'G'], 'C').start, 0);
-  assert.equal(inversionOrders(['C#', 'E#', 'G#'], 'Db').start, 0);
+test('inversionOrders keeps the chord bass as the fixed bass in every inversion, including the root position', () => {
+  assert.deepEqual(inversionOrders(['C', 'E', 'G'], 0, 'E'), {
+    orders: [['C', 'E', 'G'], ['E', 'G', 'C'], ['G', 'C', 'E']],
+    start: 0,
+    bass: 'E',
+  });
+  assert.equal(inversionOrders(['C', 'E', 'G'], 1, 'C').bass, 'C');
 });
 
 test('inversionOrders keeps a bass that is not a chord tone as the fixed bass, with the chord tones in the treble', () => {
-  const { orders, start, bass } = inversionOrders(['C', 'E', 'G'], 'D');
-  assert.equal(start, 0);
+  const { orders, start, bass } = inversionOrders(['C', 'E', 'G'], 1, 'D');
+  assert.equal(start, 1);
   assert.equal(bass, 'D');
   assert.equal(orders.length, 3);
+});
+
+test('inversionOrders rejects an inversion the chord does not have', () => {
+  assert.throws(() => inversionOrders(['C', 'E', 'G'], 3), /does not exist/);
 });
 
 test('inversionOrders rejects a chord without tones', () => {
@@ -101,4 +114,17 @@ test('vexKey converts a spelled pitch into the VexFlow key and its accidental', 
 
 test('vexKey rejects a pitch without an octave', () => {
   assert.throws(() => vexKey('C'), /octave/);
+});
+
+test('the melody note shown for a chord is the top note of its notes window in the same inversion', async () => {
+  const { melodyTopOf } = await import('../../chordice/js/theory.js');
+  const symbols = ['C', 'Cm', 'C7', 'Cmaj7', 'Csus4', 'C13', 'F#m7b5', 'Bb', 'Ab7#9', 'Eb13'];
+  for (const symbol of symbols) {
+    const tones = Chord.get(symbol).notes;
+    const { orders, bass } = inversionOrders(tones);
+    orders.forEach((order, inversion) => {
+      const top = voicing(order, bass).upper.at(-1);
+      assert.equal(Note.get(top).pc, melodyTopOf(tones, inversion), `${symbol} inversion ${inversion}`);
+    });
+  }
 });

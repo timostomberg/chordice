@@ -83,6 +83,27 @@ export function buildChord(root, quality, extension = null) {
   return { root, quality, extension, symbol, tones: chord.notes };
 }
 
+/**
+ * The chord tones in the order of one inversion, the lowest note first. Inversion 0 is the root position; inversion k
+ * puts the tone at index k at the bottom, followed by the remaining tones in their order.
+ */
+export function invertedTones(tones, inversion = 0) {
+  if (!Number.isInteger(inversion) || inversion < 0 || inversion >= tones.length) {
+    throw new Error(`Inversion ${inversion} does not exist for ${tones.length} chord tones`);
+  }
+  return [...tones.slice(inversion), ...tones.slice(0, inversion)];
+}
+
+/** The fixed bass of a chord: its slash bass if it has one, otherwise the root (the first tone). Inversions do not change it. */
+export function bassOf(tones, slashBass = null) {
+  return slashBass ?? tones[0];
+}
+
+/** The top melody note of a chord in one inversion: the highest tone of its stacked order, which is the last one. */
+export function melodyTopOf(tones, inversion = 0) {
+  return invertedTones(tones, inversion).at(-1);
+}
+
 const FUNCTIONS = {
   I: 'tonic', iii: 'tonic', III: 'tonic', vi: 'tonic', VI: 'tonic',
   ii: 'subdominant', IV: 'subdominant', iv: 'subdominant', bVI: 'subdominant',
@@ -113,4 +134,17 @@ export function neighbourKeysOf(major) {
     dominant: circleNameOf(Note.transpose(major, '5P')),
     subdominant: circleNameOf(Note.transpose(major, '4P')),
   };
+}
+
+// Order in which the sharps and the flats appear in a key signature.
+const SHARP_ORDER = ['F', 'C', 'G', 'D', 'A', 'E', 'B'];
+const FLAT_ORDER = ['B', 'E', 'A', 'D', 'G', 'C', 'F'];
+
+/** Accidentals of a major key in signature order, e.g. G → ['F#'], Bb → ['Bb', 'Eb'], C → []. */
+export function keySignatureOf(major) {
+  const signature = Key.majorKey(major).keySignature;
+  const sharp = signature.startsWith('#');
+  const order = sharp ? SHARP_ORDER : FLAT_ORDER;
+  const suffix = sharp ? '#' : 'b';
+  return order.slice(0, signature.length).map((letter) => `${letter}${suffix}`);
 }

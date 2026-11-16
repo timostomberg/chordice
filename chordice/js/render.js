@@ -2,7 +2,7 @@
  * HTML rendering for the options panel and the progression rows. All functions return strings.
  */
 
-import { EXTENSION_NAMES, minorNameOf } from './theory.js';
+import { EXTENSION_NAMES, bassOf, invertedTones, keySignatureOf, melodyTopOf, minorNameOf } from './theory.js';
 import { COUNTS, SECTIONS } from './state.js';
 import { escapeHtml } from './escape.js';
 import { renderCircleSvg } from './circle.js';
@@ -47,11 +47,23 @@ function progressionGroups(state, library) {
   }).join('');
 }
 
+/** The accidentals of a key, each in the same oval tag as the row tags, e.g. "F♯"; empty for C. */
+function keySignatureTags(major) {
+  return keySignatureOf(major)
+    .map((accidental) => `<span class="tag">${escapeHtml(accidental.replace('#', '♯').replace('b', '♭'))}</span>`)
+    .join('');
+}
+
 /** The content of one options section, shown while the section is expanded. */
 function sectionBody(name, state, library) {
   switch (name) {
     case 'keys':
-      return `<div class="circle-wrap">${renderCircleSvg(state.keys)}</div>`;
+      return `<div class="circle-wrap">${renderCircleSvg(state.keys)}</div>` +
+        state.keys
+          .map((key) => keySignatureTags(key))
+          .filter((tags) => tags !== '')
+          .map((tags) => `<p class="key-signature">${tags}</p>`)
+          .join('');
     case 'progressions':
       return `<div class="progression-list">${progressionGroups(state, library)}</div>`;
     case 'count':
@@ -122,6 +134,15 @@ function chordAttributes(rowIndex, chordIndex) {
 }
 
 /**
+ * The bass, then the chord tones of the inversion stacked upwards, e.g. "e | c · e · g". The bass is the slash bass or
+ * the root and does not change with the inversion; only the upper tones follow the inversion.
+ */
+function tonesText(chord) {
+  const bass = bassOf(chord.tones, chord.bass);
+  return `${bass} | ${invertedTones(chord.tones, chord.inversion).join(' · ')}`.toLowerCase();
+}
+
+/**
  * The chord symbol split into the chord name (root and minor sign, e.g. "C" or "Cm"), the extension after it (e.g. "7")
  * and the bass after a slash (e.g. "/E" for G/E). Only the name is bold.
  */
@@ -134,22 +155,34 @@ function symbolHtml(chord) {
 }
 
 /**
+ * The symbol of a chord with, when the melody switch is on, its top melody note to the right of it, inside the box.
+ * The top note is the highest tone of the chord in its inversion, in lower case; root position shows the highest chord tone.
+ */
+function symbolWithMelody(symbol, chord, melody) {
+  if (!melody) {
+    return symbol;
+  }
+  const top = melodyTopOf(chord.tones, chord.inversion).toLowerCase();
+  return `<span class="symbol-row">${symbol}<span class="melody" title="Top melody note">${escapeHtml(top)}</span></span>`;
+}
+
+/**
  * One chord. The colour switch adds the colour of the harmonic function. The details switch adds the roman numeral
  * above the chord symbol, split into name, extension and bass, and the chord tones in lower case below it.
+ * The melody switch adds the top melody note to the right of the chord symbol.
  */
-function chordCell(chord, attributes, { colour, details }) {
+function chordCell(chord, attributes, { colour, details, melody }) {
   const classes = ['chord'];
   if (colour) {
     classes.push(chord.function ? `fn-${chord.function}` : 'fn-none', chord.quality === 'major' ? 'is-major' : 'is-minor');
   }
   if (!details) {
-    return `<li class="${classes.join(' ')}" ${attributes}>${escapeHtml(chord.displaySymbol)}</li>`;
+    return `<li class="${classes.join(' ')}" ${attributes}>${symbolWithMelody(escapeHtml(chord.displaySymbol), chord, melody)}</li>`;
   }
-  const tones = (chord.tones.join(' · ') + (chord.bass ? ` / ${chord.bass}` : '')).toLowerCase();
   return `<li class="${classes.join(' ')}" ${attributes}>` +
     `<span class="roman">${escapeHtml(chord.roman)}</span>` +
-    symbolHtml(chord) +
-    `<span class="tones">${escapeHtml(tones)}</span></li>`;
+    symbolWithMelody(symbolHtml(chord), chord, melody) +
+    `<span class="tones">${escapeHtml(tonesText(chord))}</span></li>`;
 }
 
 /** Tags for the transformations that were applied to the row. Inactive ones are not shown. */
@@ -164,11 +197,12 @@ function activeTags(row) {
   return labels.map((label) => `<span class="tag">${escapeHtml(label)}</span>`).join('');
 }
 
-/** Renders one row per generated progression, named after the progression. `display` holds the colour and details switches. */
+/**
+ * Renders one row per generated progression, named after the progression. `display` holds the colour, details and melody
+ * switches; the melody switch is the inversions switch.
+ * With no progression selected there are no rows, so the content area stays empty.
+ */
 export function renderRows(rows, display) {
-  if (rows.length === 0) {
-    return '<p class="empty">Select at least one key and one progression.</p>';
-  }
   return rows.map((row, rowIndex) => {
     const tags = activeTags(row);
     return `<section class="row">` +

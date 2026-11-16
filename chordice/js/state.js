@@ -8,7 +8,7 @@ import { SEED_NAMES, createSeeds } from './generator.js';
 export const COOKIE_NAME = 'chordice_state';
 export const COUNTS = [1, 2, 4, 8, 12, 16];
 export const PROBABILITY_OPTIONS = ['rotation', 'permutation', 'extensionProbability', 'bassProbability'];
-export const FLAGS = ['showOptions', 'colour', 'details'];
+export const FLAGS = ['showOptions', 'colour', 'details', 'inversions'];
 export const THEMES = ['light', 'dark'];
 export const SECTIONS = ['keys', 'progressions', 'count', 'extensions', 'probabilities'];
 
@@ -32,6 +32,7 @@ export function defaultState(library, random = Math.random) {
     bassProbability: 50,
     colour: true,
     details: true,
+    inversions: false,
     theme: 'dark',
     showOptions: true,
     // Only the key circle is expanded by default.
@@ -59,13 +60,13 @@ export function sanitizeState(raw, library, random = Math.random) {
   }
 
   const rawKeys = Array.isArray(raw.keys) ? unique(raw.keys.map(majorKeyOf).filter(Boolean)) : [];
-  const ids = new Set(library.map((progression) => progression.id));
-  const rawSelection = Array.isArray(raw.selection) ? raw.selection : [];
-  const selection = library
-    .map((progression) => progression.id)
-    .filter((id) => rawSelection.includes(id) && ids.has(id));
-  const rawExtensions = Array.isArray(raw.extensions) ? raw.extensions : [];
-  const extensions = EXTENSION_NAMES.filter((name) => rawExtensions.includes(name));
+  // An empty selection or an empty extension list is valid: nothing is shown or added for it.
+  const selection = Array.isArray(raw.selection)
+    ? library.map((progression) => progression.id).filter((id) => raw.selection.includes(id))
+    : fallback.selection;
+  const extensions = Array.isArray(raw.extensions)
+    ? EXTENSION_NAMES.filter((name) => raw.extensions.includes(name))
+    : fallback.extensions;
   const seeds = {};
   for (const name of SEED_NAMES) {
     seeds[name] = toSeed(raw.seeds?.[name], fallback.seeds[name]);
@@ -77,15 +78,16 @@ export function sanitizeState(raw, library, random = Math.random) {
   return {
     version: 1,
     keys: rawKeys.length > 0 ? rawKeys.slice(-1) : fallback.keys,
-    selection: selection.length > 0 ? selection : fallback.selection,
+    selection,
     count: COUNTS.includes(raw.count) ? raw.count : fallback.count,
     rotation: toProbability(raw.rotation, fallback.rotation),
     permutation: toProbability(raw.permutation, fallback.permutation),
-    extensions: extensions.length > 0 ? extensions : fallback.extensions,
+    extensions,
     extensionProbability: toProbability(raw.extensionProbability, fallback.extensionProbability),
     bassProbability: toProbability(raw.bassProbability, fallback.bassProbability),
     colour: typeof raw.colour === 'boolean' ? raw.colour : (legacyView ?? fallback.colour),
     details: typeof raw.details === 'boolean' ? raw.details : (legacyView ?? fallback.details),
+    inversions: typeof raw.inversions === 'boolean' ? raw.inversions : fallback.inversions,
     theme: THEMES.includes(raw.theme) ? raw.theme : fallback.theme,
     showOptions: typeof raw.showOptions === 'boolean' ? raw.showOptions : fallback.showOptions,
     collapsed: Array.isArray(raw.collapsed)
@@ -116,12 +118,12 @@ export function parseCookie(cookieHeader) {
   return null;
 }
 
+/** An empty selection is allowed: the rows then show no chords. */
 function withSelection(state, nextSelection, library) {
   const selection = library
     .map((progression) => progression.id)
     .filter((id) => nextSelection.includes(id));
-  // The spec asks for one or more progressions, so an empty selection is ignored.
-  return selection.length > 0 ? { ...state, selection } : state;
+  return { ...state, selection };
 }
 
 /** Key: exactly one. Selecting a key replaces the current one; selecting the current key changes nothing. */
@@ -165,8 +167,9 @@ export function toggleExtension(state, name) {
   const next = state.extensions.includes(name)
     ? state.extensions.filter((extension) => extension !== name)
     : [...state.extensions, name];
+  // An empty list is allowed: no chord extensions are added, while the extension probability stays as it is.
   const extensions = EXTENSION_NAMES.filter((extension) => next.includes(extension));
-  return extensions.length > 0 ? { ...state, extensions } : state;
+  return { ...state, extensions };
 }
 
 export function setProbability(state, option, value) {
@@ -240,6 +243,8 @@ export function applyAction(state, action, params, library, random = Math.random
       return toggleFlag(state, 'colour');
     case 'toggle-details':
       return toggleFlag(state, 'details');
+    case 'toggle-inversions':
+      return toggleFlag(state, 'inversions');
     case 'toggle-section':
       return toggleSection(state, params.section);
     case 'toggle-options':

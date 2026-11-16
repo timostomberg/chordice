@@ -45,6 +45,7 @@ function settings(overrides = {}) {
     extensions: [...EXTENSION_NAMES],
     extensionProbability: 0,
     bassProbability: 0,
+    inversions: false,
     seeds: SEEDS,
     ...overrides,
   };
@@ -117,6 +118,21 @@ test('extension and bass probability of 100 stay within the allowed options', ()
   }
   assert.ok(extended > 0);
   assert.ok(inverted > 0);
+});
+
+test('an empty extension list gives plain chords, even at 100% probability', () => {
+  const rows = generate(settings({
+    selection: [POP],
+    count: 16,
+    extensionProbability: 100,
+    extensions: [],
+  }));
+  assert.ok(rows.length > 0);
+  for (const row of rows) {
+    for (const chord of row.chords) {
+      assert.equal(chord.extension, null);
+    }
+  }
 });
 
 test('extensions are limited to the selected extension names', () => {
@@ -236,4 +252,51 @@ test('chords carry their quality, so major and minor chords can be told apart', 
   assert.deepEqual(row.chords.map((chord) => [chord.roman, chord.quality]), [
     ['I', 'major'], ['V', 'major'], ['vi', 'minor'], ['IV', 'major'],
   ]);
+});
+
+test('with inversions off every chord stays in root position', () => {
+  for (const row of generate(settings({ selection: [POP, MINOR], count: 16, inversions: false }))) {
+    assert.ok(row.chords.every((chord) => chord.inversion === 0));
+  }
+});
+
+test('with inversions on every chord is in one of its own positions, and the root position is one of them', () => {
+  const chords = generate(settings({ selection: [POP, MINOR], count: 16, inversions: true })).flatMap((row) => row.chords);
+  for (const chord of chords) {
+    assert.ok(Number.isInteger(chord.inversion) && chord.inversion >= 0 && chord.inversion < chord.tones.length, chord.symbol);
+  }
+  assert.ok(chords.some((chord) => chord.inversion === 0));
+  assert.ok(chords.some((chord) => chord.inversion > 0));
+});
+
+test('with inversions on, extended chords get all their positions, including the highest ones', () => {
+  const chords = generate(settings({ selection: [POP], count: 32, inversions: true, extensionProbability: 100 }))
+    .flatMap((row) => row.chords);
+  const fourToned = chords.filter((chord) => chord.tones.length === 4).map((chord) => chord.inversion);
+  assert.ok(fourToned.length > 0, 'the extensions must add tones for this test');
+  assert.deepEqual([...new Set(fourToned)].sort(), [0, 1, 2, 3]);
+});
+
+test('a triad with inversions on can take the root position and both inversions', () => {
+  const inversions = new Set(generate(settings({ selection: [POP], count: 16, inversions: true }))
+    .flatMap((row) => row.chords.filter((chord) => chord.tones.length === 3).map((chord) => chord.inversion)));
+  assert.deepEqual([...inversions].sort(), [0, 1, 2]);
+});
+
+test('switching inversions on keeps the progression, extensions and bass notes', () => {
+  const base = { selection: [POP, MINOR], count: 8, extensionProbability: 60, bassProbability: 60 };
+  const without = generate(settings({ ...base, inversions: false }));
+  const withInversions = generate(settings({ ...base, inversions: true }));
+  const outline = (rows) => rows.map((row) => row.chords.map((chord) => [chord.roman, chord.symbol, chord.bass]));
+  assert.deepEqual(outline(withInversions), outline(without));
+});
+
+test('changing the bass probability keeps the inversions', () => {
+  const base = { selection: [POP], count: 8, inversions: true, extensionProbability: 0 };
+  const plain = generate(settings({ ...base, bassProbability: 0 }));
+  const varied = generate(settings({ ...base, bassProbability: 100 }));
+  assert.deepEqual(
+    varied.map((row) => row.chords.map((chord) => chord.inversion)),
+    plain.map((row) => row.chords.map((chord) => chord.inversion)),
+  );
 });

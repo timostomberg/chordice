@@ -119,6 +119,29 @@ test('touch targets use the shared minimum size', () => {
   assert.ok(CSS.includes('--touch:'));
 });
 
+test('the toolbar, the floating Generate button and the body keep clear of the iPhone safe areas', () => {
+  assert.ok(/\.toolbar\s*\{[^}]*env\(safe-area-inset-top\)/.test(CSS));
+  assert.ok(/body\s*\{[^}]*env\(safe-area-inset-bottom\)/.test(CSS));
+  assert.ok(/body\s*\{[^}]*env\(safe-area-inset-left\)/.test(CSS));
+  assert.ok(/\.generate\s*\{[^}]*env\(safe-area-inset-bottom\)/.test(CSS));
+});
+
+test('a pinch on the options and on the chords zooms that area, not the page', () => {
+  assert.ok(/\.side-panel\s*\{[^}]*touch-action: pan-x pan-y/.test(CSS));
+  assert.ok(/\.content\s*\{[^}]*touch-action: pan-x pan-y/.test(CSS));
+});
+
+test('phones in portrait stack the options above the chords', () => {
+  const media = /@media \(max-width: 600px\) \{([\s\S]*)\}\s*$/.exec(CSS)?.[1] ?? '';
+  assert.ok(media.includes('.layout'), 'media query styles the layout');
+  assert.ok(/grid-template-columns: minmax\(0, 1fr\)/.test(media));
+  assert.ok(/grid-template-rows: minmax\(0, 40%\) minmax\(0, 1fr\)/.test(media));
+});
+
+test('the circle of fifths has a maximum size, so it stays moderate when the options are above the chords', () => {
+  assert.ok(/\.circle\s*\{[^}]*max-width: 18rem/.test(CSS));
+});
+
 test('hiding the options hides the whole side panel', () => {
   assert.ok(/\.side-panel\[hidden\]\s*\{[^}]*display: none/.test(CSS));
 });

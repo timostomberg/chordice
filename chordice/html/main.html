@@ -25,6 +25,15 @@
     </button>
     <h1>Chordice</h1>
     <div class="view-toggles">
+      <button type="button" class="inversions-toggle" data-action="toggle-inversions" aria-label="Inversions" aria-pressed="false" title="Inversions">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <!-- The note spans x 4 to 14 of the 24 units; the translate centres it horizontally. -->
+          <g transform="translate(3 0)">
+            <ellipse cx="7" cy="17.5" rx="3" ry="2.3" transform="rotate(-20 7 17.5)" fill="currentColor"/>
+            <path d="M9.8 17V4c0 0 .4 3.2 4.2 5.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </g>
+        </svg>
+      </button>
       <button type="button" class="details-toggle" data-action="toggle-details" aria-label="Extended information" aria-pressed="true" title="Extended information">
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>

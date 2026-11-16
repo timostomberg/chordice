@@ -33,6 +33,10 @@ test('every element that app.js looks up exists in main.html', () => {
   for (const selector of selectors) {
     if (selector.startsWith('#')) {
       assert.ok(html.includes(`id="${selector.slice(1)}"`), selector);
+    } else if (selector.startsWith('.')) {
+      // Classes are either in the markup or rendered by render.js (e.g. the progression list).
+      const rendered = read('js/render.js');
+      assert.ok(new RegExp(`class="[^"]*\\b${selector.slice(1)}\\b`).test(html + rendered), selector);
     } else {
       const action = /data-action="([^"]+)"/.exec(selector)?.[1];
       assert.ok(html.includes(`data-action="${action}"`), selector);
@@ -120,6 +124,17 @@ test('the colour and details buttons are symbol buttons that show both switches 
   assert.ok(html.includes('class="details-toggle" data-action="toggle-details" aria-label="Extended information" aria-pressed="true"'));
   assert.equal(html.split('data-action="toggle-colour"').length - 1, 1);
   assert.equal(html.split('data-action="toggle-details"').length - 1, 1);
+});
+
+test('the inversions button is a symbol button that starts unpressed, and sits in the view switches', () => {
+  const html = read('html/main.html');
+  assert.ok(html.includes('class="inversions-toggle" data-action="toggle-inversions" aria-label="Inversions" aria-pressed="false"'));
+  assert.equal(html.split('data-action="toggle-inversions"').length - 1, 1);
+  const group = /<div class="view-toggles">[\s\S]*?<\/div>/.exec(html)?.[0] ?? '';
+  assert.ok(group.includes('toggle-inversions'));
+  // Order in the header: inversions, info (details), colours.
+  assert.ok(group.indexOf('toggle-inversions') < group.indexOf('toggle-details'));
+  assert.ok(group.indexOf('toggle-details') < group.indexOf('toggle-colour'));
 });
 
 test('a click on the header, e.g. the title, toggles the options panel, like the options button', () => {
