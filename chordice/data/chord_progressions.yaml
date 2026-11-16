@@ -1,0 +1,145 @@
+- group: Classical
+  progressions:
+    - name: Classical Cadence
+      progression: [I, IV, V]
+      chord_extensions:
+        V: [7, 7sus4]
+      bass_notes:
+        I:  [III, V]
+        IV: [III]
+        V:  [III]
+
+    - name: Classical Extended Progression
+      progression: [I, vi, ii, V]
+      chord_extensions:
+        vi: [7]
+        ii: [7]
+        V:  [7, 7sus4]
+      bass_notes:
+        I:  [III, V]
+        vi: [III]
+        ii: [III]
+        V:  [III]
+
+    - name: Classical Minor Cadence
+      progression: [ii, III, vi]
+      chord_extensions:
+        III: [7, 7sus4]
+      bass_notes:
+        ii:  [I]
+        III: [I]
+        vi:  [I, III]
+
+- group: Pop
+  progressions:
+    - name: Pop Progression
+      progression: [I, V, vi, IV]
+      chord_extensions:
+        I:  [6, add9, sus2, sus4, maj9]
+        V:  [7, add9, sus2, sus4, 9, 7sus4]
+        vi: [6, add9, sus2, sus4, 9]
+        IV: [6, add9, sus2, sus4, maj9]
+      bass_notes:
+        I:  [III, V]
+        V:  [III, V]
+        vi: [III, V]
+        IV: [III, V]
+
+    - name: Emotional Pop
+      progression: [vi, IV, I, V]
+      chord_extensions:
+        vi: [6, add9, sus2, sus4, 9]
+        IV: [6, add9, sus2, sus4, maj9]
+        I:  [6, add9, sus2, sus4, maj9]
+        V:  [7, add9, sus2, sus4, 9, 7sus4]
+      bass_notes:
+        vi: [III, V]
+        IV: [III, V]
+        I:  [III, V]
+        V:  [III, V]
+
+    - name: 50s Progression
+      progression: [I, vi, IV, V]
+      chord_extensions:
+        I:  [6]
+        vi: [7]
+        IV: [6]
+        V:  [7, sus4]
+      bass_notes:
+        I:  [III]
+        vi: [III]
+        IV: [III]
+        V:  [III]
+
+    - name: Royal Road Progression
+      progression: [IV, V, iii, vi]
+      chord_extensions:
+        IV:  [6, add9, sus2, maj9, sus4]
+        V:   [7, sus4, 9, 7sus4]
+        iii: [7, add9, sus2, 9]
+        vi:  [7, add9, sus2, 9]
+      bass_notes:
+        IV:  [III, V]
+        V:   [III]
+        iii: [III]
+        vi:  [III, V]
+
+- group: Rock
+  progressions:
+    - name: Classic Rock Progression
+      progression: [I, IV, V]
+      chord_extensions:
+        I:  [6, add9, sus2, sus4]
+        IV: [6, add9, sus2, sus4]
+        V:  [7, add9, sus2, sus4, 7sus4]
+      bass_notes:
+        I: [III, V]
+        IV: [III, V]
+        V:  [III, V]
+
+    - name: Classic Rock Mixolydian
+      progression: [I, bVII, IV]
+      chord_extensions:
+        I:    [6, add9, sus2, sus4]
+        bVII: [7, add9, sus2, sus4]
+        IV:   [6, add9, sus2, sus4]
+      bass_notes:
+        I:    [III, V]
+        bVII: [III, V]
+        IV: [III, V]
+
+    - name: Minor Rock Progression
+      progression: [vi, V, IV, V]
+      chord_extensions:
+        vi: [7, add9, sus2, sus4, 9]
+        V:  [7, add9, sus2, sus4]
+        IV: [6, add9, sus2, sus4]
+      bass_notes:
+        vi: [I, III]
+        V:  [I, III]
+        IV: [I, III]
+
+- group: Jazz
+  progressions:
+    - name: Jazz Cadence
+      progression: [ii, V, I]
+      chord_extensions:
+        ii: [7, add9, 9, 11]
+        V:  [7, 9, 13, 7sus4, 7b9, 7#9, 7b13, 7#5]
+        I:  [maj7, maj9, maj13]
+      bass_notes:
+        ii: [III, V, VII]
+        V:  [III, V, bVII]
+        I:  [III, V, VII]
+
+- group: Flamenco
+  progressions:
+    - name: Andalusian Cadence
+      progression: [vi, V, IV, III]
+      chord_extensions:
+        III: [7, 7sus4]
+      bass_notes:
+        vi: [I, III]
+        V:  [I]
+        IV: [I]
+        III: [I]

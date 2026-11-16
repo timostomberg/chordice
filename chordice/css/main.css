@@ -1,0 +1,644 @@
+/* Light theme (default). Major chords get stronger colours than minor chords. */
+:root {
+  color-scheme: light;
+  --bg: #fafafa;
+  --surface: #fff;
+  --text: #1b1f24;
+  --text-soft: #3b4149;
+  --muted: #5a616b;
+  --accent: #2f5fb3;
+  --icon-blue: #3f6fc4;
+  --line: #c9cdd4;
+  --tonic-major: #8ab4f8;
+  --tonic-minor: #d6e6ff;
+  --subdominant-major: #7fd49a;
+  --subdominant-minor: #d9f5e2;
+  --dominant-major: #ffa66b;
+  --dominant-minor: #ffe2d1;
+  --slider-fill: #2a4f94;
+  /* Labels of the selected and harmonic keys on the circle of fifths: black on the light colours. */
+  --key-on-text: #000;
+  --chord-text: var(--text);
+  --chord-soft: var(--text-soft);
+  --fill: 50%;
+  --touch: 44px;
+}
+
+/* Dark theme, selected by the theme button. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121417;
+  --surface: #1c2025;
+  --text: #e6e8eb;
+  --text-soft: #c4cad2;
+  --muted: #9aa3ad;
+  --accent: #3f6fc4;
+  --icon-blue: #3f6fc4;
+  --line: #3a4048;
+  --tonic-major: #2f5d9e;
+  --tonic-minor: #22344f;
+  --subdominant-major: #2d7a4b;
+  --subdominant-minor: #1f3a2b;
+  --dominant-major: #b8612f;
+  --dominant-minor: #4a3024;
+  --slider-fill: #2a4f94;
+  /* Light grey rather than pure white: the same text colours the dark theme had before, without the glare. */
+  --key-on-text: var(--text);
+  --chord-text: var(--text);
+  --chord-soft: var(--text-soft);
+  --fill: 50%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* The page fills the window exactly: the header stays put and only the two columns below it scroll. */
+html,
+body {
+  height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.toolbar {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.toolbar h1 {
+  margin: 0 1rem;
+  font-size: 1.25rem;
+  color: var(--muted);
+}
+
+.view-toggles {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.options-toggle,
+.details-toggle,
+.colour-toggle,
+.theme-toggle {
+  color: var(--text);
+}
+
+/* The spiral dots are filled in the icon colour. */
+.colour-toggle svg circle {
+  fill: currentColor;
+}
+
+/* The toolbar icons share one blue in both themes, for symbol and outline. */
+.toolbar .options-toggle,
+.toolbar .details-toggle,
+.toolbar .colour-toggle,
+.toolbar .theme-toggle {
+  border-color: var(--icon-blue);
+  color: var(--icon-blue);
+}
+
+/* An active options, details or colour toggle is filled with the icon blue, and its symbol takes the background colour. */
+.toolbar .options-toggle[aria-expanded="true"],
+.toolbar .details-toggle[aria-pressed="true"],
+.toolbar .colour-toggle[aria-pressed="true"] {
+  background: var(--icon-blue);
+  color: var(--surface);
+}
+
+.options-toggle svg,
+.details-toggle svg,
+.colour-toggle svg,
+.theme-toggle svg {
+  display: block;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+button {
+  min-height: var(--touch);
+  min-width: var(--touch);
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+button[aria-expanded="true"] {
+  border-color: var(--accent);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) 1fr;
+  grid-template-rows: minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+}
+
+/* With the options hidden, the whole left panel goes and the content takes the full width. */
+.layout:has(> .side-panel[hidden]) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The options scroll on their own, independently of the chords and below the header. */
+.side-panel {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem;
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.side-panel[hidden] {
+  display: none;
+}
+
+/* The circle reaches into the padding of its frame, so it is a little larger than the frame's content width. */
+.circle-wrap {
+  margin: 0 -0.6rem 0.5rem;
+}
+
+.circle {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.circle .ring {
+  fill: none;
+  stroke: var(--line);
+}
+
+/* Unselected keys look like unselected option buttons: blue outline and blue label. */
+/* The outline is 1px on screen like the borders of the other buttons, however much the SVG is scaled. */
+.circle .key circle {
+  fill: var(--surface);
+  stroke: var(--icon-blue);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+
+.circle .key text {
+  fill: var(--icon-blue);
+  pointer-events: none;
+}
+
+.circle .key text.major {
+  font-size: 13px;
+  font-weight: 400;
+}
+
+/* The relative minor sits a little further below the major key. */
+.circle .key text.relative {
+  font-size: 9px;
+}
+
+/* Subdominant (left) and dominant (right) of the selected key take the colours of the major chords of that function. */
+.circle .key.is-subdominant circle {
+  fill: var(--subdominant-major);
+}
+
+.circle .key.is-dominant circle {
+  fill: var(--dominant-major);
+}
+
+/* The selected key is the tonic, so it takes the tonic colour of the chords in both themes. */
+.circle .key.is-on circle {
+  fill: var(--tonic-major);
+}
+
+.circle .key.is-on text,
+.circle .key.is-subdominant text,
+.circle .key.is-dominant text {
+  fill: var(--key-on-text);
+}
+
+.circle .key {
+  cursor: pointer;
+}
+
+/* The chords scroll on their own, independently of the options and below the header. */
+.content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 1rem 1rem 5rem;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+/* The chord block is centred in the content area, vertically and, where there is room, horizontally.
+   Auto margins give way to scrolling when the rows are taller than the area, so the top is never cut off. */
+.rows {
+  max-width: 100%;
+  margin: auto;
+}
+
+/* Generate floats in the bottom right corner, reachable from anywhere on the page. */
+.generate {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 10;
+  padding: 0.6rem 1.2rem;
+  border-color: var(--icon-blue);
+  background: var(--icon-blue);
+  color: var(--surface);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+/* No outer frame: each options section has its own frame. */
+/* The section frames reach the edges of the panel, so they are wider than before. */
+.options {
+  margin-bottom: 1rem;
+  padding: 0;
+  background: var(--surface);
+}
+
+.options[hidden] {
+  display: none;
+}
+
+/* Each options section is framed like a progression group: thin line border, rounded corners. */
+.option {
+  margin-bottom: 1rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.option h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 400;
+}
+
+/* Title on the first line, the summary of a collapsed section below it, the arrow on the right. */
+.option .section-toggle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0.5rem;
+  width: 100%;
+  min-height: var(--touch);
+  padding: 0.4rem 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+}
+
+.option .section-toggle::after {
+  content: "\25B8";
+  grid-column: 2;
+  grid-row: 1;
+  transition: transform 0.15s;
+}
+
+.option .section-toggle[aria-expanded="true"]::after {
+  transform: rotate(90deg);
+}
+
+.section-title {
+  grid-column: 1;
+  grid-row: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Dezent: what is selected in a collapsed section, on its own line below the title. */
+.section-summary {
+  grid-column: 1;
+  grid-row: 2;
+  min-width: 0;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  opacity: 0.8;
+}
+
+/* Names in the collapsed summary: categories and probability labels in blue, percentages in plain grey. */
+.section-summary .summary-label {
+  color: var(--accent);
+  opacity: 1;
+}
+
+.section-summary .summary-value {
+  color: var(--muted);
+}
+
+.option.is-collapsed {
+  margin-bottom: 0.6rem;
+}
+
+.option:not(.is-collapsed) .section-toggle {
+  margin-bottom: 0.5rem;
+}
+
+/* The progression list has its own scroll bar, so a long list does not push the other sections down. */
+.progression-list {
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chip {
+  min-width: var(--touch);
+  min-height: var(--touch);
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+}
+
+.chip.is-on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Option chips use the toolbar logic: blue outline and text when off, filled blue with a background-coloured label when on. Section headers that open a submenu keep their own look. */
+.options .chip {
+  border-color: var(--icon-blue);
+  color: var(--icon-blue);
+}
+
+.options .chip.is-on {
+  background: var(--icon-blue);
+  border-color: var(--icon-blue);
+  color: var(--surface);
+}
+
+/* Progression buttons (groups and the progressions inside them) are narrower than the other option buttons. */
+.group .chip {
+  min-width: 0;
+  min-height: 2rem;
+  padding: 0.2rem 0.5rem;
+}
+
+.group {
+  margin: 0 0 0.6rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.group legend {
+  padding: 0 0.3rem;
+  font-weight: 600;
+}
+
+.slider {
+  display: block;
+  margin-bottom: 0.6rem;
+  color: var(--icon-blue);
+}
+
+.slider span {
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Custom slider: grey track, darker blue up to the value, blue thumb. --fill is set on each input from its value. */
+.slider input {
+  width: 100%;
+  min-height: var(--touch);
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+
+.slider input::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, var(--slider-fill) var(--fill), var(--muted) var(--fill));
+}
+
+.slider input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -5px;
+  border: none;
+  border-radius: 50%;
+  background: var(--icon-blue);
+}
+
+.slider input::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--muted);
+}
+
+.slider input::-moz-range-progress {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--slider-fill);
+}
+
+.slider input::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: var(--icon-blue);
+}
+
+.meta {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.row {
+  margin-bottom: 1.25rem;
+}
+
+/* Headings share the colour of the option section titles. The title and the tags sit on one centre line. */
+.row h2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 0 0 0.4rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.row-title {
+  min-width: 0;
+}
+
+.tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: 1rem;
+}
+
+.tag {
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.tag.is-on {
+  border-color: var(--accent);
+  background: transparent;
+  color: var(--accent);
+}
+
+.chords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Plain chords are not bold. With the extended information on, only the chord name (e.g. C, Cm) is bold, see .chord-name. */
+.chord {
+  min-width: 5.5rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--chord-text);
+  cursor: pointer;
+  font-size: 1.4rem;
+  font-weight: 400;
+  text-align: center;
+}
+
+.chord .chord-name {
+  font-weight: 600;
+}
+
+.chord .extension {
+  font-weight: 400;
+}
+
+/* The bass after the slash, e.g. /E in G/E, is not bold. */
+.chord .bass {
+  font-weight: 400;
+}
+
+/* Major chords use the stronger colour of their harmonic function, minor chords the paler one. */
+.chord.fn-tonic.is-major {
+  background: var(--tonic-major);
+}
+
+.chord.fn-tonic.is-minor {
+  background: var(--tonic-minor);
+}
+
+.chord.fn-subdominant.is-major {
+  background: var(--subdominant-major);
+}
+
+.chord.fn-subdominant.is-minor {
+  background: var(--subdominant-minor);
+}
+
+.chord.fn-dominant.is-major {
+  background: var(--dominant-major);
+}
+
+.chord.fn-dominant.is-minor {
+  background: var(--dominant-minor);
+}
+
+.chord .symbol {
+  display: block;
+}
+
+.chord .roman,
+.chord .tones {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--chord-soft);
+}
+
+.chord:focus-visible {
+  outline: 2px solid var(--icon-blue);
+  outline-offset: 2px;
+}
+
+/* The notes window is always a white sheet with black ink, in both themes. Its content is centred. */
+.notes {
+  width: min(92vw, 400px);
+  max-width: none;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: #1b1f24;
+}
+
+.notes::backdrop {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.notes-body {
+  padding: 0.75rem;
+  text-align: center;
+}
+
+/* The score sits in a thin grey frame, like the option sections. */
+.notes-staff {
+  margin: 0 auto;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.notes-staff svg {
+  display: block;
+  margin: 0 auto;
+  width: 100%;
+  height: auto;
+}
+
+/* VexFlow draws with fill and stroke attributes; these rules make the ink black. */
+.notes-staff svg * {
+  fill: #000;
+  stroke: #000;
+}
+
+
+.empty {
+  color: var(--muted);
+}
