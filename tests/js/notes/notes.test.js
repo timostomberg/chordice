@@ -63,7 +63,7 @@ class FakeDialog extends FakeNode {
 }
 
 // The first inversion of C, shown over its bass E.
-const E_OVER_C = { displaySymbol: 'C/E', tones: ['C', 'E', 'G'], bass: 'E', inversion: 1 };
+const E_OVER_C = { displaySymbol: 'C/E', symbol: 'C', root: 'C', quality: 'major', variation: null, tones: ['C', 'E', 'G'], bass: 'E', inversion: 1 };
 
 // The x positions of a click in the left and in the right half of the 400 px wide window.
 const BACK = 100;
@@ -188,7 +188,7 @@ test('opening without an element still shows the notes', () => {
 });
 
 // C7 as the chord of the row in the key of F: the Bb is added by the seventh and diatonic to F.
-const C7 = { displaySymbol: 'C7', root: 'C', quality: 'major', variation: '7', tones: ['C', 'E', 'G', 'Bb'], bass: null, inversion: 0 };
+const C7 = { displaySymbol: 'C7', symbol: 'C7', root: 'C', quality: 'major', variation: '7', tones: ['C', 'E', 'G', 'Bb'], bass: null, inversion: 0 };
 
 test('the notes are coloured by how their tones are judged in the key of the row, in the bass and in every inversion', () => {
   const dialog = new FakeDialog();
@@ -237,15 +237,15 @@ test('the chord box is the chord as the rows show it, with its top melody note w
   const { dialog, notes } = setup();
   notes.open(E_OVER_C, null, null, { colour: false, roman: false, tones: false, melody: true });
   const box = dialog.parts['#notes-chord'].innerHTML;
-  assert.ok(box.includes('C/E'), 'the chord symbol is in the box');
-  assert.ok(box.includes('<span class="melody"'), 'the melody note is in the box');
+  assert.ok(box.includes('<span class="bass">/E</span>'), 'the chord symbol with its bass is in the box');
+  assert.ok(box.includes('<span class="tone tone-top">c</span>'), 'the top melody note is in the box, circled');
   assert.ok(box.includes('>c</span>'), 'the top melody note of the first inversion is C');
   assert.ok(!box.includes('onclick') && !box.includes('data-action'), 'the box has no click action of its own');
 });
 
 test('the chord box follows the inversion on the staff, with the top melody note of each inversion', () => {
   const { dialog, notes } = setup();
-  const melody = () => /<span class="melody"[^>]*>([^<]*)<\/span>/.exec(dialog.parts['#notes-chord'].innerHTML)[1];
+  const melody = () => /<span class="tone tone-top[^"]*">([^<]*)<\/span>/.exec(dialog.parts['#notes-chord'].innerHTML)[1];
   notes.open(E_OVER_C, null, null, { melody: true });
   // First inversion E, G, C: top note C.
   assert.equal(melody(), 'c');

@@ -7,6 +7,8 @@
 
 export const MIN_ZOOM = 0.7;
 export const MAX_ZOOM = 2.5;
+/** The zoom of a surface before the first Ctrl + scroll or pinch. The stylesheet's --zoom default must match it. */
+export const DEFAULT_ZOOM = 1.2;
 
 // Pixels of wheel movement per zoom doubling, and the size of one line in Firefox's line-based wheel events.
 const WHEEL_PIXELS_PER_OCTAVE = 300;
@@ -40,7 +42,7 @@ function touchDistance(touches) {
  * the surface is the element that is scaled (through its CSS zoom). Returns the current scale.
  */
 export function bindZoom(area, surface) {
-  let scale = 1;
+  let scale = DEFAULT_ZOOM;
   let pinch = null;
 
   const apply = (next) => {

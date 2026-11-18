@@ -284,13 +284,15 @@ test('app.js applies a probability slider change to the options', async () => {
 test('app.js shows the top melody notes while inversions are on, and hides them when they are off', async () => {
   try {
     const app = await loadApp();
-    assert.ok(!app.elements['#rows'].innerHTML.includes('Top melody note'));
+    // The melody note alone is shown as a circled tone; with the tones switch on it is the top tone of the column.
+    app.dispatch({ action: 'toggle-tones' });
+    assert.ok(!app.elements['#rows'].innerHTML.includes('tone-top'));
     assert.equal(app.elements['[data-action="toggle-inversions"]'].attributes['aria-pressed'], 'false');
     app.dispatch({ action: 'toggle-inversions' });
-    assert.ok(app.elements['#rows'].innerHTML.includes('class="melody" title="Top melody note"'));
+    assert.ok(app.elements['#rows'].innerHTML.includes('<span class="tone tone-top">'));
     assert.equal(app.elements['[data-action="toggle-inversions"]'].attributes['aria-pressed'], 'true');
     app.dispatch({ action: 'toggle-inversions' });
-    assert.ok(!app.elements['#rows'].innerHTML.includes('Top melody note'));
+    assert.ok(!app.elements['#rows'].innerHTML.includes('tone-top'));
   } finally {
     uninstall();
   }
@@ -386,17 +388,17 @@ test('app.js restores the guitar tab from the cookie', async () => {
 
 test('on the guitar the inversions switch is greyed out, the melody notes are gone, and the stored switch comes back on the piano', async () => {
   try {
-    const cookie = serializeCookie({ ...defaultState(LIBRARY, () => 0.5), instrument: 'guitar', inversions: true });
+    const cookie = serializeCookie({ ...defaultState(LIBRARY, () => 0.5), instrument: 'guitar', inversions: true, tones: false });
     const app = await loadApp({ cookie });
     const inversions = app.elements['[data-action="toggle-inversions"]'];
     assert.equal(inversions.disabled, true);
     assert.equal(inversions.attributes['aria-pressed'], 'true');
-    assert.ok(!app.elements['#rows'].innerHTML.includes('Top melody note'));
+    assert.ok(!app.elements['#rows'].innerHTML.includes('tone-top'));
     app.dispatch({ action: 'toggle-inversions' });
     assert.equal(inversions.attributes['aria-pressed'], 'true');
     app.dispatch({ action: 'set-instrument', instrument: 'piano' });
     assert.equal(inversions.disabled, false);
-    assert.ok(app.elements['#rows'].innerHTML.includes('Top melody note'));
+    assert.ok(app.elements['#rows'].innerHTML.includes('tone-top'));
   } finally {
     uninstall();
   }

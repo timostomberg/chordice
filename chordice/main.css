@@ -23,8 +23,8 @@
   /* Tones below a chord: blue when the chord variation adds them, red when they are foreign to the key. */
   --variation-tone: #2f5fb3;
   --foreign-tone: #c0392b;
-  /* The zoom of the chords (set by zoom.js): 1 means 100%. */
-  --zoom: 1;
+  /* The zoom of the chords (set by zoom.js): 1 means 100%. The default is DEFAULT_ZOOM in zoom.js. */
+  --zoom: 1.2;
   --fill: 50%;
   --touch: 44px;
   /* A button or key under the mouse: a medium blue. */
@@ -59,7 +59,7 @@
   --chord-soft: var(--text-soft);
   --variation-tone: #8fb8ff;
   --foreign-tone: #ff7a6b;
-  --zoom: 1;
+  --zoom: 1.2;
   --fill: 50%;
   /* A button or key under the mouse: a medium blue. */
   --disabled-text: #7d848e;
@@ -288,7 +288,7 @@ button[aria-expanded="true"] {
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(260px, 340px) 1fr;
+  grid-template-columns: minmax(320px, 400px) 1fr;
   grid-template-rows: minmax(0, 1fr);
   flex: 1;
   min-height: 0;
@@ -321,7 +321,7 @@ button[aria-expanded="true"] {
 
 .circle {
   width: 100%;
-  max-width: 18rem;
+  max-width: 21rem;
   height: auto;
   display: block;
   margin: 0 auto;
@@ -447,7 +447,7 @@ button[aria-expanded="true"] {
 /* Heading above a group of option sections, e.g. "Variations" above the three variation sections. */
 .options-heading {
   margin: 0.4rem 0.2rem 0.5rem;
-  font-size: 0.9rem;
+  font-size: 1rem;
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -464,7 +464,7 @@ button[aria-expanded="true"] {
 
 .option h2 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 1.2rem;
   font-weight: 400;
 }
 
@@ -509,7 +509,7 @@ button[aria-expanded="true"] {
   grid-column: 1;
   grid-row: 2;
   min-width: 0;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   overflow-wrap: anywhere;
   color: var(--muted);
   opacity: 0.8;
@@ -784,16 +784,58 @@ button[aria-expanded="true"] {
   color: var(--chord-soft);
 }
 
-/* A tone below the chord is circled: blue when the chord variation adds it, red when it is foreign to the key. */
-/* The top melody note is circled the same way, so its oval depends on its width too. */
+/*
+ * The roman numeral and the chord symbol form one group, centred over each other, and move together. Without the tones
+ * switch the group is centred in the box; with it, the group (wrapped in .chord-main) and the tones column on its right
+ * are centred as one. The distance between the numeral and the symbol is fixed, whatever the height of the tones.
+ * The column is stacked upwards: the lowest tone is at the bottom.
+ */
+.chord {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.chord.has-tones {
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: center;
+  align-items: center;
+  column-gap: calc(var(--zoom) * 0.8rem);
+}
+
+.chord .chord-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--zoom) * 0.2rem);
+}
+
+/* The column beside the chord: the tones, or the top melody note alone. */
+.chord.has-tones > .tones {
+  justify-self: start;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 2px;
+}
+
+/* A tone beside the chord is circled: blue when the chord variation adds it, red when it is foreign to the key, and the top
+   tone when the melody switch is on. */
 .chord .tone-variation,
 .chord .tone-foreign,
-.chord .melody {
+.chord .tone-top {
   display: inline-block;
   padding: 0 0.3em;
   border: 1px solid currentColor;
   border-radius: 999px;
   line-height: 1.5;
+}
+
+/* The top tone, when it is the melody note, is circled in the colour of the chord symbol. A tone foreign to the key or added
+   by the variation keeps its own colour below. */
+.chord .tone-top {
+  color: var(--chord-text);
 }
 
 .chord .tone-variation {
@@ -802,21 +844,6 @@ button[aria-expanded="true"] {
 
 .chord .tone-foreign {
   color: var(--foreign-tone);
-}
-
-/* The chord symbol and, with the inversions switch on, the top melody note to its right, inside the box. */
-.chord .symbol-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: calc(var(--zoom) * 0.4rem);
-}
-
-/* The top melody note is circled in the colour of the chord symbol, a little smaller than the chord symbol and larger than the tones below it. */
-.chord .melody {
-  font-size: calc(var(--zoom) * 1.05rem);
-  font-weight: 400;
-  color: var(--chord-text);
 }
 
 .chord:focus-visible {

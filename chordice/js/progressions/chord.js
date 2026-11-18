@@ -3,7 +3,7 @@
  * colours of its function. Shared by the progression rows (progressions.js) and the chord box of the notes window (notes/notes.js).
  */
 
-import { invertedTones, melodyTopOf, toneKind } from '../theory/theory.js';
+import { invertedTones, toneKind } from '../theory/theory.js';
 import { escapeHtml } from '../core/escape.js';
 
 /** Attributes that make a chord open its notes window when clicked. */
@@ -18,21 +18,27 @@ function noteName(name) {
 }
 
 /**
- * One tone below a chord. A tone foreign to the key is red, a tone the chord variation adds is blue; both are circled.
- * Foreign takes precedence when a tone is both.
+ * One tone beside a chord. A tone foreign to the key is red, a tone the chord variation adds is blue; both are circled.
+ * Foreign takes precedence when a tone is both. The top tone of the stack (`top`) is circled too, in the colour of the symbol.
+ * `judged` says whether the tone is judged in the key: a melody note standing alone is not, so it keeps its colour.
  */
-function toneHtml(tone, chord, tonic) {
-  const kind = toneKind(tone, chord, tonic);
-  const classes = kind ? ` tone-${kind}` : '';
+function toneHtml(tone, chord, tonic, { top = false, judged = true } = {}) {
+  // Without a key the tones are not judged, so they are not coloured.
+  const kind = tonic === null || !judged ? '' : toneKind(tone, chord, tonic);
+  const classes = [top ? 'tone-top' : '', kind ? `tone-${kind}` : ''].filter(Boolean).map((name) => ` ${name}`).join('');
   return `<span class="tone${classes}">${escapeHtml(noteName(tone))}</span>`;
 }
 
 /**
- * The chord tones of the inversion stacked upwards, e.g. "c · e · g" for C in root position. The bass is not shown here:
- * the slash bass is part of the chord symbol.
+ * The tones of the inversion beside the chord, lowest first, the last one being the top tone. With `all`, every chord tone
+ * is listed (the tones switch); without it, only the top tone is (the melody switch alone). The top tone is circled when the
+ * melody switch is on, as it is then the melody note. The bass is not listed: the slash bass is part of the chord symbol.
  */
-function tonesHtml(chord, tonic) {
-  return invertedTones(chord.tones, chord.inversion).map((tone) => toneHtml(tone, chord, tonic)).join(' · ');
+function tonesHtml(chord, tonic, { all, melody }) {
+  const order = invertedTones(chord.tones, chord.inversion);
+  const last = order.length - 1;
+  const shown = all ? order.map((tone, index) => [tone, index]) : [[order[last], last]];
+  return shown.map(([tone, index]) => toneHtml(tone, chord, tonic, { top: melody && index === last, judged: all })).join('');
 }
 
 /**
@@ -48,35 +54,32 @@ function symbolHtml(chord) {
 }
 
 /**
- * The symbol of a chord with, when the melody switch is on, its top melody note to the right of it, inside the box.
- * The top note is the highest tone of the chord in its inversion, in lower case; root position shows the highest chord tone.
- */
-function symbolWithMelody(symbol, chord, melody) {
-  if (!melody) {
-    return symbol;
-  }
-  const top = noteName(melodyTopOf(chord.tones, chord.inversion));
-  return `<span class="symbol-row">${symbol}<span class="melody" title="Top melody note">${escapeHtml(top)}</span></span>`;
-}
-
-/**
  * One chord. The colour switch adds the colour of the harmonic function. The roman switch adds the roman numeral above
- * the chord symbol, the tones switch the chord tones in lower case below it, judged against the key `tonic` of the row.
- * With either switch on, the chord symbol is split into name, variation and bass. The melody switch adds the top melody
- * note to the right of the chord symbol.
+ * the chord symbol. The tones switch adds the chord tones in lower case in a column beside the chord, judged against the
+ * key `tonic` of the row. The melody switch alone adds only the top melody note, in the same column and style, circled.
+ * The `has-tones` class marks a chord with such a column, which the stylesheet places beside the chord. With either
+ * switch on, the chord symbol is split into name, variation and bass. With both, the top tone is circled and is the melody.
  */
 export function chordCell(chord, attributes, { colour, roman, tones, melody }, tonic) {
   const classes = ['chord'];
   if (colour) {
     classes.push(chord.function ? `fn-${chord.function}` : 'fn-none', chord.quality === 'major' ? 'is-major' : 'is-minor');
   }
-  // Without roman numerals and tones the symbol is plain text; otherwise it is split into name, variation and bass.
-  const plain = !roman && !tones;
-  const symbol = symbolWithMelody(plain ? escapeHtml(chord.displaySymbol) : symbolHtml(chord), chord, melody);
-  return `<li class="${classes.join(' ')}" ${attributes}>` +
-    (roman ? `<span class="roman">${escapeHtml(chord.roman)}</span>` : '') +
-    symbol +
-    (tones ? `<span class="tones">${tonesHtml(chord, tonic)}</span>` : '') + '</li>';
+  const column = tones || melody;
+  if (column) {
+    classes.push('has-tones');
+  }
+  // Without roman numerals and a column the symbol is plain text; otherwise it is split into name, variation and bass.
+  const symbol = !roman && !column ? escapeHtml(chord.displaySymbol) : symbolHtml(chord);
+  const numeral = roman ? `<span class="roman">${escapeHtml(chord.roman)}</span>` : '';
+  // With a column, the numeral and the symbol are wrapped together, so that their distance stays fixed whatever the height
+  // of the column beside them is.
+  if (column) {
+    return `<li class="${classes.join(' ')}" ${attributes}>` +
+      `<span class="chord-main">${numeral}${symbol}</span>` +
+      `<span class="tones">${tonesHtml(chord, tonic, { all: tones, melody })}</span></li>`;
+  }
+  return `<li class="${classes.join(' ')}" ${attributes}>${numeral}${symbol}</li>`;
 }
 
 /**

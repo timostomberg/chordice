@@ -17,9 +17,14 @@ test('chordAttributes makes a chord open its notes window with its row and chord
 
 test('chordBoxHtml shows the chord as a row does, without the click action', () => {
   const html = chordBoxHtml(CHORD, { colour: true, roman: true, tones: true }, 'C');
-  assert.ok(html.startsWith('<li class="chord fn-dominant is-major"'));
+  assert.ok(html.startsWith('<li class="chord fn-dominant is-major has-tones"'));
   assert.ok(html.includes('<span class="roman">V</span>'));
   assert.ok(!html.includes('data-action'));
+});
+
+test('chordCell marks the box with has-tones only while the tones switch is on', () => {
+  assert.ok(chordCell(CHORD, '', { colour: false, roman: true, tones: true }, 'C').startsWith('<li class="chord has-tones"'));
+  assert.ok(!chordCell(CHORD, '', { colour: false, roman: true, tones: false }, 'C').includes('has-tones'));
 });
 
 test('chordCell without colour has no function classes', () => {
@@ -33,4 +38,11 @@ test('chordCell with plain display shows the display symbol as text', () => {
   assert.ok(html.includes('G7/B'));
   assert.ok(!html.includes('roman'));
   assert.ok(!html.includes('class="tones"'));
+});
+
+test('without a key the tones are not coloured, as the notes window of a chord without a key shows them', () => {
+  const html = chordBoxHtml({ ...CHORD, tones: ['G', 'B', 'D', 'F'], inversion: 0 }, { colour: false, roman: false, tones: true, melody: true }, null);
+  assert.ok(!html.includes('tone-foreign'));
+  assert.ok(!html.includes('tone-variation'));
+  assert.ok(html.includes('<span class="tone tone-top">f</span>'));
 });

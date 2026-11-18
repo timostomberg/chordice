@@ -142,7 +142,12 @@ test('phones in portrait stack the options above the chords', () => {
 });
 
 test('the circle of fifths has a maximum size, so it stays moderate when the options are above the chords', () => {
-  assert.ok(/\.circle\s*\{[^}]*max-width: 18rem/.test(CSS));
+  assert.ok(/\.circle\s*\{[^}]*max-width: 21rem/.test(CSS));
+});
+
+test('the options column is wider than before, and its text and circle are sized up to match', () => {
+  assert.ok(/\.layout\s*\{[^}]*grid-template-columns: minmax\(320px, 400px\) 1fr/.test(CSS));
+  assert.ok(/\.option h2\s*\{[^}]*font-size: 1\.2rem/.test(CSS));
 });
 
 test('hiding the options hides the whole side panel', () => {
@@ -185,14 +190,42 @@ function declarationsOf(selector) {
 }
 
 test('the sizes of the chord area are multiplied by --zoom, so that the text grows together with the boxes', () => {
-  for (const selector of ['.row h2', '.chords', '.chord', '.chord .roman,\n.chord .tones', '.chord .melody']) {
+  for (const selector of ['.row h2', '.chords', '.chord', '.chord .roman,\n.chord .tones']) {
     assert.ok(declarationsOf(selector).includes('var(--zoom'), selector);
   }
 });
 
-test('the top melody note is larger than the tones below the chord', () => {
-  const size = (selector) => Number(/font-size:\s*calc\(var\(--zoom[^)]*\)\s*\*\s*([\d.]+)rem\)/.exec(declarationsOf(selector))?.[1]);
-  assert.ok(size('.chord .melody') > size('.chord .roman,\n.chord .tones'));
+test('with the tones switch on, the roman numeral and the chord symbol form one group, and the tones form a column beside it, on the right', () => {
+  const grid = declarationsOf('.chord.has-tones');
+  assert.match(grid, /display:\s*grid/);
+  assert.match(grid, /grid-template-columns:\s*auto auto/);
+  assert.match(declarationsOf('.chord.has-tones > .tones'), /justify-self:\s*start/);
+});
+
+test('the roman numeral and the chord symbol form one centred column, so the numeral moves with the chord', () => {
+  const box = declarationsOf('.chord');
+  assert.match(box, /display:\s*flex/);
+  assert.match(box, /flex-direction:\s*column/);
+  assert.match(box, /align-items:\s*center/);
+});
+
+test('with the tones shown, the tones have more room from the group, which is centred in the box', () => {
+  const grid = declarationsOf('.chord.has-tones');
+  assert.match(grid, /align-items:\s*center/);
+  const gap = Number(/column-gap:\s*calc\(var\(--zoom\)\s*\*\s*([\d.]+)rem\)/.exec(grid)?.[1]);
+  assert.ok(gap >= 0.5 && gap < 1.2, `gap of ${gap}rem`);
+});
+
+test('the numeral and the symbol keep a fixed distance in their own group, whatever the height of the tones', () => {
+  const group = declarationsOf('.chord .chord-main');
+  assert.match(group, /flex-direction:\s*column/);
+  assert.match(group, /align-items:\s*center/);
+  assert.match(group, /gap:\s*calc\(var\(--zoom\)\s*\*\s*0\.2rem\)/);
+});
+
+
+test('the tones column is stacked upwards, so the lowest tone, which comes first, is at the bottom', () => {
+  assert.match(declarationsOf('.chord.has-tones > .tones'), /flex-direction:\s*column-reverse/);
 });
 
 test('the tones below a chord are circled in the variation and foreign colours', () => {
@@ -200,13 +233,13 @@ test('the tones below a chord are circled in the variation and foreign colours',
   assert.match(CSS, /\.chord \.tone-variation \{[^}]*color: var\(--variation-tone\)/);
   assert.match(CSS, /\.chord \.tone-foreign \{[^}]*color: var\(--foreign-tone\)/);
   // The circle is drawn by the rule that both colours share.
-  assert.ok(declarationsOf('.chord .tone-variation,\n.chord .tone-foreign,\n.chord .melody').includes('border-radius: 999px'));
+  assert.ok(declarationsOf('.chord .tone-variation,\n.chord .tone-foreign,\n.chord .tone-top').includes('border-radius: 999px'));
 });
 
-test('the top melody note is circled like the tones below the chord, and smaller than the chord symbol', () => {
-  assert.ok(declarationsOf('.chord .tone-variation,\n.chord .tone-foreign,\n.chord .melody').includes('border: 1px solid currentColor'));
-  const size = (selector) => Number(/font-size:\s*calc\(var\(--zoom[^)]*\)\s*\*\s*([\d.]+)rem\)/.exec(declarationsOf(selector))?.[1]);
-  assert.ok(size('.chord .melody') < size('.chord'));
+test('the circled tones, the top tone among them, have a round border of the same width', () => {
+  const circled = declarationsOf('.chord .tone-variation,\n.chord .tone-foreign,\n.chord .tone-top');
+  assert.ok(circled.includes('border: 1px solid currentColor'));
+  assert.ok(circled.includes('border-radius: 999px'));
 });
 
 // The window must keep its size when a click shows another guitar shape, so the diagram's box has a fixed height, and the

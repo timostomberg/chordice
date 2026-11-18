@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MAX_ZOOM, MIN_ZOOM, bindZoom, blockZoom, clampZoom, pinchZoom, wheelZoom } from '../../../chordice/js/progressions/zoom.js';
+import { readFileSync } from 'node:fs';
+import { DEFAULT_ZOOM, MAX_ZOOM, MIN_ZOOM, bindZoom, blockZoom, clampZoom, pinchZoom, wheelZoom } from '../../../chordice/js/progressions/zoom.js';
 
 /** A minimal element that records its listeners so that tests can fire events at it. */
 function fakeArea() {
@@ -66,7 +67,7 @@ test('Ctrl + scroll zooms only the surface of its own area and stops the page fr
   bindZoom(options, optionList);
   const prevented = options.fire('wheel', { ctrlKey: true, deltaY: -100, deltaMode: 0 });
   assert.equal(prevented, true);
-  assert.equal(optionList.style['--zoom'], String(wheelZoom(1, -100)));
+  assert.equal(optionList.style['--zoom'], String(wheelZoom(DEFAULT_ZOOM, -100)));
 });
 
 test('scroll without Ctrl scrolls normally and does not zoom', () => {
@@ -75,7 +76,7 @@ test('scroll without Ctrl scrolls normally and does not zoom', () => {
   const zoom = bindZoom(area, surface);
   assert.equal(area.fire('wheel', { ctrlKey: false, deltaY: -100, deltaMode: 0 }), false);
   assert.equal(surface.style['--zoom'], undefined);
-  assert.equal(zoom.scale, 1);
+  assert.equal(zoom.scale, DEFAULT_ZOOM);
 });
 
 test('two independent areas keep their own zoom', () => {
@@ -86,7 +87,7 @@ test('two independent areas keep their own zoom', () => {
   bindZoom(options, optionList);
   bindZoom(chords, rows);
   chords.fire('wheel', { ctrlKey: true, deltaY: -300, deltaMode: 0 });
-  assert.equal(rows.style['--zoom'], String(wheelZoom(1, -300)));
+  assert.equal(rows.style['--zoom'], String(wheelZoom(DEFAULT_ZOOM, -300)));
   assert.equal(optionList.style['--zoom'], undefined);
 });
 
@@ -97,7 +98,7 @@ test('a two-finger pinch zooms the surface by the change of the distance between
   area.fire('touchstart', { touches: [touch(0, 0), touch(100, 0)] });
   const prevented = area.fire('touchmove', { touches: [touch(0, 0), touch(150, 0)] });
   assert.equal(prevented, true);
-  assert.equal(surface.style['--zoom'], '1.5');
+  assert.equal(surface.style['--zoom'], String(pinchZoom(DEFAULT_ZOOM, 100, 150)));
   area.fire('touchmove', { touches: [touch(0, 0), touch(50, 0)] });
   assert.equal(surface.style['--zoom'], '0.7');
 });
@@ -137,4 +138,14 @@ test('blockZoom stops Ctrl + scroll from zooming the page, and leaves plain scro
   blockZoom(area);
   assert.equal(area.fire('wheel', { ctrlKey: true, deltaY: -100, deltaMode: 0 }), true);
   assert.equal(area.fire('wheel', { ctrlKey: false, deltaY: -100, deltaMode: 0 }), false);
+});
+
+test('the chords start at a zoom above 100%, and the stylesheet shows the same default', () => {
+  assert.ok(DEFAULT_ZOOM > 1 && DEFAULT_ZOOM <= MAX_ZOOM);
+  const css = readFileSync(new URL('../../../chordice/main.css', import.meta.url), 'utf8');
+  const defaults = [...css.matchAll(/--zoom:\s*([\d.]+);/g)].map((match) => Number(match[1]));
+  assert.equal(defaults.length, 2, 'light and dark theme each set the default');
+  for (const value of defaults) {
+    assert.equal(value, DEFAULT_ZOOM);
+  }
 });

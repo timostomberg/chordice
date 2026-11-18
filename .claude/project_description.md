@@ -40,10 +40,10 @@ The extended view includes:
 
 - Roman numeral.
 - Chord
-- Bass and chord tones, written as `bass | tones` (e.g. `e | c · e · g` for C/E). The bass is the slash bass or the root and does not change with the inversion. The chord tones are listed in the order of the chord's inversion, starting with the lowest one (e.g. `e | e · g · c` for C in first inversion).
+- Chord tones in lower case, stacked in a column beside the chord symbol, on its right. The lowest tone is at the bottom and the highest at the top, in the order of the chord's inversion (e.g. C in first inversion: e at the bottom, then g, then c at the top). With the melody switch on, the top tone is circled, as it takes the place of the melody note. The bass is not listed; the slash bass is part of the chord symbol. The roman numeral and the chord symbol form one group, so they move together; the chord and the column are centred as one.
 - Background matching the harmonic function (tonic, dominant, subdominant).
 
-When inversions are on, the top melody note of each chord is shown inside the chord box, to the right of the chord symbol, in lower case in a small oval with the colour and the border of the chord symbol, and in the size of the tones below the chord. This applies to both the plain and the extended view. A chord in root position shows its highest chord tone there.
+When inversions are on, the top melody note of each chord is shown beside the chord, in the same column and style as the chord tones, lower case and circled in the colour of the chord symbol. Alone (melody switch on, tones switch off) the column holds only this note, which is not coloured red or blue even when it is foreign to the key or added by the variation. With the tones switch on as well, the melody note is not shown separately: its top tone is circled in the column instead. This applies to both the plain and the extended view. A chord in root position shows its highest chord tone there.
 
 Clicking a chord opens its notes, starting with the inversion the chord has. The bass in the notes is the slash bass or the root, in every inversion; only the upper tones are inverted. The notes window shows the chord box above the staff, as the row shows it, and the staff has no chord symbol of its own. A click in the left half of the window shows the previous inversion, one in the right half the next, and the chord box follows it. The window shows the number of the inversion, as "1 / 3", where 1 is the root position. Nothing in the window can be selected.
 
