@@ -8,19 +8,20 @@ import { applyAction, defaultState, FLAGS } from '../chordice/js/core/state.js';
 
 const SITE = new URL('../chordice/', import.meta.url);
 const read = (path) => readFileSync(new URL(path, SITE), 'utf8');
+const readIndex = () => readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
-test('main.html loads the stylesheet, the app module and the YAML library from the CDN', () => {
-  const html = read('main.html');
-  assert.ok(html.includes('href="main.css"'));
+test('index.html loads the stylesheet, the app module and the YAML library from the CDN', () => {
+  const html = readIndex();
+  assert.ok(html.includes('href="chordice/main.css"'));
   assert.ok(existsSync(fileURLToPath(new URL('main.css', SITE))));
-  assert.ok(html.includes('src="js/main.js"'));
+  assert.ok(html.includes('src="chordice/js/main.js"'));
   assert.ok(html.includes('"js-yaml": "https://cdn.jsdelivr.net/npm/js-yaml@4.3.2/+esm"'));
   assert.ok(html.includes('"tonal": "https://cdn.jsdelivr.net/npm/tonal@6.6.0/+esm"'));
   assert.ok(html.includes('"vexflow": "https://cdn.jsdelivr.net/npm/vexflow@5.0.0/+esm"'));
 });
 
-test('main.html has the notes window with the parts that notes.js fills in', () => {
-  const html = read('main.html');
+test('index.html has the notes window with the parts that notes.js fills in', () => {
+  const html = readIndex();
   for (const id of ['notes', 'notes-staff']) {
     assert.ok(html.includes(`id="${id}"`), id);
   }
@@ -28,8 +29,8 @@ test('main.html has the notes window with the parts that notes.js fills in', () 
   assert.ok(!html.includes('notes-close'), 'the notes window has no close button');
 });
 
-test('every element that app.js looks up exists in main.html', () => {
-  const html = read('main.html');
+test('every element that app.js looks up exists in index.html', () => {
+  const html = readIndex();
   const app = read('js/core/app.js');
   const selectors = [...app.matchAll(/querySelector\('([^']+)'\)/g)].map((match) => match[1]);
   assert.ok(selectors.length >= 3);
@@ -70,7 +71,7 @@ const ACTION_PARAMS = {
 
 test('every action of the page and of the rendered markup changes the state when applyAction runs it', () => {
   const actions = new Set([
-    ...[...read('main.html').matchAll(/data-action="([^"]+)"/g)].map((match) => match[1]),
+    ...[...readIndex().matchAll(/data-action="([^"]+)"/g)].map((match) => match[1]),
     ...[...read('js/options/options.js').matchAll(/data-action="([^"]+)"/g)].map((match) => match[1]),
     ...[...read('js/progressions/progressions.js').matchAll(/data-action="([^"]+)"/g)].map((match) => match[1]),
     ...[...read('js/options/circle-of-fifths.js').matchAll(/data-action="([^"]+)"/g)].map((match) => match[1]),
@@ -87,14 +88,14 @@ test('every action of the page and of the rendered markup changes the state when
 });
 
 test('the options panel no longer has its own circle markup; the circle is rendered in the Keys section', () => {
-  const html = read('main.html');
+  const html = readIndex();
   assert.ok(!html.includes('id="circle"'));
   assert.ok(!html.includes('toggle-circle'));
   assert.ok(html.includes('<div id="option-list"></div>'));
 });
 
 test('the toolbar starts with Options and the title, then the roman, tones, colour and theme buttons', () => {
-  const html = read('main.html');
+  const html = readIndex();
   const toolbar = /<header class="toolbar"[\s\S]*?<\/header>/.exec(html)?.[0] ?? '';
   const order = ['data-action="toggle-options"', '<h1>', 'data-action="toggle-roman"', 'data-action="toggle-tones"', 'data-action="toggle-colour"', 'data-action="toggle-theme"'];
   const positions = order.map((marker) => toolbar.indexOf(marker));
@@ -104,20 +105,20 @@ test('the toolbar starts with Options and the title, then the roman, tones, colo
 });
 
 test('Options is an icon-only button with the three-line symbol and an accessible name', () => {
-  const html = read('main.html');
+  const html = readIndex();
   assert.ok(html.includes('class="options-toggle" data-action="toggle-options" aria-controls="options" aria-label="Options"'));
   assert.ok(html.includes('<path d="M4 6h16M4 12h11M4 18h7"'));
 });
 
 test('the colour button shows a spiral of dots, not the options symbol', () => {
-  const html = read('main.html');
+  const html = readIndex();
   const colour = /<button[^>]*class="colour-toggle"[\s\S]*?<\/button>/.exec(html)?.[0] ?? '';
   assert.equal(colour.split('<circle').length - 1, 7);
   assert.ok(!colour.includes('<path'));
 });
 
 test('the roman and tones buttons sit left of the colour button, in one group', () => {
-  const html = read('main.html');
+  const html = readIndex();
   const group = /<div class="view-toggles">[\s\S]*?<\/div>/.exec(html)?.[0] ?? '';
   assert.ok(group.indexOf('toggle-roman') < group.indexOf('toggle-tones'));
   assert.ok(group.indexOf('toggle-tones') < group.indexOf('toggle-colour'));
@@ -125,14 +126,14 @@ test('the roman and tones buttons sit left of the colour button, in one group', 
 });
 
 test('the number of progressions is not in the toolbar; it is rendered in the Progressions section of the options panel', () => {
-  const html = read('main.html');
+  const html = readIndex();
   const toolbar = /<header class="toolbar"[\s\S]*?<\/header>/.exec(html)?.[0] ?? '';
   assert.ok(!toolbar.includes('count-toggle'));
   assert.ok(!html.includes('set-count'));
 });
 
 test('Generate is a floating button after the main content, so it sits at the bottom right', () => {
-  const html = read('main.html');
+  const html = readIndex();
   const generate = html.indexOf('class="generate" data-action="reroll">Generate</button>');
   assert.ok(generate > html.indexOf('</main>'));
   assert.ok(generate < html.indexOf('</body>'));
@@ -140,14 +141,14 @@ test('Generate is a floating button after the main content, so it sits at the bo
 });
 
 test('the theme button shows a half-filled circle and is labelled for screen readers', () => {
-  const html = read('main.html');
+  const html = readIndex();
   assert.ok(html.includes('<circle cx="12" cy="12" r="9" fill="none"'));
   assert.ok(html.includes('<path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/>'));
   assert.ok(html.includes('aria-label="Dark mode"'));
 });
 
 test('the colour, roman and tones buttons are symbol buttons that show their switches as pressed', () => {
-  const html = read('main.html');
+  const html = readIndex();
   assert.ok(html.includes('class="colour-toggle" data-action="toggle-colour" aria-label="Colours" aria-pressed="true"'));
   assert.ok(html.includes('class="roman-toggle" data-action="toggle-roman" aria-label="Roman numerals" aria-pressed="true"'));
   assert.ok(html.includes('class="tones-toggle" data-action="toggle-tones" aria-label="Chord tones" aria-pressed="true"'));
@@ -158,7 +159,7 @@ test('the colour, roman and tones buttons are symbol buttons that show their swi
 });
 
 test('the roman button shows the IV symbol, the tones button three stacked noteheads on one stem, neither in a circle', () => {
-  const html = read('main.html');
+  const html = readIndex();
   const roman = /<button[^>]*class="roman-toggle"[\s\S]*?<\/button>/.exec(html)?.[0] ?? '';
   const tones = /<button[^>]*class="tones-toggle"[\s\S]*?<\/button>/.exec(html)?.[0] ?? '';
   assert.ok(roman.includes('font-size="14"') && roman.includes('>IV</text>'));
@@ -171,7 +172,7 @@ test('the roman button shows the IV symbol, the tones button three stacked noteh
 });
 
 test('the inversions button is a symbol button that starts unpressed, and sits in the view switches', () => {
-  const html = read('main.html');
+  const html = readIndex();
   assert.ok(html.includes('class="inversions-toggle" data-action="toggle-inversions" aria-label="Inversions" aria-pressed="false"'));
   assert.equal(html.split('data-action="toggle-inversions"').length - 1, 1);
   const group = /<div class="view-toggles">[\s\S]*?<\/div>/.exec(html)?.[0] ?? '';
@@ -188,12 +189,12 @@ test('a gap separates the colour button from the music switches', () => {
 });
 
 test('a click on the header, e.g. the title, toggles the options panel, like the options button', () => {
-  const html = read('main.html');
+  const html = readIndex();
   assert.ok(html.includes('<header class="toolbar" data-action="toggle-options">'));
 });
 
 test('the instrument tabs sit right of the options button, before the title: piano on the left, guitar on the right', () => {
-  const html = read('main.html');
+  const html = readIndex();
   const toolbar = /<header class="toolbar"[\s\S]*?<\/header>/.exec(html)?.[0] ?? '';
   const tabs = /<div class="instrument-tabs"[\s\S]*?<\/div>\s*<h1>/.exec(toolbar)?.[0] ?? '';
   assert.ok(tabs.length > 0, 'the tabs are between the options button and the title');
@@ -212,14 +213,14 @@ test('the instrument tabs sit right of the options button, before the title: pia
 });
 
 test('the notes window has a caption under the score, which names the guitar shape', () => {
-  const html = read('main.html');
+  const html = readIndex();
   assert.ok(html.includes('<p id="notes-caption" class="notes-caption"'));
   const notes = /<dialog id="notes"[\s\S]*?<\/dialog>/.exec(html)?.[0] ?? '';
   assert.ok(notes.indexOf('id="notes-staff"') < notes.indexOf('id="notes-caption"'));
 });
 
 test('the import map loads svguitar for the guitar diagrams', () => {
-  const html = read('main.html');
+  const html = readIndex();
   assert.ok(html.includes('"svguitar": "https://cdn.jsdelivr.net/npm/svguitar@2.11.0/+esm"'));
 });
 
@@ -227,7 +228,7 @@ test('the import map loads svguitar for the guitar diagrams', () => {
 const FETCHED_DEPENDENCIES = ['@tombatossals/chords-db'];
 
 test('the CDN versions in the import map match the dependencies in package.json', () => {
-  const html = read('main.html');
+  const html = readIndex();
   const importMap = JSON.parse(/<script type="importmap">([\s\S]*?)<\/script>/.exec(html)[1]).imports;
   const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).dependencies;
   const names = Object.keys(manifest).filter((name) => !FETCHED_DEPENDENCIES.includes(name));
@@ -247,7 +248,7 @@ test('the guitar shapes are fetched from the chord database at the version in pa
 });
 
 test('every data-flag in the page names a switch of the state, so app.js can set its pressed state from it', () => {
-  const html = read('main.html');
+  const html = readIndex();
   const flags = [...html.matchAll(/data-flag="([^"]+)"/g)].map((match) => match[1]);
   assert.ok(flags.length >= 4);
   for (const flag of flags) {
