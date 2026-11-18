@@ -121,11 +121,12 @@ function slashPositionsOf(chord, db) {
 }
 
 /**
- * The fingering of a chord for the notes window, with `shapes` as raw database positions. A slash chord uses the database's
- * shapes for its bass (see slashPositionsOf) if it has them. The shapes whose lowest sounding string is the chord's bass come
- * first, since the bass is the slash bass or the root, as in the notes window; the others follow in the database's order.
- * Returns null if the database has no shape for the chord. `requested` is the chord's own symbol, shown when `exact` is false
- * and the chord is shown as `name`.
+ * The fingering of a chord for the notes window: { name, requested, exact, shapes }, or null if the database has no shape
+ * for the chord. `name` is the chord type that shows it (e.g. "Cm9", or "C/E" for a slash chord with its own shapes),
+ * `requested` the chord's own symbol, and `exact` says whether `name` has exactly the tones of the chord. `shapes` are the
+ * raw database positions. A slash chord uses the database's shapes for its bass (see slashPositionsOf) if it has them.
+ * The shapes whose lowest sounding string is the chord's bass come first, since the bass is the slash bass or the root, as
+ * in the notes window; the others follow in the database's order.
  */
 export function fingeringOf(chord, db) {
   const type = chordTypeOf(chord, db);

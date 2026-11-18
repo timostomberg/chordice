@@ -4,7 +4,8 @@
  */
 
 import { Note } from 'tonal';
-import { PROBABILITY_MAX, unit, weightedPick } from './utils.js';
+import { PROBABILITY_MAX } from '../constants.js';
+import { unit, weightedPick } from './utils.js';
 
 // No bass patterns: every chord keeps its standard bass.
 export const NO_BASS_PATTERNS = { degrees: {}, variations: {} };

@@ -5,11 +5,15 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // The layering of chordice/js. The page is split by window (header, options on the left, progressions on the right,
-// the notes dialog); each window stands on its own, and the music theory, the data and the generation know nothing of
+// the notes dialog). Each window stands on its own. The windows share only the files shared with them (the chord view,
+// the escaping, the constants), which sit directly in js/; the music theory, the data and the generation know nothing of
 // the page. These rules keep the structure from eroding silently.
 
-const JS = fileURLToPath(new URL('../chordice/js/', import.meta.url));
+const JS = fileURLToPath(new URL('../../chordice/js/', import.meta.url));
 const WINDOWS = ['header', 'options', 'progressions', 'notes'];
+const LAYERS = ['theory', 'data', 'generator', 'core'];
+// The files that several parts of the page share. They sit in js/ itself and may import only the theory and each other.
+const SHARED = ['constants.js', 'escape.js', 'chord-view.js'];
 
 function sourceFiles(dir = JS) {
   return readdirSync(dir).flatMap((name) => {
@@ -39,6 +43,11 @@ const RULES = [
     forbids: (target) => !target.startsWith('theory/'),
   },
   {
+    description: 'the shared files import only the theory and each other',
+    applies: (path) => SHARED.includes(path),
+    forbids: (target) => !target.startsWith('theory/') && !SHARED.includes(target),
+  },
+  {
     description: 'data and generation do not depend on the page, the windows or the core',
     applies: (path) => path.startsWith('data/') || path.startsWith('generator/'),
     forbids: (target) => /^(core|header|options|progressions|notes)\//.test(target),
@@ -48,19 +57,17 @@ const RULES = [
     applies: (path) => windowOf(path) !== null,
     forbids: (target, path) => {
       const other = windowOf(target);
-      // The notes dialog shows a chord box, which is the progressions window's chord.
-      const sharedChord = windowOf(path) === 'notes' && target === 'progressions/chord.js';
-      return other !== null && other !== windowOf(path) && !sharedChord;
+      return other !== null && other !== windowOf(path);
     },
   },
   {
-    description: 'the shared chord box does not depend on the progression rows or the core',
-    applies: (path) => path === 'progressions/chord.js',
-    forbids: (target) => target === 'progressions/progressions.js' || target.startsWith('core/app'),
+    description: 'the state does not depend on the actions, the windows or the app',
+    applies: (path) => path === 'core/state.js',
+    forbids: (target) => target === 'core/app.js' || target === 'core/actions.js' || windowOf(target) !== null,
   },
   {
-    description: 'the state and the escaping do not depend on the windows or the app',
-    applies: (path) => path === 'core/state.js' || path === 'core/escape.js',
+    description: 'the actions do not depend on the windows or the app',
+    applies: (path) => path === 'core/actions.js',
     forbids: (target) => target === 'core/app.js' || windowOf(target) !== null,
   },
   {
@@ -89,7 +96,13 @@ for (const rule of RULES) {
 }
 
 test('structure: every window and layer folder exists', () => {
-  for (const folder of [...WINDOWS, 'theory', 'data', 'generator', 'core']) {
+  for (const folder of [...WINDOWS, ...LAYERS]) {
     assert.ok(statSync(join(JS, folder)).isDirectory(), `${folder}/ is missing`);
+  }
+});
+
+test('structure: the shared files exist in js/', () => {
+  for (const file of SHARED) {
+    assert.ok(statSync(join(JS, file)).isFile(), `${file} is missing`);
   }
 });

@@ -7,10 +7,10 @@
 import { buildChord } from '../theory/chords.js';
 import { degree, harmonicFunction } from '../theory/numerals.js';
 import { isDiatonicChord } from '../theory/tones.js';
-import { BASE } from '../data/validate.js';
+import { BASE, PROBABILITY_MAX } from '../constants.js';
 import { withInversions } from './inversion.js';
 import { chooseBass } from './bass.js';
-import { chordSlot, classifyOrder, PROBABILITY_MAX, pick, rotate, shuffle, unit, weightedPick } from './utils.js';
+import { chordSlot, classifyOrder, pick, rotate, shuffle, unit, weightedPick } from './utils.js';
 
 /**
  * The chord of one roman numeral in the key `tonic`, with its variation and bass note. Its inversion is not set here,

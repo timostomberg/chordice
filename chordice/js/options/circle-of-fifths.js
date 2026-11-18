@@ -5,7 +5,7 @@
  */
 
 import { KEY_CIRCLE, minorNameOf, neighbourKeysOf } from '../theory/keys.js';
-import { escapeHtml } from '../core/escape.js';
+import { escapeHtml } from '../escape.js';
 
 const CENTER = 120;
 const RADIUS = 92;

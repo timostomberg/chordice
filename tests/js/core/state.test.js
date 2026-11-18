@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { effectiveState, isUnavailable } from '../../../chordice/js/core/state.js';
 import { buildLibrary } from '../../../chordice/js/data/validate.js';
 import { createSeeds, SEED_NAMES } from '../../../chordice/js/generator/utils.js';
+import { applyAction } from '../../../chordice/js/core/actions.js';
 import {
-  applyAction,
   COOKIE_NAME,
   defaultState,
   parseCookie,
@@ -13,6 +13,7 @@ import {
   serializeCookie,
   setCount,
   cycleCount,
+  onlyKeysOpen,
   openKeys,
   FLAGS,
   SECTIONS,
@@ -505,4 +506,22 @@ test('with the melody button off the melody amount is unavailable on the piano t
   assert.equal(on.inversions, true);
   assert.equal(isUnavailable(on, 'melodyAmount'), false);
   assert.equal(effectiveState(on).melodyAmount, 4);
+});
+
+test('onlyKeysOpen is true exactly when Keys is the one section that is open', () => {
+  const state = defaultState(LIBRARY, () => 0.5);
+  assert.equal(onlyKeysOpen(state), true);
+  assert.equal(onlyKeysOpen(openKeys(state)), true);
+  assert.equal(onlyKeysOpen(toggleSection(state, 'bass')), false);
+  assert.equal(onlyKeysOpen({ ...state, collapsed: [] }), false);
+  assert.equal(onlyKeysOpen({ ...state, collapsed: SECTIONS.filter((section) => section !== 'keys') }), true);
+});
+
+test('the cookie leaves out the selection, which start-up never reads back, and keeps everything else', () => {
+  const state = { ...defaultState(LIBRARY, () => 0.5), selection: ['Pop / A'], count: 4 };
+  const cookie = serializeCookie(state);
+  const stored = JSON.parse(decodeURIComponent(cookie.slice(cookie.indexOf('=') + 1, cookie.indexOf(';'))));
+  assert.equal('selection' in stored, false);
+  assert.equal(stored.count, 4);
+  assert.deepEqual(sanitizeState(parseCookie(cookie), LIBRARY, () => 0.5).selection, LIBRARY.map((progression) => progression.id));
 });

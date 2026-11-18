@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { chordAttributes, chordBoxHtml, chordCell } from '../../../chordice/js/progressions/chord.js';
+import { chordAttributes, chordBoxHtml, chordCell } from '../../chordice/js/chord-view.js';
 
 const CHORD = {
   roman: 'V', function: 'dominant', root: 'G', quality: 'major', symbol: 'G7', displaySymbol: 'G7',

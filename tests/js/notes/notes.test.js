@@ -398,3 +398,26 @@ test('without options the chord opens for the piano, as before', () => {
   assert.equal(staffVoicings.length, 1);
   assert.equal(dialog.parts['#notes-caption'].textContent, '2 / 3');
 });
+
+test('the arrow keys step through the views like the halves of the window, while the window is open', () => {
+  const { dialog, drawn, notes } = setup();
+  const key = (name) => ({ key: name, prevented: false, preventDefault() { this.prevented = true; } });
+  notes.open(E_OVER_C);
+  const right = key('ArrowRight');
+  dialog.emit('keydown', right);
+  assert.ok(right.prevented);
+  assert.deepEqual(drawn.map((voicing) => voicing.upper[0]), ['E4', 'G4']);
+  dialog.emit('keydown', key('ArrowLeft'));
+  dialog.emit('keydown', key('ArrowLeft'));
+  assert.deepEqual(drawn.map((voicing) => voicing.upper[0]), ['E4', 'G4', 'E4', 'C4']);
+});
+
+test('other keys do nothing, and the arrow keys do nothing once the window is closed', () => {
+  const { dialog, drawn, notes } = setup();
+  notes.open(E_OVER_C);
+  dialog.emit('keydown', { key: 'a', preventDefault() {} });
+  assert.equal(drawn.length, 1);
+  dialog.close();
+  dialog.emit('keydown', { key: 'ArrowRight', preventDefault() {} });
+  assert.equal(drawn.length, 1);
+});

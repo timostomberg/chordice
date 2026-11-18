@@ -6,10 +6,7 @@
 import { buildChord, VARIATION_NAMES } from '../theory/chords.js';
 import { degree, parseNumeral } from '../theory/numerals.js';
 import { intervalOf } from '../theory/bass.js';
-import { PROBABILITY_MAX } from '../generator/utils.js';
-
-/** Key of the standard variation in chord_progressions.yaml, which has no chord variation. */
-export const BASE = 'base';
+import { BASE, PROBABILITY_MAX } from '../constants.js';
 
 function requireObject(value, message) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {

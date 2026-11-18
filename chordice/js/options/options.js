@@ -6,8 +6,8 @@
 import { VARIATION_NAMES } from '../theory/chords.js';
 import { keySignatureOf, minorNameOf } from '../theory/keys.js';
 import { SECTIONS, SECTION_OPTIONS, isUnavailable } from '../core/state.js';
-import { PROBABILITY_MAX } from '../generator/utils.js';
-import { escapeHtml } from '../core/escape.js';
+import { PROBABILITY_MAX } from '../constants.js';
+import { escapeHtml } from '../escape.js';
 import { renderCircleSvg } from './circle-of-fifths.js';
 
 const SECTION_TITLES = {

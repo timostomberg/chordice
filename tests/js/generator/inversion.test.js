@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { withInversions } from '../../../chordice/js/generator/inversion.js';
-import { createSeeds, PROBABILITY_MAX } from '../../../chordice/js/generator/utils.js';
+import { createSeeds } from '../../../chordice/js/generator/utils.js';
+import { PROBABILITY_MAX } from '../../../chordice/js/constants.js';
 import { melodyChoices, melodyTopOf, pitchDistance } from '../../../chordice/js/theory/melody.js';
 
 const CHORDS = [

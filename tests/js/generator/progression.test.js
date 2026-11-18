@@ -8,8 +8,8 @@ import {
   progressionPool,
 } from '../../../chordice/js/generator/progression.js';
 import { NO_BASS_PATTERNS } from '../../../chordice/js/generator/bass.js';
-import { createSeeds, PROBABILITY_MAX } from '../../../chordice/js/generator/utils.js';
-import { BASE } from '../../../chordice/js/data/validate.js';
+import { createSeeds } from '../../../chordice/js/generator/utils.js';
+import { BASE, PROBABILITY_MAX } from '../../../chordice/js/constants.js';
 
 const PROGRESSION = { id: 'pop', name: 'Pop', group: 'Pop', progression: ['I', 'V'], chordVariations: {} };
 const OTHER = { id: 'jazz', name: 'Jazz', group: 'Jazz', progression: ['ii', 'V'], chordVariations: {} };

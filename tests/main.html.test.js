@@ -4,7 +4,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { load } from 'js-yaml';
 import { buildLibrary } from '../chordice/js/data/validate.js';
-import { applyAction, defaultState, FLAGS } from '../chordice/js/core/state.js';
+import { applyAction } from '../chordice/js/core/actions.js';
+import { defaultState, FLAGS } from '../chordice/js/core/state.js';
 
 const SITE = new URL('../chordice/', import.meta.url);
 const read = (path) => readFileSync(new URL(path, SITE), 'utf8');
@@ -222,24 +223,24 @@ test('the import map loads svguitar for the guitar diagrams', () => {
 });
 
 // The chord database is not imported as a module: it has no module entry point, so app.js fetches its lib/guitar.json instead.
-const FETCHED_DEPENDENCIES = ['@tombatossals/chords-db'];
 
-test('the CDN versions in the import map match the dependencies in package.json', () => {
+test('the CDN versions in the import map match the packages in package.json', () => {
   const html = readIndex();
   const importMap = JSON.parse(/<script type="importmap">([\s\S]*?)<\/script>/.exec(html)[1]).imports;
-  const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).dependencies;
-  const names = Object.keys(manifest).filter((name) => !FETCHED_DEPENDENCIES.includes(name));
+  // The browser loads the packages from the CDN, so they are listed as dev dependencies: the tests resolve them from node_modules.
+  const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  const versions = { ...manifest.dependencies, ...manifest.devDependencies };
+  const names = Object.keys(importMap);
   assert.ok(names.length > 0);
   for (const name of names) {
-    assert.ok(importMap[name], `${name} is in the import map`);
-    assert.ok(importMap[name].includes(`${name}@${manifest[name]}/`), `${name} is ${manifest[name]} in the import map`);
+    assert.ok(versions[name], `${name} is in package.json`);
+    assert.ok(importMap[name].includes(`${name}@${versions[name]}/`), `${name} is ${versions[name]} in the import map`);
   }
-  assert.deepEqual(Object.keys(importMap).sort(), names.sort());
 });
 
 test('the guitar shapes are fetched from the chord database at the version in package.json', () => {
   const app = read('js/core/app.js');
-  const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).dependencies;
+  const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).devDependencies;
   const url = /const GUITAR_URL = '([^']+)'/.exec(app)?.[1] ?? '';
   assert.ok(url.includes(`/@tombatossals/chords-db@${manifest['@tombatossals/chords-db']}/lib/guitar.json`), url);
 });

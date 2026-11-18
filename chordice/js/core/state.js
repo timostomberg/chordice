@@ -4,7 +4,8 @@
 
 import { VARIATION_NAMES } from '../theory/chords.js';
 import { isKeyName, majorKeyOf } from '../theory/keys.js';
-import { PROBABILITY_MAX, SEED_NAMES, createSeeds } from '../generator/utils.js';
+import { PROBABILITY_MAX } from '../constants.js';
+import { SEED_NAMES, createSeeds } from '../generator/utils.js';
 
 export const COOKIE_NAME = 'chordice_state';
 export const COUNTS = [1, 2, 4, 8];
@@ -109,8 +110,13 @@ export function sanitizeState(raw, library, random = Math.random) {
   };
 }
 
+/**
+ * The cookie value of the state. The selection is left out, as JSON drops the undefined value: every progression is
+ * selected on start-up whatever the cookie says (see sanitizeState), so the stored selection would never be read.
+ */
 export function serializeCookie(state) {
-  return `${COOKIE_NAME}=${encodeURIComponent(JSON.stringify(state))}; Max-Age=${ONE_YEAR_SECONDS}; Path=/; SameSite=Lax`;
+  const stored = JSON.stringify({ ...state, selection: undefined });
+  return `${COOKIE_NAME}=${encodeURIComponent(stored)}; Max-Age=${ONE_YEAR_SECONDS}; Path=/; SameSite=Lax`;
 }
 
 /** Reads the raw state object from a document.cookie string. Returns null if absent or broken. */
@@ -226,6 +232,11 @@ export function openKeys(state) {
   return { ...state, collapsed: SECTIONS.filter((section) => section !== 'keys') };
 }
 
+/** True when Keys is the only options section open, so that opening Keys again would change nothing. */
+export function onlyKeysOpen(state) {
+  return SECTIONS.every((section) => state.collapsed.includes(section) === (section !== 'keys'));
+}
+
 /** Switches between the light and the dark theme. */
 export function toggleTheme(state) {
   const next = THEMES[(THEMES.indexOf(state.theme) + 1) % THEMES.length];
@@ -278,50 +289,4 @@ export function toggleFlag(state, flag) {
 /** New random outcomes for every option; all other settings stay as they are. */
 export function reroll(state, random = Math.random) {
   return { ...state, seeds: createSeeds(random) };
-}
-
-/** Actions that switch one flag; the action name is the flag's name in the data attributes. */
-const FLAG_ACTIONS = {
-  'toggle-colour': 'colour',
-  'toggle-roman': 'roman',
-  'toggle-tones': 'tones',
-  'toggle-melody': 'inversions',
-  'toggle-foreign-variations': 'foreignVariations',
-  'toggle-options': 'showOptions',
-};
-
-/** The option an action changes, when that option can be unavailable; null for every other action. */
-function optionOf(action, params) {
-  if (action === 'toggle-melody') {
-    return 'inversions';
-  }
-  if (action === 'toggle-section' && Object.hasOwn(SECTION_OPTIONS, params.section)) {
-    return SECTION_OPTIONS[params.section];
-  }
-  return action === 'set-probability' ? params.option : null;
-}
-
-/** Maps a UI action (from data-attributes) onto a state transition. Unknown actions leave the state unchanged. */
-export function applyAction(state, action, params, library, random = Math.random) {
-  // An option that is unavailable for the chosen instrument cannot be changed, even by an event that reaches it.
-  if (isUnavailable(state, optionOf(action, params))) {
-    return state;
-  }
-  if (Object.hasOwn(FLAG_ACTIONS, action)) {
-    return toggleFlag(state, FLAG_ACTIONS[action]);
-  }
-  const transitions = {
-    'toggle-key': () => toggleKey(state, params.key),
-    'toggle-group': () => toggleGroup(state, params.group, library),
-    'toggle-progression': () => toggleProgression(state, params.id, library),
-    'cycle-count': () => cycleCount(state),
-    'toggle-variation': () => toggleVariation(state, params.variation),
-    'set-probability': () => setProbability(state, params.option, params.value),
-    'toggle-section': () => toggleSection(state, params.section),
-    'open-keys': () => openKeys(state),
-    'toggle-theme': () => toggleTheme(state),
-    'set-instrument': () => setInstrument(state, params.instrument),
-    'reroll': () => reroll(state, random),
-  };
-  return Object.hasOwn(transitions, action) ? transitions[action]() : state;
 }

@@ -19,9 +19,6 @@ export const SEED_NAMES = [
   'rotationAmount',
 ];
 
-/** Probabilities are chosen on a scale from 0 to PROBABILITY_MAX; PROBABILITY_MAX means 100%. */
-export const PROBABILITY_MAX = 5;
-
 /** Deterministic pseudo-random number in [0, 1) for a seed and an index (murmur3 finalizer). */
 export function unit(seed, index) {
   let h = (seed ^ Math.imul(index + 1, 0x9e3779b1)) | 0;

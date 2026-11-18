@@ -4,7 +4,8 @@
  */
 
 import { chooseInversion, melodyTopOf } from '../theory/melody.js';
-import { chordSlot, PROBABILITY_MAX, unit } from './utils.js';
+import { PROBABILITY_MAX } from '../constants.js';
+import { chordSlot, unit } from './utils.js';
 
 /**
  * Sets the inversion of each chord of a row, in the order the row shows them. Without inversions every chord stays in

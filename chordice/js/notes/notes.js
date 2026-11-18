@@ -1,12 +1,13 @@
 /**
  * The notes window: shows a chord's voicing in a grand staff for the piano, or its shape as a diagram for the guitar.
  * A click in the left half of the window shows the previous view, one in the right half the next: for the piano an
- * inversion with the same bass, for the guitar a shape. The window closes with Escape or a click outside its content.
+ * inversion with the same bass, for the guitar a shape. The arrow keys Left and Right step the same way. The window closes
+ * with Escape or a click outside its content.
  */
 
 import { inversionOrders, voicing } from './notation/notation.js';
 import { renderScore } from './notation/draw.js';
-import { chordBoxHtml } from '../progressions/chord.js';
+import { chordBoxHtml } from '../chord-view.js';
 import { renderFingering } from './guitar/draw.js';
 import { captionOf, diagramOf } from './guitar/fingering.js';
 import { toneKind } from '../theory/tones.js';
@@ -93,11 +94,17 @@ export function createNotesDialog(dialog, drawStaff = renderScore, drawChord = c
     show();
   }
 
-  // Closing by a click on the backdrop or by Escape both end here, so the frame goes in every case.
-  dialog.addEventListener('close', unframe);
+  // Closing by a click on the backdrop or by Escape both end here, so the frame goes in every case, and no view is current.
+  dialog.addEventListener('close', () => {
+    unframe();
+    current = null;
+  });
 
   /** Steps to the previous (-1) or the next (1) view, and wraps around at the ends. */
   function step(direction) {
+    if (!current) {
+      return;
+    }
     const count = viewCount(current);
     current.index = (current.index + direction + count) % count;
     show();
@@ -112,6 +119,18 @@ export function createNotesDialog(dialog, drawStaff = renderScore, drawChord = c
     }
     const { left, width } = dialog.getBoundingClientRect();
     step(event.clientX < left + width / 2 ? -1 : 1);
+  });
+
+  // The same steps from the keyboard: Left goes to the previous view, Right to the next. The dialog has focus while it is
+  // open (it is tabindex -1 in index.html), so its keys reach this listener.
+  dialog.addEventListener('keydown', (event) => {
+    if (!current) {
+      return;
+    }
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      step(event.key === 'ArrowLeft' ? -1 : 1);
+    }
   });
 
   return { open };

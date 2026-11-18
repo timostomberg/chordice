@@ -5,7 +5,8 @@
 import { load } from 'js-yaml';
 import { generate } from '../generator/generator.js';
 import { buildBassPatterns, buildLibrary } from '../data/validate.js';
-import { applyAction, effectiveState, parseCookie, sanitizeState, serializeCookie, setInstrument } from './state.js';
+import { applyAction } from './actions.js';
+import { effectiveState, onlyKeysOpen, parseCookie, sanitizeState, serializeCookie, setInstrument } from './state.js';
 import { updateHeader } from '../header/header.js';
 import { renderOptions } from '../options/options.js';
 import { renderRows } from '../progressions/progressions.js';
@@ -146,8 +147,11 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
       dispatch(target.dataset.action, target.dataset);
     } else if (content.contains(event.target)) {
       // A click on the chords area outside the chords opens Keys and closes the other options sections.
-      // The options scroll back to the top, so the opened Keys section is in view.
-      dispatch('open-keys', {});
+      // The options scroll back to the top, so the opened Keys section is in view. A click when Keys is already the only
+      // section open changes nothing, so it does not re-render the page.
+      if (!onlyKeysOpen(state)) {
+        dispatch('open-keys', {});
+      }
       sidePanel.scrollTop = 0;
     }
   });
