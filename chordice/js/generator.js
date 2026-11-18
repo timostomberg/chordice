@@ -1,154 +1,74 @@
 /**
- * Builds the progression library from chord_progressions.yaml and generates practice rows.
- *
- * Randomness is stateless: every decision is a pure function of a seed and a slot index.
- * Each option has its own seed, so changing one option only changes that option's outcome.
+ * Generates practice rows from a validated progression library and bass patterns (see library.js).
+ * Every decision is taken from the seeds in random.js, so the same settings always give the same rows.
  */
 
 import { Note } from 'tonal';
-import {
-  EXTENSION_NAMES,
-  buildChord,
-  degree,
-  harmonicFunction,
-  parseNumeral,
-} from './theory.js';
-
-export const SEED_NAMES = [
-  'progression',
-  'key',
-  'extensionActive',
-  'extensionChoice',
-  'bassActive',
-  'bassChoice',
-  'inversionChoice',
-  'permutationActive',
-  'permutationOrder',
-  'rotationActive',
-  'rotationAmount',
-];
+import { buildChord, degree, harmonicFunction, isDiatonicChord } from './theory.js';
+import { PROBABILITY_MAX, pick, unit } from './random.js';
+import { BASE } from './library.js';
 
 const CHORDS_PER_ROW_LIMIT = 100;
 
-/** Deterministic pseudo-random number in [0, 1) for a seed and an index (murmur3 finalizer). */
-export function unit(seed, index) {
-  let h = (seed ^ Math.imul(index + 1, 0x9e3779b1)) | 0;
-  h ^= h >>> 16;
-  h = Math.imul(h, 0x85ebca6b);
-  h ^= h >>> 13;
-  h = Math.imul(h, 0xc2b2ae35);
-  h ^= h >>> 16;
-  return (h >>> 0) / 4294967296;
-}
+// No bass patterns: every chord keeps its standard bass.
+export const NO_BASS_PATTERNS = { degrees: {}, variations: {} };
 
-function pick(seed, index, count) {
-  return Math.floor(unit(seed, index) * count);
-}
-
-export function createSeeds(random = Math.random) {
-  const seeds = {};
-  for (const name of SEED_NAMES) {
-    seeds[name] = Math.floor(random() * 4294967296);
+/**
+ * Picks one option with the probability given by its weight (the commonness). Returns the option, or null if no
+ * option has a weight.
+ */
+function weightedPick(options, seed, index) {
+  const total = options.reduce((sum, option) => sum + option.weight, 0);
+  if (total === 0) {
+    return null;
   }
-  return seeds;
-}
-
-function requireObject(value, message) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(message);
-  }
-}
-
-function buildProgression(groupName, entry) {
-  requireObject(entry, `Invalid progression entry in group ${groupName}`);
-  const { name, progression } = entry;
-  const where = `${groupName} / ${name}`;
-  if (typeof name !== 'string') {
-    throw new Error(`Progression without name in group ${groupName}`);
-  }
-  if (!Array.isArray(progression) || progression.length === 0) {
-    throw new Error(`Empty progression for ${where}`);
-  }
-  // YAML parses numbers such as 7 or 9 as numbers, so every value is normalised to a string.
-  const numerals = progression.map(String);
-  numerals.forEach((numeral) => parseNumeral(numeral));
-
-  const chordExtensions = {};
-  for (const [numeral, extensions] of Object.entries(entry.chord_extensions ?? {})) {
-    if (!numerals.includes(numeral)) {
-      throw new Error(`Extension for unknown chord ${numeral} in ${where}`);
-    }
-    chordExtensions[numeral] = extensions.map(String);
-    chordExtensions[numeral].forEach((extension) => {
-      if (!EXTENSION_NAMES.includes(extension)) {
-        throw new Error(`Unknown chord extension ${extension} in ${where}`);
-      }
-    });
-  }
-
-  const bassNotes = {};
-  for (const [numeral, notes] of Object.entries(entry.bass_notes ?? {})) {
-    if (!numerals.includes(numeral)) {
-      throw new Error(`Bass notes for unknown chord ${numeral} in ${where}`);
-    }
-    notes.forEach((note) => parseNumeral(String(note)));
-    bassNotes[numeral] = notes.map(String);
-  }
-
-  return { id: where, group: groupName, name, progression: numerals, chordExtensions, bassNotes };
-}
-
-/** Validates the parsed YAML and returns a flat list of progressions. */
-export function buildLibrary(data) {
-  if (!Array.isArray(data)) {
-    throw new Error('chord_progressions must be a list of groups');
-  }
-  const library = [];
-  for (const group of data) {
-    requireObject(group, 'Invalid group entry');
-    if (typeof group.group !== 'string' || !Array.isArray(group.progressions)) {
-      throw new Error('Each group needs a name and a list of progressions');
-    }
-    for (const entry of group.progressions) {
-      library.push(buildProgression(group.group, entry));
+  let threshold = unit(seed, index) * total;
+  for (const option of options) {
+    threshold -= option.weight;
+    if (threshold < 0) {
+      return option;
     }
   }
-  const ids = new Set(library.map((progression) => progression.id));
-  if (ids.size !== library.length) {
-    throw new Error('Progression names must be unique within a group');
-  }
-  return library;
+  return options.at(-1);
 }
 
-function unique(items) {
-  return [...new Set(items)];
+/**
+ * The bass notes a chord can take: the entries of its roman numeral and of its chord variation, each with its commonness.
+ * A bass note must be a tone of the chord; the entry "1" is the standard bass (the root).
+ */
+function bassCandidates(bassPatterns, root, numeral, variation, tones) {
+  const entries = [
+    ...(bassPatterns.degrees[numeral] ?? []),
+    ...(variation === null ? [] : bassPatterns.variations[variation] ?? []),
+  ];
+  const chromas = new Set(tones.map((tone) => Note.chroma(tone)));
+  return entries
+    .map(({ interval, weight }) => ({ value: Note.transpose(root, interval), weight }))
+    .filter((candidate) => chromas.has(Note.chroma(candidate.value)));
 }
 
 function chordEntry(progression, numeral, tonic, slot, settings) {
-  const { seeds } = settings;
+  const { seeds, bassPatterns } = settings;
   const { root, quality } = degree(tonic, numeral);
 
-  let extension = null;
-  const allowed = (progression.chordExtensions[numeral] ?? []).filter((name) =>
-    settings.extensions.includes(name),
-  );
-  if (allowed.length > 0 && unit(seeds.extensionActive, slot) < settings.extensionProbability / 100) {
-    const choices = [null, ...allowed];
-    extension = choices[pick(seeds.extensionChoice, slot, choices.length)];
+  // The variations of the chord, the base (no variation) included with its commonness. Unselected variations are left out.
+  // With foreign variations off, a variation is left out if one of its tones is foreign to the key of the row.
+  const variations = Object.entries(progression.chordVariations[numeral] ?? {})
+    .filter(([name]) => name === BASE || settings.variations.includes(name))
+    .filter(([name]) => settings.foreignVariations || name === BASE || isDiatonicChord(root, quality, name, tonic))
+    .map(([name, weight]) => ({ value: name === BASE ? null : name, weight }));
+  let variation = null;
+  if (unit(seeds.variationActive, slot) < settings.variationProbability / PROBABILITY_MAX) {
+    variation = weightedPick(variations, seeds.variationChoice, slot)?.value ?? null;
   }
-  const chord = buildChord(root, quality, extension);
+  const chord = buildChord(root, quality, variation);
 
   let bass = null;
-  const bassChoices = progression.bassNotes[numeral] ?? [];
-  if (bassChoices.length > 0 && unit(seeds.bassActive, slot) < settings.bassProbability / 100) {
-    const choices = [null, ...bassChoices];
-    const picked = choices[pick(seeds.bassChoice, slot, choices.length)];
-    if (picked !== null) {
-      const bassNote = degree(tonic, picked).root;
-      // A bass note equal to the root is the standard bass, so it is not shown as an inversion.
-      if (Note.chroma(bassNote) !== Note.chroma(root)) {
-        bass = bassNote;
-      }
+  if (unit(seeds.bassActive, slot) < settings.bassProbability / PROBABILITY_MAX) {
+    const picked = weightedPick(bassCandidates(bassPatterns, root, numeral, variation, chord.tones), seeds.bassChoice, slot);
+    // A bass note equal to the root is the standard bass, so it is not shown as an inversion.
+    if (picked && Note.chroma(picked.value) !== Note.chroma(root)) {
+      bass = picked.value;
     }
   }
 
@@ -164,7 +84,7 @@ function chordEntry(progression, numeral, tonic, slot, settings) {
     function: harmonicFunction(numeral),
     root,
     quality,
-    extension,
+    variation,
     symbol: chord.symbol,
     tones: chord.tones,
     inversion,
@@ -193,38 +113,52 @@ function changesOrder(before, after) {
 }
 
 /**
+ * Classifies the final chord order against the predefined one. An order that is a cyclic shift of the predefined
+ * order is a rotation, any other different order is a permutation, and the same order is neither.
+ */
+function classifyOrder(predefined, chords) {
+  if (!changesOrder(predefined, chords)) {
+    return { permuted: false, rotated: false };
+  }
+  for (let shift = 1; shift < predefined.length; shift += 1) {
+    if (!changesOrder(rotate(predefined, shift), chords)) {
+      return { permuted: false, rotated: true };
+    }
+  }
+  return { permuted: true, rotated: false };
+}
+
+/**
  * Generates `count` rows. Each row is one progression from the selection, placed in one of the
- * selected keys, with optional permutation, rotation, chord extensions and bass notes.
+ * selected keys, with optional permutation, rotation, chord variations and bass notes.
  */
 export function generate(settings) {
   const { library, selection, keys, count, seeds } = settings;
+  const bassPatterns = settings.bassPatterns ?? NO_BASS_PATTERNS;
   const pool = library.filter((progression) => selection.includes(progression.id));
   if (pool.length === 0 || keys.length === 0) {
     return [];
   }
+  const tonics = [...new Set(keys)];
 
   const rows = [];
   for (let i = 0; i < count; i += 1) {
     const progression = pool[pick(seeds.progression, i, pool.length)];
-    const tonics = unique(keys);
     const tonic = tonics[pick(seeds.key, i, tonics.length)];
 
     let chords = progression.progression.map((numeral, j) =>
-      chordEntry(progression, numeral, tonic, i * CHORDS_PER_ROW_LIMIT + j, settings),
+      chordEntry(progression, numeral, tonic, i * CHORDS_PER_ROW_LIMIT + j, { ...settings, bassPatterns }),
     );
-    // A row counts as permuted or rotated only if its chord order really differs from the predefined progression.
-    let permuted = false;
-    if (unit(seeds.permutationActive, i) < settings.permutation / 100) {
-      const shuffled = shuffle(chords, seeds.permutationOrder, i);
-      permuted = changesOrder(chords, shuffled);
-      chords = shuffled;
+    const predefined = chords;
+    if (unit(seeds.permutationActive, i) < settings.permutation / PROBABILITY_MAX) {
+      chords = shuffle(chords, seeds.permutationOrder, i);
     }
-    let rotated = false;
-    if (unit(seeds.rotationActive, i) < settings.rotation / 100) {
-      const turned = rotate(chords, pick(seeds.rotationAmount, i, chords.length));
-      rotated = changesOrder(chords, turned);
-      chords = turned;
+    if (unit(seeds.rotationActive, i) < settings.rotation / PROBABILITY_MAX) {
+      chords = rotate(chords, pick(seeds.rotationAmount, i, chords.length));
     }
+    // The tags describe the final chord order, not the steps that produced it: a permutation that happens to be a
+    // rotation of the predefined progression counts as a rotation, and a transformation undone by a later one is not shown.
+    const { permuted, rotated } = classifyOrder(predefined, chords);
 
     rows.push({
       index: i,

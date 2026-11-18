@@ -21,8 +21,14 @@ function fakeArea() {
   };
 }
 
+/** A surface whose style records custom properties, as the DOM's CSSStyleDeclaration does with setProperty. */
 function fakeSurface() {
-  return { style: {} };
+  const style = {
+    setProperty(name, value) {
+      style[name] = value;
+    },
+  };
+  return { style };
 }
 
 const touch = (clientX, clientY) => ({ clientX, clientY });
@@ -60,7 +66,7 @@ test('Ctrl + scroll zooms only the surface of its own area and stops the page fr
   bindZoom(options, optionList);
   const prevented = options.fire('wheel', { ctrlKey: true, deltaY: -100, deltaMode: 0 });
   assert.equal(prevented, true);
-  assert.equal(optionList.style.zoom, String(wheelZoom(1, -100)));
+  assert.equal(optionList.style['--zoom'], String(wheelZoom(1, -100)));
 });
 
 test('scroll without Ctrl scrolls normally and does not zoom', () => {
@@ -68,7 +74,7 @@ test('scroll without Ctrl scrolls normally and does not zoom', () => {
   const surface = fakeSurface();
   const zoom = bindZoom(area, surface);
   assert.equal(area.fire('wheel', { ctrlKey: false, deltaY: -100, deltaMode: 0 }), false);
-  assert.equal(surface.style.zoom, undefined);
+  assert.equal(surface.style['--zoom'], undefined);
   assert.equal(zoom.scale, 1);
 });
 
@@ -80,8 +86,8 @@ test('two independent areas keep their own zoom', () => {
   bindZoom(options, optionList);
   bindZoom(chords, rows);
   chords.fire('wheel', { ctrlKey: true, deltaY: -300, deltaMode: 0 });
-  assert.equal(rows.style.zoom, String(wheelZoom(1, -300)));
-  assert.equal(optionList.style.zoom, undefined);
+  assert.equal(rows.style['--zoom'], String(wheelZoom(1, -300)));
+  assert.equal(optionList.style['--zoom'], undefined);
 });
 
 test('a two-finger pinch zooms the surface by the change of the distance between the fingers', () => {
@@ -91,9 +97,9 @@ test('a two-finger pinch zooms the surface by the change of the distance between
   area.fire('touchstart', { touches: [touch(0, 0), touch(100, 0)] });
   const prevented = area.fire('touchmove', { touches: [touch(0, 0), touch(150, 0)] });
   assert.equal(prevented, true);
-  assert.equal(surface.style.zoom, '1.5');
+  assert.equal(surface.style['--zoom'], '1.5');
   area.fire('touchmove', { touches: [touch(0, 0), touch(50, 0)] });
-  assert.equal(surface.style.zoom, '0.7');
+  assert.equal(surface.style['--zoom'], '0.7');
 });
 
 test('a pinch starts from the scale the surface already has', () => {
@@ -101,10 +107,10 @@ test('a pinch starts from the scale the surface already has', () => {
   const surface = fakeSurface();
   bindZoom(area, surface);
   area.fire('wheel', { ctrlKey: true, deltaY: -300, deltaMode: 0 });
-  const before = Number(surface.style.zoom);
+  const before = Number(surface.style['--zoom']);
   area.fire('touchstart', { touches: [touch(0, 0), touch(100, 0)] });
   area.fire('touchmove', { touches: [touch(0, 0), touch(100, 0)] });
-  assert.ok(Math.abs(Number(surface.style.zoom) - before) < 1e-9);
+  assert.ok(Math.abs(Number(surface.style['--zoom']) - before) < 1e-9);
 });
 
 test('a single finger does not zoom and the page is not prevented from scrolling', () => {
@@ -113,7 +119,7 @@ test('a single finger does not zoom and the page is not prevented from scrolling
   bindZoom(area, surface);
   area.fire('touchstart', { touches: [touch(0, 0)] });
   assert.equal(area.fire('touchmove', { touches: [touch(0, 50)] }), false);
-  assert.equal(surface.style.zoom, undefined);
+  assert.equal(surface.style['--zoom'], undefined);
 });
 
 test('lifting a finger ends the pinch', () => {
@@ -123,7 +129,7 @@ test('lifting a finger ends the pinch', () => {
   area.fire('touchstart', { touches: [touch(0, 0), touch(100, 0)] });
   area.fire('touchend', { touches: [touch(0, 0)] });
   assert.equal(area.fire('touchmove', { touches: [touch(0, 0), touch(300, 0)] }), false);
-  assert.equal(surface.style.zoom, undefined);
+  assert.equal(surface.style['--zoom'], undefined);
 });
 
 test('blockZoom stops Ctrl + scroll from zooming the page, and leaves plain scrolling alone', () => {

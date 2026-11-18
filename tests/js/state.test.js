@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildLibrary, createSeeds, SEED_NAMES } from '../../chordice/js/generator.js';
+import { buildLibrary } from '../../chordice/js/library.js';
+import { createSeeds, SEED_NAMES } from '../../chordice/js/random.js';
 import {
   applyAction,
   COOKIE_NAME,
@@ -10,10 +11,12 @@ import {
   sanitizeState,
   serializeCookie,
   setCount,
+  cycleCount,
+  openKeys,
   FLAGS,
   SECTIONS,
   setProbability,
-  toggleExtension,
+  toggleVariation,
   toggleGroup,
   toggleKey,
   toggleProgression,
@@ -21,28 +24,35 @@ import {
   toggleFlag,
   toggleTheme,
 } from '../../chordice/js/state.js';
-import { EXTENSION_NAMES } from '../../chordice/js/theory.js';
+import { VARIATION_NAMES } from '../../chordice/js/theory.js';
 
-const LIBRARY = buildLibrary([
-  { group: 'Pop', progressions: [{ name: 'A', progression: ['I', 'V'] }, { name: 'B', progression: ['I', 'IV'] }] },
-  { group: 'Rock', progressions: [{ name: 'C', progression: ['I', 'IV', 'V'] }] },
-]);
+const LIBRARY = buildLibrary({
+  Pop: { progressions: { A: ['I', 'V'], B: ['I', 'IV'] } },
+  Rock: { progressions: { C: ['I', 'IV', 'V'] } },
+});
 const IDS = LIBRARY.map((progression) => progression.id);
 const FIXED = () => 0.25;
 
-test('defaults select everything, show colours and extended information, and permute half of the rows', () => {
+test('defaults select everything, show colours and extended information, and rotate and permute 3 of 5 of the rows', () => {
   const state = defaultState(LIBRARY, FIXED);
   assert.deepEqual(state.keys, ['C']);
   assert.deepEqual(state.selection, IDS);
   assert.equal(state.count, 4);
-  assert.deepEqual(state.extensions, EXTENSION_NAMES);
+  assert.deepEqual(state.variations, VARIATION_NAMES);
   assert.equal(state.colour, true);
-  assert.equal(state.details, true);
-  assert.equal(state.permutation, 50);
-  assert.equal(state.rotation, 50);
+  assert.equal(state.roman, true);
+  assert.equal(state.tones, true);
+  assert.equal(state.permutation, 2);
+  assert.equal(state.rotation, 2);
+  assert.equal(state.variationProbability, 2);
+  assert.equal(state.bassProbability, 2);
   assert.equal(state.theme, 'dark');
   assert.equal(state.showOptions, true);
-  assert.deepEqual(state.collapsed, ['progressions', 'count', 'extensions', 'probabilities']);
+  assert.deepEqual(state.collapsed, ['progressions', 'progressionVariations', 'variations', 'bass']);
+});
+
+test('the options sections are keys, progressions, number of progressions, chord variations and bass', () => {
+  assert.deepEqual(SECTIONS, ['keys', 'progressions', 'progressionVariations', 'variations', 'bass']);
 });
 
 test('sanitizeState falls back to defaults for missing or broken input', () => {
@@ -56,11 +66,11 @@ test('sanitizeState keeps valid values and repairs invalid ones', () => {
     keys: ['H', 'C', 'G', 'D'],
     selection: ['Pop / A', 'Unknown / Z'],
     count: 3,
-    rotation: 55,
-    permutation: 30,
-    extensions: ['add9', 'nope'],
-    extensionProbability: 150,
-    bassProbability: 20,
+    rotation: 4,
+    permutation: 2,
+    variations: ['add9', 'nope'],
+    variationProbability: 6,
+    bassProbability: 1,
     view: 'weird',
     theme: 'dark',
     showOptions: false,
@@ -69,13 +79,14 @@ test('sanitizeState keeps valid values and repairs invalid ones', () => {
   assert.deepEqual(state.keys, ['D']);
   assert.deepEqual(state.selection, ['Pop / A']);
   assert.equal(state.count, 4);
-  assert.equal(state.rotation, 50);
-  assert.equal(state.permutation, 30);
-  assert.deepEqual(state.extensions, ['add9']);
-  assert.equal(state.extensionProbability, 50);
-  assert.equal(state.bassProbability, 20);
+  assert.equal(state.rotation, 4);
+  assert.equal(state.permutation, 2);
+  assert.deepEqual(state.variations, ['add9']);
+  assert.equal(state.variationProbability, 2);
+  assert.equal(state.bassProbability, 1);
   assert.equal(state.colour, true);
-  assert.equal(state.details, true);
+  assert.equal(state.roman, true);
+  assert.equal(state.tones, true);
   assert.equal(state.theme, 'dark');
   assert.equal(state.showOptions, false);
   assert.equal(typeof state.seeds.progression, 'number');
@@ -87,55 +98,75 @@ test('sanitizeState repairs an unknown theme to the dark default', () => {
   assert.equal(sanitizeState({}, LIBRARY, FIXED).theme, 'dark');
 });
 
-test('colour and extended information are independent switches', () => {
+test('colour, roman numerals and chord tones are independent switches', () => {
   const state = defaultState(LIBRARY, FIXED);
   const noColour = toggleFlag(state, 'colour');
   assert.equal(noColour.colour, false);
-  assert.equal(noColour.details, true);
-  const noDetails = toggleFlag(state, 'details');
-  assert.equal(noDetails.colour, true);
-  assert.equal(noDetails.details, false);
+  assert.equal(noColour.roman, true);
+  assert.equal(noColour.tones, true);
+  const noRoman = toggleFlag(state, 'roman');
+  assert.equal(noRoman.colour, true);
+  assert.equal(noRoman.roman, false);
+  assert.equal(noRoman.tones, true);
+  const noTones = toggleFlag(state, 'tones');
+  assert.equal(noTones.roman, true);
+  assert.equal(noTones.tones, false);
   assert.equal(toggleFlag(noColour, 'colour').colour, true);
   assert.equal(toggleFlag(state, 'unknown'), state);
 });
 
-test('a cookie from the single view setting sets both switches: extended on, plain off', () => {
-  assert.deepEqual(
-    [sanitizeState({ view: 'extended' }, LIBRARY, FIXED).colour, sanitizeState({ view: 'extended' }, LIBRARY, FIXED).details],
-    [true, true],
-  );
+test('a cookie from the single view setting sets colour and both extended switches: extended on, plain off', () => {
+  const extended = sanitizeState({ view: 'extended' }, LIBRARY, FIXED);
+  assert.deepEqual([extended.colour, extended.roman, extended.tones], [true, true, true]);
   const plain = sanitizeState({ view: 'plain' }, LIBRARY, FIXED);
   assert.equal(plain.colour, false);
-  assert.equal(plain.details, false);
+  assert.equal(plain.roman, false);
+  assert.equal(plain.tones, false);
 });
 
-test('the switches in a cookie win over the old view setting', () => {
-  const state = sanitizeState({ view: 'plain', colour: true, details: false }, LIBRARY, FIXED);
+test('a cookie with the old details switch sets the roman numerals and the tones together', () => {
+  const off = sanitizeState({ colour: true, details: false }, LIBRARY, FIXED);
+  assert.equal(off.roman, false);
+  assert.equal(off.tones, false);
+  assert.equal(sanitizeState({ details: true }, LIBRARY, FIXED).tones, true);
+});
+
+test('the switches in a cookie win over the old view and details settings', () => {
+  const state = sanitizeState({ view: 'plain', colour: true, details: false, roman: true, tones: false }, LIBRARY, FIXED);
   assert.equal(state.colour, true);
-  assert.equal(state.details, false);
+  assert.equal(state.roman, true);
+  assert.equal(state.tones, false);
 });
 
 test('toggleSection expands one section and collapses all others, so only one section is open at a time', () => {
   const state = defaultState(LIBRARY, FIXED);
-  // Keys is open by default; opening probabilities closes it.
-  const probabilities = toggleSection(state, 'probabilities');
-  assert.deepEqual(probabilities.collapsed, ['keys', 'progressions', 'count', 'extensions']);
-  const progressions = toggleSection(probabilities, 'progressions');
-  assert.deepEqual(progressions.collapsed, ['keys', 'count', 'extensions', 'probabilities']);
+  // Keys is open by default; opening bass closes it.
+  const bass = toggleSection(state, 'bass');
+  assert.deepEqual(bass.collapsed, ['keys', 'progressions', 'progressionVariations', 'variations']);
+  const progressions = toggleSection(bass, 'progressions');
+  assert.deepEqual(progressions.collapsed, ['keys', 'progressionVariations', 'variations', 'bass']);
   assert.equal(toggleSection(state, 'unknown'), state);
 });
 
-test('toggleSection collapses the open section, leaving every section closed', () => {
+test('toggleSection collapsing the open section leaves every section closed, with no exception for Keys', () => {
   const state = defaultState(LIBRARY, FIXED);
-  const closed = toggleSection(state, 'keys');
-  assert.deepEqual(closed.collapsed, SECTIONS);
-  assert.deepEqual(toggleSection(closed, 'count').collapsed, ['keys', 'progressions', 'extensions', 'probabilities']);
+  assert.deepEqual(toggleSection(state, 'keys').collapsed, SECTIONS);
+  const variations = toggleSection(state, 'variations');
+  assert.deepEqual(toggleSection(variations, 'variations').collapsed, SECTIONS);
+});
+
+test('openKeys expands Keys and collapses every other section', () => {
+  const state = { ...defaultState(LIBRARY, FIXED), collapsed: SECTIONS };
+  assert.deepEqual(openKeys(state).collapsed, SECTIONS.filter((section) => section !== 'keys'));
+  const bass = toggleSection(defaultState(LIBRARY, FIXED), 'bass');
+  assert.deepEqual(openKeys(bass).collapsed, SECTIONS.filter((section) => section !== 'keys'));
 });
 
 test('sanitizeState keeps only known collapsed sections and at most one expanded section', () => {
-  const state = sanitizeState({ collapsed: ['count', 'view', 'keys'] }, LIBRARY, FIXED);
+  const state = sanitizeState({ collapsed: ['progressionVariations', 'view', 'keys'] }, LIBRARY, FIXED);
   // Three sections were open in the cookie; the first one in section order stays open.
-  assert.deepEqual(state.collapsed, ['keys', 'count', 'extensions', 'probabilities']);
+  assert.deepEqual(state.collapsed, ['keys', 'progressionVariations', 'variations', 'bass']);
+  // A cookie with every section closed keeps them all closed.
   assert.deepEqual(sanitizeState({ collapsed: SECTIONS }, LIBRARY, FIXED).collapsed, SECTIONS);
   assert.deepEqual(sanitizeState({ collapsed: 'keys' }, LIBRARY, FIXED).collapsed, defaultState(LIBRARY, FIXED).collapsed);
 });
@@ -190,38 +221,52 @@ test('toggleProgression with nothing selected leaves the other options as they a
   assert.equal(cleared.rotation, 30);
 });
 
+test('cycleCount goes through 1, 2, 4, 8, 12 and back to 1, and leaves the other settings alone', () => {
+  let state = { ...defaultState(LIBRARY, FIXED), count: 1, rotation: 5 };
+  const seen = [];
+  for (let i = 0; i < 5; i++) {
+    state = cycleCount(state);
+    seen.push(state.count);
+  }
+  assert.deepEqual(seen, [2, 4, 8, 12, 1]);
+  assert.equal(state.rotation, 5);
+});
+
 test('setCount accepts only the allowed counts', () => {
   const state = defaultState(LIBRARY, FIXED);
-  assert.equal(setCount(state, 16).count, 16);
+  for (const count of [1, 2, 4, 8, 12]) {
+    assert.equal(setCount(state, count).count, count);
+  }
   assert.equal(setCount(state, 3), state);
+  assert.equal(setCount(state, 16), state);
 });
 
-test('toggleExtension keeps the canonical order and allows an empty list', () => {
-  let state = { ...defaultState(LIBRARY, FIXED), extensions: ['7'] };
-  state = toggleExtension(state, 'maj7');
-  assert.deepEqual(state.extensions, ['7', 'maj7']);
-  state = toggleExtension(state, '7');
-  assert.deepEqual(state.extensions, ['maj7']);
-  // Removing the last extension empties the list; the extension probability stays where it is.
-  const emptied = toggleExtension({ ...state, extensionProbability: 70 }, 'maj7');
-  assert.deepEqual(emptied.extensions, []);
-  assert.equal(emptied.extensionProbability, 70);
+test('toggleVariation keeps the canonical order and allows an empty list', () => {
+  let state = { ...defaultState(LIBRARY, FIXED), variations: ['7'] };
+  state = toggleVariation(state, 'maj7');
+  assert.deepEqual(state.variations, ['7', 'maj7']);
+  state = toggleVariation(state, '7');
+  assert.deepEqual(state.variations, ['maj7']);
+  // Removing the last variation empties the list; the variation probability stays where it is.
+  const emptied = toggleVariation({ ...state, variationProbability: 70 }, 'maj7');
+  assert.deepEqual(emptied.variations, []);
+  assert.equal(emptied.variationProbability, 70);
 });
 
-test('sanitizeState keeps an empty selection and empty extensions, and defaults only lists that are missing', () => {
-  const empty = sanitizeState({ selection: [], extensions: [] }, LIBRARY, FIXED);
+test('sanitizeState keeps an empty selection and empty variations, and defaults only lists that are missing', () => {
+  const empty = sanitizeState({ selection: [], variations: [] }, LIBRARY, FIXED);
   assert.deepEqual(empty.selection, []);
-  assert.deepEqual(empty.extensions, []);
+  assert.deepEqual(empty.variations, []);
   const missing = sanitizeState({}, LIBRARY, FIXED);
   assert.deepEqual(missing.selection, IDS);
-  assert.deepEqual(missing.extensions, EXTENSION_NAMES);
+  assert.deepEqual(missing.variations, VARIATION_NAMES);
 });
 
-test('setProbability rounds to steps of 10 and clamps to 0..100', () => {
+test('setProbability rounds to whole steps of the 0 to 5 scale and clamps to 0..5', () => {
   const state = defaultState(LIBRARY, FIXED);
-  assert.equal(setProbability(state, 'rotation', '37').rotation, 40);
-  assert.equal(setProbability(state, 'rotation', 150).rotation, 100);
-  assert.equal(setProbability(state, 'bassProbability', -20).bassProbability, 0);
+  assert.equal(setProbability(state, 'rotation', '3.6').rotation, 4);
+  assert.equal(setProbability(state, 'rotation', 150).rotation, 5);
+  assert.equal(setProbability(state, 'bassProbability', -2).bassProbability, 0);
   assert.equal(setProbability(state, 'rotation', 'abc'), state);
   assert.equal(setProbability(state, 'count', 50), state);
 });
@@ -262,15 +307,48 @@ test('reroll changes only the seeds', () => {
 test('applyAction dispatches UI actions and ignores unknown ones', () => {
   const state = defaultState(LIBRARY, FIXED);
   assert.deepEqual(applyAction(state, 'toggle-key', { key: 'D' }, LIBRARY).keys, ['D']);
-  assert.equal(applyAction(state, 'set-count', { count: '8' }, LIBRARY).count, 8);
+  assert.equal(applyAction(state, 'cycle-count', {}, LIBRARY).count, 8);
   assert.equal(applyAction(state, 'toggle-colour', {}, LIBRARY).colour, false);
-  assert.equal(applyAction(state, 'toggle-details', {}, LIBRARY).details, false);
+  assert.equal(applyAction(state, 'toggle-roman', {}, LIBRARY).roman, false);
+  assert.equal(applyAction(state, 'toggle-tones', {}, LIBRARY).tones, false);
   assert.ok(applyAction(state, 'toggle-section', { section: 'keys' }, LIBRARY).collapsed.includes('keys'));
+  assert.deepEqual(applyAction(state, 'open-keys', {}, LIBRARY).collapsed, SECTIONS.filter((section) => section !== 'keys'));
+  assert.ok(!applyAction(state, 'toggle-section', { section: 'bass' }, LIBRARY).collapsed.includes('bass'));
   assert.equal(applyAction(state, 'toggle-options', {}, LIBRARY).showOptions, false);
   assert.equal(applyAction(state, 'toggle-theme', {}, LIBRARY).theme, 'light');
-  assert.equal(applyAction(state, 'set-probability', { option: 'permutation', value: '20' }, LIBRARY).permutation, 20);
+  assert.equal(applyAction(state, 'set-probability', { option: 'permutation', value: '2' }, LIBRARY).permutation, 2);
   assert.equal(applyAction(state, 'unknown', {}, LIBRARY), state);
 });
+
+test('applyAction also handles group, progression, variation, foreign-variation and reroll actions', () => {
+  const state = { ...defaultState(LIBRARY, FIXED), selection: ['Rock / C'] };
+  assert.deepEqual(applyAction(state, 'toggle-group', { group: 'Pop' }, LIBRARY).selection, ['Pop / A', 'Pop / B', 'Rock / C']);
+  assert.deepEqual(applyAction(state, 'toggle-progression', { id: 'Pop / A' }, LIBRARY).selection, ['Pop / A', 'Rock / C']);
+  assert.ok(!applyAction(state, 'toggle-variation', { variation: '7' }, LIBRARY).variations.includes('7'));
+  assert.equal(applyAction(state, 'toggle-foreign-variations', {}, LIBRARY).foreignVariations, false);
+  assert.equal(applyAction(state, 'toggle-inversions', {}, LIBRARY).inversions, true);
+
+  let counter = 0;
+  const rerolled = applyAction(state, 'reroll', {}, LIBRARY, () => {
+    counter += 1;
+    return (counter * 0.137) % 1;
+  });
+  assert.notDeepEqual(rerolled.seeds, state.seeds);
+  assert.deepEqual({ ...rerolled, seeds: null }, { ...state, seeds: null });
+});
+
+test('unknown groups, progressions, variations, flags, sections, keys and probabilities leave the state unchanged', () => {
+  const state = defaultState(LIBRARY, FIXED);
+  assert.equal(toggleGroup(state, 'Jazz', LIBRARY), state);
+  assert.equal(toggleProgression(state, 'Jazz / X', LIBRARY), state);
+  assert.equal(toggleVariation(state, 'no-such-variation'), state);
+  assert.equal(toggleFlag(state, 'no-such-flag'), state);
+  assert.equal(toggleSection(state, 'no-such-section'), state);
+  assert.equal(toggleKey(state, 'H'), state);
+  assert.equal(setProbability(state, 'no-such-option', 3), state);
+  assert.equal(setProbability(state, 'rotation', 'abc'), state);
+});
+
 
 test('the state survives a round trip through the cookie', () => {
   const state = defaultState(LIBRARY, () => Math.random());
@@ -291,4 +369,22 @@ test('parseCookie ignores other cookies and broken values', () => {
 test('sanitizeState maps minor keys from older cookies to their relative major', () => {
   const state = sanitizeState({ keys: ['Am', 'G', 'Am'] }, LIBRARY, FIXED);
   assert.deepEqual(state.keys, ['G']);
+});
+
+test('foreign variations are on by default, listed as a flag, and kept by cookies', () => {
+  assert.equal(defaultState(LIBRARY, FIXED).foreignVariations, true);
+  assert.ok(FLAGS.includes('foreignVariations'));
+  assert.equal(sanitizeState({ foreignVariations: false }, LIBRARY, FIXED).foreignVariations, false);
+  assert.equal(sanitizeState({ foreignVariations: true }, LIBRARY, FIXED).foreignVariations, true);
+  // A cookie without the switch, or with a broken value, keeps the default: on.
+  assert.equal(sanitizeState({ rotation: 3 }, LIBRARY, FIXED).foreignVariations, true);
+  assert.equal(sanitizeState({ foreignVariations: 'no' }, LIBRARY, FIXED).foreignVariations, true);
+});
+
+test('the foreign variations switch toggles on and off, and changes nothing else', () => {
+  const state = { ...defaultState(LIBRARY, FIXED), variations: ['7'] };
+  const off = applyAction(state, 'toggle-foreign-variations', {}, LIBRARY);
+  assert.equal(off.foreignVariations, false);
+  assert.deepEqual({ ...off, foreignVariations: true }, state);
+  assert.equal(applyAction(off, 'toggle-foreign-variations', {}, LIBRARY).foreignVariations, true);
 });

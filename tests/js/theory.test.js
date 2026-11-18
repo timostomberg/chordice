@@ -1,9 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  EXTENSION_NAMES,
+  VARIATION_NAMES,
   buildChord,
   circleNameOf,
+  isDiatonic,
+  isDiatonicChord,
+  isVariationTone,
+  toneKind,
   neighbourKeysOf,
   degree,
   harmonicFunction,
@@ -15,6 +19,7 @@ import {
   melodyTopOf,
   minorNameOf,
   parseNumeral,
+  intervalOf,
   relativeMinorOf,
 } from '../../chordice/js/theory.js';
 
@@ -36,7 +41,7 @@ test('parseNumeral rejects invalid numerals', () => {
   assert.throws(() => parseNumeral(''));
 });
 
-test('buildChord creates symbols and tones for the supported extensions', () => {
+test('buildChord creates symbols and tones for the supported variations', () => {
   const cases = [
     ['C', 'major', null, 'C', ['C', 'E', 'G']],
     ['A', 'minor', null, 'Am', ['A', 'C', 'E']],
@@ -55,11 +60,15 @@ test('buildChord creates symbols and tones for the supported extensions', () => 
     ['C', 'major', '7sus4', 'C7sus4', ['C', 'F', 'G', 'Bb']],
     ['A', 'minor', 'sus4', 'Asus4', ['A', 'D', 'E']],
     ['D', 'minor', '11', 'Dm11', ['D', 'F', 'A', 'C', 'E', 'G']],
+    ['C', 'major', '5', 'C5', ['C', 'G']],
+    ['C', 'major', '6/9', 'C6/9', ['C', 'E', 'G', 'A', 'D']],
+    ['C', 'major', '7b5', 'C7b5', ['C', 'E', 'Gb', 'Bb']],
+    ['C', 'major', '7#11', 'C7#11', ['C', 'E', 'G', 'Bb', 'F#']],
   ];
-  for (const [root, quality, extension, symbol, tones] of cases) {
-    const chord = buildChord(root, quality, extension);
-    assert.equal(chord.symbol, symbol, `symbol for ${root} ${quality} ${extension}`);
-    assert.deepEqual(chord.tones, tones, `tones for ${root} ${quality} ${extension}`);
+  for (const [root, quality, variation, symbol, tones] of cases) {
+    const chord = buildChord(root, quality, variation);
+    assert.equal(chord.symbol, symbol, `symbol for ${root} ${quality} ${variation}`);
+    assert.deepEqual(chord.tones, tones, `tones for ${root} ${quality} ${variation}`);
   }
 });
 
@@ -68,8 +77,7 @@ test('buildChord follows tonal where its voicing differs, e.g. a dominant 11 wit
   assert.deepEqual(buildChord('G', 'major', '7b13').tones, ['G', 'B', 'F', 'Eb']);
 });
 
-test('buildChord rejects unknown extensions and combinations tonal cannot spell', () => {
-  assert.throws(() => buildChord('C', 'major', '7b5'));
+test('buildChord rejects unknown variations and combinations tonal cannot spell', () => {
   assert.throws(() => buildChord('C', 'major', 'add11'));
   assert.throws(() => buildChord('C', 'minor', 'maj7'));
   assert.throws(() => buildChord('C', 'minor', '7b9'));
@@ -85,11 +93,34 @@ test('harmonic functions follow the roman numeral', () => {
   assert.equal(harmonicFunction('xyz'), null);
 });
 
-test('the extension list matches the order in the specification, without add11', () => {
-  assert.deepEqual(EXTENSION_NAMES, [
-    '7', 'maj7', '6', 'add9', 'sus2', 'sus4', '9', 'maj9', '11', 'maj11', '13', 'maj13',
-    '7sus4', '7b9', '7#9', '7b13', '7#5',
+test('the variation list follows the specification: the fixed order first, then the rest, without add11', () => {
+  assert.deepEqual(VARIATION_NAMES, [
+    '7', 'maj7', '6', 'add9', 'sus2', 'sus4', '9', 'maj9', '11', 'maj11', '13', 'maj13', '6/9', '5',
+    '7sus4', '7b9', '7#9', '7b13', '7#5', '7b5', '7#11',
   ]);
+});
+
+test('intervalOf turns bass pattern degrees into tonal intervals, with b and # as diminished, minor or augmented', () => {
+  assert.equal(intervalOf('1'), '1P');
+  assert.equal(intervalOf('3'), '3M');
+  assert.equal(intervalOf('b3'), '3m');
+  assert.equal(intervalOf('5'), '5P');
+  assert.equal(intervalOf('b5'), '5d');
+  assert.equal(intervalOf('#5'), '5A');
+  assert.equal(intervalOf('b7'), '7m');
+  assert.equal(intervalOf('7'), '7M');
+  assert.equal(intervalOf('#9'), '9A');
+  assert.equal(intervalOf('b9'), '9m');
+  assert.equal(intervalOf('11'), '11P');
+  assert.equal(intervalOf('#11'), '11A');
+  assert.equal(intervalOf('b13'), '13m');
+});
+
+test('intervalOf rejects tokens that are not chord degrees', () => {
+  assert.throws(() => intervalOf('x'));
+  assert.throws(() => intervalOf('8'));
+  assert.throws(() => intervalOf('bb3'));
+  assert.throws(() => intervalOf(''));
 });
 
 test('keys are the 13 major keys; minor keys are shown on the circle only', () => {
@@ -153,4 +184,54 @@ test('melodyTopOf is the highest tone of the stacked inversion: the last tone of
   assert.equal(melodyTopOf(['C', 'E', 'G'], 2), 'E');
   assert.equal(melodyTopOf(['Bb', 'D', 'F', 'A'], 0), 'A');
   assert.equal(melodyTopOf(['Bb', 'D', 'F', 'A'], 2), 'D');
+});
+
+test('isDiatonic is true for the notes of the major scale of the key and false for foreign notes', () => {
+  assert.equal(isDiatonic('F', 'C'), true);
+  assert.equal(isDiatonic('Bb', 'F'), true);
+  assert.equal(isDiatonic('Bb', 'C'), false);
+  assert.equal(isDiatonic('F#', 'C'), false);
+  // Spelling does not matter: A# is Bb in the key of Bb, and Gb is F# in the key of G.
+  assert.equal(isDiatonic('A#', 'Bb'), true);
+  assert.equal(isDiatonic('Gb', 'G'), true);
+  assert.equal(isDiatonic('Gb', 'C'), false);
+});
+
+test('isVariationTone is true for a tone outside the base triad of the chord', () => {
+  // G7 has the triad G B D; the F is added by the seventh.
+  assert.equal(isVariationTone('F', 'G', 'major'), true);
+  assert.equal(isVariationTone('B', 'G', 'major'), false);
+  // Cm7 has the triad C Eb G; the Bb is added by the seventh.
+  assert.equal(isVariationTone('Bb', 'C', 'minor'), true);
+  assert.equal(isVariationTone('Eb', 'C', 'minor'), false);
+  // A bass that is the root or a triad tone is not a variation tone.
+  assert.equal(isVariationTone('C', 'C', 'major'), false);
+});
+
+test('isDiatonicChord is true only when every tone of the chord with its variation is in the key', () => {
+  // C major: I7 adds Bb, which is foreign; I add9 adds D, which is diatonic.
+  assert.equal(isDiatonicChord('C', 'major', '7', 'C'), false);
+  assert.equal(isDiatonicChord('C', 'major', 'add9', 'C'), true);
+  // G7 in C major is G B D F, all diatonic; G7b9 adds Ab, which is foreign.
+  assert.equal(isDiatonicChord('G', 'major', '7', 'C'), true);
+  assert.equal(isDiatonicChord('G', 'major', '7b9', 'C'), false);
+  // The chord is judged in the key of the row: F7 (F A C Eb) has Eb, which is foreign to F major.
+  assert.equal(isDiatonicChord('F', 'major', '7', 'F'), false);
+  assert.equal(isDiatonicChord('F', 'major', 'add9', 'F'), true);
+  // A chord that is foreign already, such as bVII (Bb) in C, has no diatonic variation.
+  assert.equal(isDiatonicChord('Bb', 'major', null, 'C'), false);
+});
+
+test('toneKind is foreign for a tone outside the key, variation for a tone the chord variation adds, and plain otherwise', () => {
+  // F7 in the key of F: the Eb is foreign to F, and the Bb of the seventh is diatonic but added by the variation.
+  const F7 = { root: 'F', quality: 'major', variation: '7' };
+  assert.equal(toneKind('Eb', F7, 'F'), 'foreign');
+  assert.equal(toneKind('Bb', F7, 'F'), 'variation');
+  assert.equal(toneKind('F', F7, 'F'), '');
+  assert.equal(toneKind('C', F7, 'F'), '');
+});
+
+test('toneKind gives foreign precedence when a tone is both foreign and added by the variation', () => {
+  // C7 in the key of C: the Bb is added by the seventh and foreign to C, so it is foreign.
+  assert.equal(toneKind('Bb', { root: 'C', quality: 'major', variation: '7' }, 'C'), 'foreign');
 });

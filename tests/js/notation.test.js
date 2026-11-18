@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Chord, Note } from 'tonal';
-import { inversionOrders, lowestAtLeast, voicing, vexKey } from '../../chordice/js/notation.js';
+import { accidentalBeforeNote, inversionOrders, lowestAtLeast, voicing, vexKey } from '../../chordice/js/notation.js';
+import { keySignatureOf } from '../../chordice/js/theory.js';
 
 const BASS_RANGE = [43, 54]; // G2 to F#3
 
@@ -127,4 +128,31 @@ test('the melody note shown for a chord is the top note of its notes window in t
       assert.equal(Note.get(top).pc, melodyTopOf(tones, inversion), `${symbol} inversion ${inversion}`);
     });
   }
+});
+
+test('accidentalBeforeNote writes no sign for a tone the key signature already shows', () => {
+  assert.equal(accidentalBeforeNote('F#4', keySignatureOf('G')), null);
+  assert.equal(accidentalBeforeNote('Bb3', keySignatureOf('Bb')), null);
+  assert.equal(accidentalBeforeNote('Eb4', keySignatureOf('Bb')), null);
+  assert.equal(accidentalBeforeNote('C4', keySignatureOf('C')), null);
+});
+
+test('accidentalBeforeNote writes the sign of a tone foreign to the key', () => {
+  assert.equal(accidentalBeforeNote('F#4', keySignatureOf('C')), '#');
+  assert.equal(accidentalBeforeNote('Eb4', keySignatureOf('C')), 'b');
+  assert.equal(accidentalBeforeNote('Bb4', keySignatureOf('G')), 'b');
+});
+
+test('accidentalBeforeNote writes a natural for a natural that the key signature alters', () => {
+  assert.equal(accidentalBeforeNote('F4', keySignatureOf('G')), 'n');
+  assert.equal(accidentalBeforeNote('B4', keySignatureOf('Bb')), 'n');
+});
+
+test('accidentalBeforeNote without a key signature writes every altered tone, as in C', () => {
+  assert.equal(accidentalBeforeNote('F#4'), '#');
+  assert.equal(accidentalBeforeNote('F4'), null);
+});
+
+test('accidentalBeforeNote rejects a pitch without octave', () => {
+  assert.throws(() => accidentalBeforeNote('F#'), /without octave/);
 });

@@ -165,3 +165,74 @@ test('the progression heading centres its title and the tags on one line', () =>
   assert.ok(/\.row h2\s*\{[^}]*display: flex/.test(CSS));
   assert.ok(/\.row h2\s*\{[^}]*align-items: center/.test(CSS));
 });
+
+/**
+ * The declarations of all rules for one selector, e.g. '.chord .melody'. A selector can sit in a shared rule (a selector
+ * list) and in a rule of its own, so both are collected.
+ */
+function declarationsOf(selector) {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return [...CSS.matchAll(new RegExp(`(?:^|\\n)${escaped}\\s*\\{([^}]*)\\}`, 'g'))].map((match) => match[1]).join('');
+}
+
+test('the sizes of the chord area are multiplied by --zoom, so that the text grows together with the boxes', () => {
+  for (const selector of ['.row h2', '.chords', '.chord', '.chord .roman,\n.chord .tones', '.chord .melody']) {
+    assert.ok(declarationsOf(selector).includes('var(--zoom'), selector);
+  }
+});
+
+test('the top melody note is larger than the tones below the chord', () => {
+  const size = (selector) => Number(/font-size:\s*calc\(var\(--zoom[^)]*\)\s*\*\s*([\d.]+)rem\)/.exec(declarationsOf(selector))?.[1]);
+  assert.ok(size('.chord .melody') > size('.chord .roman,\n.chord .tones'));
+});
+
+test('the tones below a chord are circled in the variation and foreign colours', () => {
+  // Each colour has its own rule; the circle is the rule that the two share.
+  assert.match(CSS, /\.chord \.tone-variation \{[^}]*color: var\(--variation-tone\)/);
+  assert.match(CSS, /\.chord \.tone-foreign \{[^}]*color: var\(--foreign-tone\)/);
+  // The circle is drawn by the rule that both colours share.
+  assert.ok(declarationsOf('.chord .tone-variation,\n.chord .tone-foreign,\n.chord .melody').includes('border-radius: 999px'));
+});
+
+test('the top melody note is circled like the tones below the chord, and smaller than the chord symbol', () => {
+  assert.ok(declarationsOf('.chord .tone-variation,\n.chord .tone-foreign,\n.chord .melody').includes('border: 1px solid currentColor'));
+  const size = (selector) => Number(/font-size:\s*calc\(var\(--zoom[^)]*\)\s*\*\s*([\d.]+)rem\)/.exec(declarationsOf(selector))?.[1]);
+  assert.ok(size('.chord .melody') < size('.chord'));
+});
+
+test('the chord whose notes are open has a frame', () => {
+  assert.ok(declarationsOf('.chord.is-open').includes('outline'));
+});
+
+test('the count button is always filled in the accent blue, like an active chip', () => {
+  const block = declarationsOf('.chip.count-toggle');
+  assert.ok(block.includes('background: var(--icon-blue)'));
+  assert.ok(block.includes('border-color: var(--icon-blue)'));
+  assert.ok(block.includes('color: var(--surface)'));
+});
+
+// The notes staff must not force a fill or stroke on its drawing: VexFlow sets the colour of each note as an attribute,
+// and a stylesheet rule would override it, so coloured tones would stay black.
+test('the notes staff does not override the colours VexFlow gives its notes', () => {
+  const rules = [...CSS.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+  const forcing = rules.filter(([, selector, body]) => /notes-staff/.test(selector) && /\b(fill|stroke)\s*:/.test(body));
+  assert.deepEqual(forcing.map(([, selector]) => selector.trim()), []);
+});
+
+// The notes are drawn in the colours of the light theme, on white paper, in the dark theme too. The colours in score.js
+// must therefore match the light theme's tone colours here.
+test('the tone colours of the notes are the light theme colours of the chord tones', () => {
+  const SCORE = readFileSync(new URL('js/score.js', CHORDICE), 'utf8');
+  const light = /:root\s*\{([^}]*)\}/.exec(CSS)[1];
+  const colours = Object.fromEntries(
+    [['foreign', '--foreign-tone'], ['variation', '--variation-tone']].map(([kind, variable]) => {
+      const match = new RegExp(`${variable}:\\s*(#[0-9a-fA-F]{6})`).exec(light);
+      assert.ok(match, `${variable} is defined in the light theme`);
+      return [kind, match[1].toLowerCase()];
+    }),
+  );
+  const scoreColours = /const TONE_COLOURS = (\{[^}]*\});/.exec(SCORE)[1];
+  for (const [kind, colour] of Object.entries(colours)) {
+    assert.ok(scoreColours.includes(`${kind}: '${colour}'`), `score.js uses ${colour} for ${kind}`);
+  }
+});

@@ -1,25 +1,32 @@
 /**
- * Browser entry point: loads the progression data, wires the UI and persists the state in a cookie.
+ * The page: loads the progression data, wires the UI and persists the state in a cookie. main.js starts it.
  */
 
 import { load } from 'js-yaml';
-import { buildLibrary, generate } from './generator.js';
+import { generate } from './generator.js';
+import { buildBassPatterns, buildLibrary } from './library.js';
 import { applyAction, parseCookie, sanitizeState, serializeCookie } from './state.js';
 import { renderOptions, renderRows } from './render.js';
 import { createNotesDialog } from './notes-dialog.js';
 import { bindZoom, blockZoom } from './zoom.js';
 
-const DATA_URL = new URL('../data/chord_progressions.yaml', import.meta.url);
+const PROGRESSIONS_URL = new URL('../data/chord_progressions.yaml', import.meta.url);
+const BASS_URL = new URL('../data/bass_patterns.yaml', import.meta.url);
 
-async function loadLibrary() {
-  const response = await fetch(DATA_URL);
+async function loadYaml(url) {
+  const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`Could not load ${DATA_URL}: ${response.status}`);
+    throw new Error(`Could not load ${url}: ${response.status}`);
   }
-  return buildLibrary(load(await response.text()));
+  return load(await response.text());
 }
 
-function start(library) {
+async function loadData() {
+  const [progressions, bass] = await Promise.all([loadYaml(PROGRESSIONS_URL), loadYaml(BASS_URL)]);
+  return { library: buildLibrary(progressions), bassPatterns: buildBassPatterns(bass) };
+}
+
+function start({ library, bassPatterns }) {
   let state = sanitizeState(parseCookie(document.cookie), library);
 
   const sidePanel = document.querySelector('#side-panel');
@@ -34,6 +41,11 @@ function start(library) {
   bindZoom(content, rows);
   blockZoom(sidePanel);
 
+  /** The display switches of the rows, which the notes window's chord box follows too. */
+  function displayOf(current) {
+    return { colour: current.colour, roman: current.roman, tones: current.tones, melody: current.inversions };
+  }
+
   function render() {
     // Re-rendering replaces the markup, which would otherwise scroll the progression list and the chords back to the top.
     const listScroll = optionList.querySelector('.progression-list')?.scrollTop ?? 0;
@@ -45,17 +57,16 @@ function start(library) {
     if (list) {
       list.scrollTop = listScroll;
     }
-    currentRows = generate({ ...state, library });
-    rows.innerHTML = renderRows(currentRows, {
-      colour: state.colour,
-      details: state.details,
-      melody: state.inversions,
-    });
+    currentRows = generate({ ...state, library, bassPatterns });
+    rows.innerHTML = renderRows(currentRows, displayOf(state));
     content.scrollTop = contentScroll;
     document.documentElement.dataset.theme = state.theme;
-    document.querySelector('[data-action="toggle-colour"]').setAttribute('aria-pressed', String(state.colour));
-    document.querySelector('[data-action="toggle-details"]').setAttribute('aria-pressed', String(state.details));
-    document.querySelector('[data-action="toggle-inversions"]').setAttribute('aria-pressed', String(state.inversions));
+    // The count button shows the number of progressions it cycles through: 1, 2, 4, 8, 12.
+    document.querySelector('.count-toggle').textContent = String(state.count);
+    // Each view switch names its flag in data-flag, so its pressed state follows the state.
+    for (const button of document.querySelectorAll('[data-flag]')) {
+      button.setAttribute('aria-pressed', String(state[button.dataset.flag]));
+    }
     // The options button is the element with the class; the header carries the same action but is not the button.
     document.querySelector('.options-toggle').setAttribute('aria-expanded', String(state.showOptions));
     document.querySelector('[data-action="toggle-theme"]').setAttribute('aria-pressed', String(state.theme === 'dark'));
@@ -68,7 +79,8 @@ function start(library) {
   }
 
   function openNotes(target) {
-    notes.open(currentRows[Number(target.dataset.row)].chords[Number(target.dataset.chord)]);
+    const row = currentRows[Number(target.dataset.row)];
+    notes.open(row.chords[Number(target.dataset.chord)], target, row.tonic, displayOf(state));
   }
 
   document.addEventListener('click', (event) => {
@@ -77,6 +89,11 @@ function start(library) {
       openNotes(target);
     } else if (target) {
       dispatch(target.dataset.action, target.dataset);
+    } else if (content.contains(event.target)) {
+      // A click on the chords area outside the chords opens Keys and closes the other options sections.
+      // The options scroll back to the top, so the opened Keys section is in view.
+      dispatch('open-keys', {});
+      sidePanel.scrollTop = 0;
     }
   });
 
@@ -99,8 +116,11 @@ function start(library) {
   render();
 }
 
-loadLibrary()
-  .then(start)
-  .catch((error) => {
-    document.querySelector('#rows').textContent = `Chordice could not start: ${error.message}`;
-  });
+/** Loads the data and shows the page. The promise settles once the page is shown, or once the error is shown. */
+export function startApp() {
+  return loadData()
+    .then(start)
+    .catch((error) => {
+      document.querySelector('#rows').textContent = `Chordice could not start: ${error.message}`;
+    });
+}

@@ -2,22 +2,20 @@
  * Application state: defaults, validation, cookie persistence and pure state transitions.
  */
 
-import { EXTENSION_NAMES, isKeyName, majorKeyOf } from './theory.js';
-import { SEED_NAMES, createSeeds } from './generator.js';
+import { VARIATION_NAMES, isKeyName, majorKeyOf } from './theory.js';
+import { PROBABILITY_MAX, SEED_NAMES, createSeeds } from './random.js';
 
 export const COOKIE_NAME = 'chordice_state';
-export const COUNTS = [1, 2, 4, 8, 12, 16];
-export const PROBABILITY_OPTIONS = ['rotation', 'permutation', 'extensionProbability', 'bassProbability'];
-export const FLAGS = ['showOptions', 'colour', 'details', 'inversions'];
+export const COUNTS = [1, 2, 4, 8, 12];
+export const PROBABILITY_OPTIONS = ['rotation', 'permutation', 'variationProbability', 'bassProbability'];
+export const FLAGS = ['showOptions', 'colour', 'roman', 'tones', 'inversions', 'foreignVariations'];
 export const THEMES = ['light', 'dark'];
-export const SECTIONS = ['keys', 'progressions', 'count', 'extensions', 'probabilities'];
+export const SECTIONS = ['keys', 'progressions', 'progressionVariations', 'variations', 'bass'];
 
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
+// Default for the probabilities, on the scale from 0 to 5 (2 means 40%).
+const DEFAULT_PROBABILITY = 2;
 const MAX_SEED = 4294967295;
-
-function unique(items) {
-  return [...new Set(items)];
-}
 
 export function defaultState(library, random = Math.random) {
   return {
@@ -25,14 +23,17 @@ export function defaultState(library, random = Math.random) {
     keys: ['C'],
     selection: library.map((progression) => progression.id),
     count: 4,
-    rotation: 50,
-    permutation: 50,
-    extensions: [...EXTENSION_NAMES],
-    extensionProbability: 50,
-    bassProbability: 50,
+    rotation: DEFAULT_PROBABILITY,
+    permutation: DEFAULT_PROBABILITY,
+    variations: [...VARIATION_NAMES],
+    variationProbability: DEFAULT_PROBABILITY,
+    bassProbability: DEFAULT_PROBABILITY,
     colour: true,
-    details: true,
+    roman: true,
+    tones: true,
     inversions: false,
+    // On: every chord variation is used. Off: only variations without tones foreign to the key.
+    foreignVariations: true,
     theme: 'dark',
     showOptions: true,
     // Only the key circle is expanded by default.
@@ -42,7 +43,7 @@ export function defaultState(library, random = Math.random) {
 }
 
 function toProbability(value, fallback) {
-  if (Number.isInteger(value) && value >= 0 && value <= 100 && value % 10 === 0) {
+  if (Number.isInteger(value) && value >= 0 && value <= PROBABILITY_MAX) {
     return value;
   }
   return fallback;
@@ -59,14 +60,14 @@ export function sanitizeState(raw, library, random = Math.random) {
     return fallback;
   }
 
-  const rawKeys = Array.isArray(raw.keys) ? unique(raw.keys.map(majorKeyOf).filter(Boolean)) : [];
-  // An empty selection or an empty extension list is valid: nothing is shown or added for it.
+  const rawKeys = Array.isArray(raw.keys) ? [...new Set(raw.keys.map(majorKeyOf).filter(Boolean))] : [];
+  // An empty selection or an empty variation list is valid: nothing is shown or added for it.
   const selection = Array.isArray(raw.selection)
     ? library.map((progression) => progression.id).filter((id) => raw.selection.includes(id))
     : fallback.selection;
-  const extensions = Array.isArray(raw.extensions)
-    ? EXTENSION_NAMES.filter((name) => raw.extensions.includes(name))
-    : fallback.extensions;
+  const variations = Array.isArray(raw.variations)
+    ? VARIATION_NAMES.filter((name) => raw.variations.includes(name))
+    : fallback.variations;
   const seeds = {};
   for (const name of SEED_NAMES) {
     seeds[name] = toSeed(raw.seeds?.[name], fallback.seeds[name]);
@@ -74,6 +75,8 @@ export function sanitizeState(raw, library, random = Math.random) {
 
   // Cookies written before the split hold a single view; it sets both switches.
   const legacyView = raw.view === 'extended' || raw.view === 'plain' ? raw.view === 'extended' : undefined;
+  // Cookies written before the split hold one extended switch, "details", for both the roman numeral and the tones.
+  const legacyDetails = typeof raw.details === 'boolean' ? raw.details : legacyView;
 
   return {
     version: 1,
@@ -82,12 +85,14 @@ export function sanitizeState(raw, library, random = Math.random) {
     count: COUNTS.includes(raw.count) ? raw.count : fallback.count,
     rotation: toProbability(raw.rotation, fallback.rotation),
     permutation: toProbability(raw.permutation, fallback.permutation),
-    extensions,
-    extensionProbability: toProbability(raw.extensionProbability, fallback.extensionProbability),
+    variations,
+    variationProbability: toProbability(raw.variationProbability, fallback.variationProbability),
     bassProbability: toProbability(raw.bassProbability, fallback.bassProbability),
     colour: typeof raw.colour === 'boolean' ? raw.colour : (legacyView ?? fallback.colour),
-    details: typeof raw.details === 'boolean' ? raw.details : (legacyView ?? fallback.details),
+    roman: typeof raw.roman === 'boolean' ? raw.roman : (legacyDetails ?? fallback.roman),
+    tones: typeof raw.tones === 'boolean' ? raw.tones : (legacyDetails ?? fallback.tones),
     inversions: typeof raw.inversions === 'boolean' ? raw.inversions : fallback.inversions,
+    foreignVariations: typeof raw.foreignVariations === 'boolean' ? raw.foreignVariations : fallback.foreignVariations,
     theme: THEMES.includes(raw.theme) ? raw.theme : fallback.theme,
     showOptions: typeof raw.showOptions === 'boolean' ? raw.showOptions : fallback.showOptions,
     collapsed: Array.isArray(raw.collapsed)
@@ -160,32 +165,36 @@ export function setCount(state, count) {
   return COUNTS.includes(count) ? { ...state, count } : state;
 }
 
-export function toggleExtension(state, name) {
-  if (!EXTENSION_NAMES.includes(name)) {
+/** Moves the number of progressions to the next value in 1, 2, 4, 8, 12, and back to 1 after 12. */
+export function cycleCount(state) {
+  const next = COUNTS[(COUNTS.indexOf(state.count) + 1) % COUNTS.length];
+  return setCount(state, next);
+}
+
+export function toggleVariation(state, name) {
+  if (!VARIATION_NAMES.includes(name)) {
     return state;
   }
-  const next = state.extensions.includes(name)
-    ? state.extensions.filter((extension) => extension !== name)
-    : [...state.extensions, name];
-  // An empty list is allowed: no chord extensions are added, while the extension probability stays as it is.
-  const extensions = EXTENSION_NAMES.filter((extension) => next.includes(extension));
-  return { ...state, extensions };
+  const next = state.variations.includes(name)
+    ? state.variations.filter((variation) => variation !== name)
+    : [...state.variations, name];
+  // An empty list is allowed: no chord variations are added, while the variation probability stays as it is.
+  const variations = VARIATION_NAMES.filter((variation) => next.includes(variation));
+  return { ...state, variations };
 }
 
 export function setProbability(state, option, value) {
   if (!PROBABILITY_OPTIONS.includes(option)) {
     return state;
   }
-  const rounded = Math.round(Number(value) / 10) * 10;
+  const rounded = Math.round(Number(value));
   if (!Number.isFinite(rounded)) {
     return state;
   }
-  return { ...state, [option]: Math.min(100, Math.max(0, rounded)) };
+  return { ...state, [option]: Math.min(PROBABILITY_MAX, Math.max(0, rounded)) };
 }
 
-/**
- * Keeps at most one options section expanded: the first expanded one in section order. Used for collapsed lists from outside.
- */
+/** Keeps at most one options section expanded: the first expanded one in section order. Used for collapsed lists from outside. */
 function withAtMostOneExpanded(collapsed) {
   const expanded = SECTIONS.find((section) => !collapsed.includes(section));
   return SECTIONS.filter((section) => section !== expanded);
@@ -205,13 +214,21 @@ export function toggleSection(state, name) {
   return { ...state, collapsed: SECTIONS.filter((section) => section === name || state.collapsed.includes(section)) };
 }
 
+/** Opens Keys and closes every other options section. */
+export function openKeys(state) {
+  return { ...state, collapsed: SECTIONS.filter((section) => section !== 'keys') };
+}
+
 /** Switches between the light and the dark theme. */
 export function toggleTheme(state) {
   const next = THEMES[(THEMES.indexOf(state.theme) + 1) % THEMES.length];
   return { ...state, theme: next };
 }
 
-/** Switches one of the on/off flags: the options panel, the colours of the chords or the extended information. */
+/**
+ * Switches one of the on/off flags: the options panel, the colours of the chords, the roman numerals, the chord tones,
+ * the inversions or the foreign chord variations.
+ */
 export function toggleFlag(state, flag) {
   if (!FLAGS.includes(flag)) {
     return state;
@@ -224,36 +241,32 @@ export function reroll(state, random = Math.random) {
   return { ...state, seeds: createSeeds(random) };
 }
 
-/** Maps a UI action (from data-attributes) onto a state transition. */
+/** Actions that switch one flag; the action name is the flag's name in the data attributes. */
+const FLAG_ACTIONS = {
+  'toggle-colour': 'colour',
+  'toggle-roman': 'roman',
+  'toggle-tones': 'tones',
+  'toggle-inversions': 'inversions',
+  'toggle-foreign-variations': 'foreignVariations',
+  'toggle-options': 'showOptions',
+};
+
+/** Maps a UI action (from data-attributes) onto a state transition. Unknown actions leave the state unchanged. */
 export function applyAction(state, action, params, library, random = Math.random) {
-  switch (action) {
-    case 'toggle-key':
-      return toggleKey(state, params.key);
-    case 'toggle-group':
-      return toggleGroup(state, params.group, library);
-    case 'toggle-progression':
-      return toggleProgression(state, params.id, library);
-    case 'set-count':
-      return setCount(state, Number(params.count));
-    case 'toggle-extension':
-      return toggleExtension(state, params.extension);
-    case 'set-probability':
-      return setProbability(state, params.option, params.value);
-    case 'toggle-colour':
-      return toggleFlag(state, 'colour');
-    case 'toggle-details':
-      return toggleFlag(state, 'details');
-    case 'toggle-inversions':
-      return toggleFlag(state, 'inversions');
-    case 'toggle-section':
-      return toggleSection(state, params.section);
-    case 'toggle-options':
-      return toggleFlag(state, 'showOptions');
-    case 'toggle-theme':
-      return toggleTheme(state);
-    case 'reroll':
-      return reroll(state, random);
-    default:
-      return state;
+  if (Object.hasOwn(FLAG_ACTIONS, action)) {
+    return toggleFlag(state, FLAG_ACTIONS[action]);
   }
+  const transitions = {
+    'toggle-key': () => toggleKey(state, params.key),
+    'toggle-group': () => toggleGroup(state, params.group, library),
+    'toggle-progression': () => toggleProgression(state, params.id, library),
+    'cycle-count': () => cycleCount(state),
+    'toggle-variation': () => toggleVariation(state, params.variation),
+    'set-probability': () => setProbability(state, params.option, params.value),
+    'toggle-section': () => toggleSection(state, params.section),
+    'open-keys': () => openKeys(state),
+    'toggle-theme': () => toggleTheme(state),
+    'reroll': () => reroll(state, random),
+  };
+  return Object.hasOwn(transitions, action) ? transitions[action]() : state;
 }

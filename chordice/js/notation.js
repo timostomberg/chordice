@@ -76,3 +76,21 @@ export function vexKey(name) {
   }
   return { key: `${note.letter.toLowerCase()}${note.acc}/${note.oct}`, accidental: note.acc || null };
 }
+
+/**
+ * The accidental to write directly before a note, given the key signature (its accidentals, e.g. ['F#'] for G, as
+ * keySignatureOf gives them). A note whose sign the key signature already shows gets none. A natural that the key
+ * signature alters gets a natural sign. Returns the VexFlow accidental ('#', 'b', 'n', ...) or null.
+ */
+export function accidentalBeforeNote(name, signature = []) {
+  const note = Note.get(name);
+  if (note.empty || note.oct === undefined) {
+    throw new Error(`Pitch without octave: ${name}`);
+  }
+  const signed = signature.find((accidental) => accidental[0] === note.letter);
+  const keyAccidental = signed ? signed.slice(1) : '';
+  if (note.acc === keyAccidental) {
+    return null;
+  }
+  return note.acc || 'n';
+}

@@ -20,6 +20,11 @@
   --key-on-text: #000;
   --chord-text: var(--text);
   --chord-soft: var(--text-soft);
+  /* Tones below a chord: blue when the chord variation adds them, red when they are foreign to the key. */
+  --variation-tone: #2f5fb3;
+  --foreign-tone: #c0392b;
+  /* The zoom of the chords (set by zoom.js): 1 means 100%. */
+  --zoom: 1;
   --fill: 50%;
   --touch: 44px;
 }
@@ -30,8 +35,9 @@
   --bg: #121417;
   --surface: #1c2025;
   --text: #e6e8eb;
-  --text-soft: #c4cad2;
-  --muted: #9aa3ad;
+  /* Lighter than before: the grey labels and secondary texts are white-grey rather than dull grey. */
+  --text-soft: #e0e4ea;
+  --muted: #c4cad2;
   --accent: #3f6fc4;
   --icon-blue: #3f6fc4;
   --line: #3a4048;
@@ -44,8 +50,12 @@
   --slider-fill: #2a4f94;
   /* Light grey rather than pure white: the same text colours the dark theme had before, without the glare. */
   --key-on-text: var(--text);
-  --chord-text: var(--text);
+  /* The chord symbols on the right are a whiter white than the other texts. */
+  --chord-text: #ffffff;
   --chord-soft: var(--text-soft);
+  --variation-tone: #8fb8ff;
+  --foreign-tone: #ff7a6b;
+  --zoom: 1;
   --fill: 50%;
 }
 
@@ -96,11 +106,17 @@ body {
 }
 
 .options-toggle,
-.details-toggle,
+.roman-toggle,
+.tones-toggle,
 .colour-toggle,
 .inversions-toggle,
 .theme-toggle {
   color: var(--text);
+}
+
+/* A gap separates the colour button from the music switches (progressions, roman numerals, tones, melody). */
+.view-toggles .colour-toggle {
+  margin-left: 0.6rem;
 }
 
 /* The spiral dots are filled in the icon colour. */
@@ -108,9 +124,47 @@ body {
   fill: currentColor;
 }
 
+/* The count and the #b chips sit beside a section heading. They keep the touch height of the heading row. */
+.section-header > .chip {
+  flex: none;
+  align-self: flex-start;
+  margin-left: 0.5rem;
+}
+
+/* The count shows a number, so its digits use tabular figures. */
+.count-toggle {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The section heading, the count button and the arrow share one row; the arrow sits right of the count button. */
+.option .section-header {
+  display: flex;
+  align-items: flex-start;
+}
+
+.option .section-header .section-toggle::after {
+  content: none;
+}
+
+.option .section-header::after {
+  content: "\25B8";
+  flex: none;
+  display: flex;
+  align-items: center;
+  min-height: var(--touch);
+  margin-left: 0.5rem;
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+
+.option .section-header.is-expanded::after {
+  transform: rotate(90deg);
+}
+
 /* The toolbar icons share one blue in both themes, for symbol and outline. */
 .toolbar .options-toggle,
-.toolbar .details-toggle,
+.toolbar .roman-toggle,
+.toolbar .tones-toggle,
 .toolbar .colour-toggle,
 .toolbar .inversions-toggle,
 .toolbar .theme-toggle {
@@ -118,9 +172,10 @@ body {
   color: var(--icon-blue);
 }
 
-/* An active options, details, colour or inversions toggle is filled with the icon blue, and its symbol takes the background colour. */
+/* An active options, roman, tones, colour or inversions toggle is filled with the icon blue, and its symbol takes the background colour. */
 .toolbar .options-toggle[aria-expanded="true"],
-.toolbar .details-toggle[aria-pressed="true"],
+.toolbar .roman-toggle[aria-pressed="true"],
+.toolbar .tones-toggle[aria-pressed="true"],
 .toolbar .colour-toggle[aria-pressed="true"],
 .toolbar .inversions-toggle[aria-pressed="true"] {
   background: var(--icon-blue);
@@ -128,7 +183,8 @@ body {
 }
 
 .options-toggle svg,
-.details-toggle svg,
+.roman-toggle svg,
+.tones-toggle svg,
 .colour-toggle svg,
 .inversions-toggle svg,
 .theme-toggle svg {
@@ -302,6 +358,16 @@ button[aria-expanded="true"] {
   display: none;
 }
 
+/* Heading above a group of option sections, e.g. "Variations" above the three variation sections. */
+.options-heading {
+  margin: 0.4rem 0.2rem 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
 /* Each options section is framed like a progression group: thin line border, rounded corners. */
 .option {
   margin-bottom: 1rem;
@@ -322,6 +388,8 @@ button[aria-expanded="true"] {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   column-gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
   width: 100%;
   min-height: var(--touch);
   padding: 0.4rem 0;
@@ -416,6 +484,13 @@ button[aria-expanded="true"] {
   color: var(--surface);
 }
 
+/* The count button is not a switch, so it always has the filled look of an active chip. */
+.chip.count-toggle {
+  background: var(--icon-blue);
+  border-color: var(--icon-blue);
+  color: var(--surface);
+}
+
 /* Progression buttons (groups and the progressions inside them) are narrower than the other option buttons. */
 .group .chip {
   min-width: 0;
@@ -492,13 +567,14 @@ button[aria-expanded="true"] {
 }
 
 .meta {
-  font-size: 0.85rem;
+  font-size: calc(var(--zoom) * 0.85rem);
   font-weight: 400;
   color: var(--muted);
 }
 
+/* The chord area is sized by --zoom (see zoom.js): every length in it is multiplied by it, so text and boxes scale together. */
 .row {
-  margin-bottom: 1.25rem;
+  margin-bottom: calc(var(--zoom) * 1.25rem);
 }
 
 /* Headings share the colour of the option section titles. The title and the tags sit on one centre line. */
@@ -506,8 +582,8 @@ button[aria-expanded="true"] {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  margin: 0 0 0.4rem;
-  font-size: 0.9rem;
+  margin: 0 0 calc(var(--zoom) * 0.4rem);
+  font-size: calc(var(--zoom) * 0.9rem);
   font-weight: 500;
   color: var(--muted);
 }
@@ -520,15 +596,15 @@ button[aria-expanded="true"] {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.3rem;
-  margin-left: 1rem;
+  gap: calc(var(--zoom) * 0.3rem);
+  margin-left: calc(var(--zoom) * 1rem);
 }
 
 .tag {
-  padding: 0.1rem 0.5rem;
-  border: 1px solid var(--line);
+  padding: calc(var(--zoom) * 0.1rem) calc(var(--zoom) * 0.5rem);
+  border: calc(var(--zoom) * 1px) solid var(--line);
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: calc(var(--zoom) * 0.75rem);
   font-weight: 400;
   color: var(--muted);
 }
@@ -542,7 +618,7 @@ button[aria-expanded="true"] {
 .chords {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: calc(var(--zoom) * 0.5rem);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -550,14 +626,14 @@ button[aria-expanded="true"] {
 
 /* Plain chords are not bold. With the extended information on, only the chord name (e.g. C, Cm) is bold, see .chord-name. */
 .chord {
-  min-width: 5.5rem;
-  padding: 0.6rem 0.8rem;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  min-width: calc(var(--zoom) * 5.5rem);
+  padding: calc(var(--zoom) * 0.6rem) calc(var(--zoom) * 0.8rem);
+  border: calc(var(--zoom) * 1px) solid var(--line);
+  border-radius: calc(var(--zoom) * 10px);
   background: var(--surface);
   color: var(--chord-text);
   cursor: pointer;
-  font-size: 1.4rem;
+  font-size: calc(var(--zoom) * 1.4rem);
   font-weight: 400;
   text-align: center;
 }
@@ -566,7 +642,7 @@ button[aria-expanded="true"] {
   font-weight: 600;
 }
 
-.chord .extension {
+.chord .variation {
   font-weight: 400;
 }
 
@@ -607,9 +683,29 @@ button[aria-expanded="true"] {
 .chord .roman,
 .chord .tones {
   display: block;
-  font-size: 0.8rem;
+  font-size: calc(var(--zoom) * 0.8rem);
   font-weight: 400;
   color: var(--chord-soft);
+}
+
+/* A tone below the chord is circled: blue when the chord variation adds it, red when it is foreign to the key. */
+/* The top melody note is circled the same way, so its oval depends on its width too. */
+.chord .tone-variation,
+.chord .tone-foreign,
+.chord .melody {
+  display: inline-block;
+  padding: 0 0.3em;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  line-height: 1.5;
+}
+
+.chord .tone-variation {
+  color: var(--variation-tone);
+}
+
+.chord .tone-foreign {
+  color: var(--foreign-tone);
 }
 
 /* The chord symbol and, with the inversions switch on, the top melody note to its right, inside the box. */
@@ -617,15 +713,12 @@ button[aria-expanded="true"] {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
+  gap: calc(var(--zoom) * 0.4rem);
 }
 
-/* The top melody note is an oval in the colour of the chord symbol, its text as large as the tones below the chord. */
+/* The top melody note is circled in the colour of the chord symbol, a little smaller than the chord symbol and larger than the tones below it. */
 .chord .melody {
-  padding: 0.05rem 0.5rem;
-  border: 1px solid var(--chord-text);
-  border-radius: 999px;
-  font-size: 0.8rem;
+  font-size: calc(var(--zoom) * 1.05rem);
   font-weight: 400;
   color: var(--chord-text);
 }
@@ -633,6 +726,12 @@ button[aria-expanded="true"] {
 .chord:focus-visible {
   outline: 2px solid var(--icon-blue);
   outline-offset: 2px;
+}
+
+/* The chord whose notes are open is framed in the background, until the notes window closes. */
+.chord.is-open {
+  outline: 2px solid var(--icon-blue);
+  outline-offset: 3px;
 }
 
 /* The notes window is always a white sheet with black ink, in both themes. Its content is centred. */
@@ -655,6 +754,12 @@ button[aria-expanded="true"] {
   text-align: center;
 }
 
+/* The chord box of the open chord sits centred above the score, as it does in the rows. */
+.notes-chord {
+  justify-content: center;
+  margin: 0 auto 0.6rem;
+}
+
 /* The score sits in a thin grey frame, like the option sections. */
 .notes-staff {
   margin: 0 auto;
@@ -670,12 +775,6 @@ button[aria-expanded="true"] {
   margin: 0 auto;
   width: 100%;
   height: auto;
-}
-
-/* VexFlow draws with fill and stroke attributes; these rules make the ink black. */
-.notes-staff svg * {
-  fill: #000;
-  stroke: #000;
 }
 
 

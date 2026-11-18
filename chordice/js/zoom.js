@@ -1,6 +1,8 @@
 /**
  * Zoom for one area of the page. Ctrl + scroll (a trackpad pinch arrives as Ctrl + scroll too) and a two-finger
  * pinch on a touch screen scale only the surface inside the area. The rest of the page keeps its size.
+ * The scale is passed on as the custom property --zoom of the surface; the stylesheet multiplies the sizes of the
+ * surface's text and boxes by it, so that the text grows together with the boxes.
  */
 
 export const MIN_ZOOM = 0.7;
@@ -43,7 +45,7 @@ export function bindZoom(area, surface) {
 
   const apply = (next) => {
     scale = next;
-    surface.style.zoom = String(scale);
+    surface.style.setProperty('--zoom', String(scale));
   };
 
   area.addEventListener('wheel', (event) => {
