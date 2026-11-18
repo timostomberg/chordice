@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Chordice Help</title>
+  <link rel="stylesheet" href="main.css">
+  <script>
+    // The help page follows the theme chosen in the app, which the app keeps in its cookie. Dark is the default.
+    const cookie = /(?:^|;\s*)chordice_state=([^;]*)/.exec(document.cookie);
+    let theme = 'dark';
+    try {
+      if (cookie && JSON.parse(decodeURIComponent(cookie[1])).theme === 'light') {
+        theme = 'light';
+      }
+    } catch {
+      // A broken cookie leaves the default theme, as the app does.
+    }
+    document.documentElement.dataset.theme = theme;
+  </script>
+</head>
+<body class="help-page">
+  <header class="toolbar">
+    <a class="chip help-back" href="../index.html">Back to Chordice</a>
+    <h1>Chordice Help</h1>
+  </header>
+  <main class="help">
+    <h2>What Chordice does</h2>
+    <p>Chordice generates chord progressions for practice. Press <strong>Generate</strong> for new rows with the same settings.
+      Changing one option changes only that option.</p>
+
+    <h2>The toolbar</h2>
+    <ul class="help-controls">
+      <li><span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 6h16M4 12h11M4 18h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><strong>Options button</strong>: shows or hides the options panel.</li>
+      <li><span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="2" y="5" width="20" height="14" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4.86 5v14M7.71 5v14M10.57 5v14M13.43 5v14M16.29 5v14M19.14 5v14" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="4.01" y="5" width="1.7" height="8.5" fill="currentColor"/><rect x="6.86" y="5" width="1.7" height="8.5" fill="currentColor"/><rect x="12.58" y="5" width="1.7" height="8.5" fill="currentColor"/><rect x="15.44" y="5" width="1.7" height="8.5" fill="currentColor"/><rect x="18.29" y="5" width="1.7" height="8.5" fill="currentColor"/></svg></span><span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="9.8" y="0.8" width="4.4" height="2.6" rx="0.6" fill="currentColor"/><rect x="10.8" y="3" width="2.4" height="9" fill="currentColor"/><path d="M12 11.5c-2.6 0-4.4 1.6-4.4 3.8 0 1.2.6 2 .6 3.1 0 1.3-1.4 2-1.4 3.5 0 2.1 2.2 3.1 5.2 3.1s5.2-1 5.2-3.1c0-1.5-1.4-2.2-1.4-3.5 0-1.1.6-1.9.6-3.1 0-2.2-1.8-3.8-4.4-3.8z" fill="currentColor"/></svg></span><strong>Instrument tabs</strong>: the piano (left, default) shows the notes of a clicked chord; the guitar (right) shows a guitar diagram. See <a href="#notes-window">The notes window</a>.</li>
+      <li><span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><text x="12" y="17" text-anchor="middle" font-size="14" font-weight="600" fill="currentColor">IV</text></svg></span><strong>Roman numerals button</strong>: shows or hides the roman numerals.</li>
+      <li><span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g transform="translate(3.8 0)"><path d="M10.2 18V1" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><ellipse cx="8.2" cy="6" rx="3" ry="2.3" transform="rotate(-20 8.2 6)" fill="currentColor"/><ellipse cx="8.2" cy="12" rx="3" ry="2.3" transform="rotate(-20 8.2 12)" fill="currentColor"/><ellipse cx="8.2" cy="18" rx="3" ry="2.3" transform="rotate(-20 8.2 18)" fill="currentColor"/></g></svg></span><strong>Chord tones button</strong>: shows the notes of each chord. See <a href="#viewing-chords">Viewing the chords</a>.</li>
+      <li><span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="13.60" cy="12.00" r="0.90" fill="currentColor"/><circle cx="13.23" cy="14.74" r="1.10" fill="currentColor"/><circle cx="9.07" cy="15.28" r="1.30" fill="currentColor"/><circle cx="6.47" cy="10.24" r="1.50" fill="currentColor"/><circle cx="11.19" cy="4.85" r="1.70" fill="currentColor"/><circle cx="19.41" cy="7.63" r="1.90" fill="currentColor"/><circle cx="20.16" cy="17.78" r="2.10" fill="currentColor"/></svg></span><strong>Colours button</strong>: shows or hides the background colours.</li>
+      <li><span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg></span><strong>Dark mode button</strong>: switches the theme.</li>
+    </ul>
+
+    <h2>The options panel</h2>
+    <p>Click a section's title to open it. Only one section is open at a time. A click on the chords area opens Keys.</p>
+
+    <h3>Keys</h3>
+    <p>Choose one major key on the circle of fifths. Its relative minor is shown in brackets, e.g. C (Am).</p>
+
+    <h3>Progressions</h3>
+    <p>Select the progressions by genre, with the group buttons or one by one. The number button sets how many progressions
+      appear in a sequence: 1, 2, 4 or 8. Examples in C:</p>
+    <table class="help-table">
+      <thead>
+        <tr><th>Progression</th><th>Genre</th><th>Roman numerals</th><th>Chords in C</th></tr>
+      </thead>
+      <tbody>
+        <tr data-progression="Classical Cadence"><td>Classical Cadence</td><td>Classical</td><td>I – IV – V – I</td><td>C – F – G – C</td></tr>
+        <tr data-progression="Pop Progression"><td>Pop Progression</td><td>Pop</td><td>I – V – vi – IV</td><td>C – G – Am – F</td></tr>
+        <tr data-progression="Classic Rock Mixolydian"><td>Classic Rock Mixolydian</td><td>Rock</td><td>I – bVII – IV</td><td>C – Bb – F</td></tr>
+        <tr data-progression="Jazz Cadence"><td>Jazz Cadence</td><td>Jazz</td><td>ii – V – I</td><td>Dm – G – C</td></tr>
+        <tr data-progression="Andalusian Cadence"><td>Andalusian Cadence</td><td>Flamenco</td><td>vi – V – IV – III</td><td>Am – G – F – E</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Progression variations</h3>
+    <p><strong>Rotations</strong> and <strong>Permutations</strong> (0 to 5): how likely a progression is to start at another
+      chord, and how likely the order of the progressions is to be shuffled. 0 means never, 5 means always.</p>
+
+    <h3>Chord variations</h3>
+    <p>Chips choose the chord extensions, such as 7, maj7 or add9. <strong>Amount</strong> (0 to 5) is how likely a chord is
+      to take one. The <strong>#b</strong> switch, when off, leaves out extensions with tones foreign to the key; in C the 7 is
+      left out because B♭ is foreign, but add9 stays.</p>
+
+    <h3>Bass variations</h3>
+    <p><strong>Amount</strong> (0 to 5): how likely a chord is to get a bass note other than its root, e.g. C/E. Greyed out on
+      the guitar.</p>
+
+    <h3 id="melody-variations">Melody variations</h3>
+    <p><span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g transform="translate(3 0)"><ellipse cx="7" cy="17.5" rx="3" ry="2.3" transform="rotate(-20 7 17.5)" fill="currentColor"/><path d="M9.8 17V4c0 0 .4 3.2 4.2 5.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g></svg></span>
+      The Melody button switches the inversions on. Then each chord is shown in one of its inversions, e.g. C/E, chosen by
+      its top note, which moves smoothly from chord to chord. <strong>Amount</strong> (0 to 5): how far the top notes may jump.
+      0 keeps them as close as possible, 5 makes every inversion equally likely. Greyed out on the guitar.</p>
+
+    <h2>Generate</h2>
+    <p>The Generate button (bottom right) creates new rows with the current settings.</p>
+
+    <h2 id="viewing-chords">Viewing the chords</h2>
+    <ul>
+      <li><strong>Colours:</strong> the background shows the harmonic function: tonic, subdominant or dominant.</li>
+      <li><strong>Blue tones:</strong> notes a chord extension adds. <strong>Red tones:</strong> notes foreign to the key.</li>
+      <li><strong>Square brackets:</strong> the top note, shown as the melody note when the Melody button is on.</li>
+    </ul>
+
+    <h2 id="notes-window">The notes window</h2>
+    <p>Click a chord (or press Enter or Space on it) to open its notes. Click the left half of the window for the previous
+      inversion or shape, the right half for the next one. The arrow keys do the same. Escape closes the window.</p>
+    <ul>
+      <li><strong>Piano:</strong> the notes on a staff, with the bass as slash bass or root.</li>
+      <li><strong>Guitar:</strong> a diagram of the chord in standard tuning. If the chord has no exact shape, the most
+        similar chord is shown.</li>
+    </ul>
+
+    <h2>Saved settings</h2>
+    <p>Your settings are saved in a cookie in this browser for one year, so the page opens as you left it. The progression
+      selection is the exception: all progressions are selected each time the page opens.</p>
+
+    <p class="help-footer"><a href="../index.html">Back to Chordice</a></p>
+  </main>
+</body>
+</html>

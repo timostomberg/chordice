@@ -10,7 +10,7 @@ const CSS = readFileSync(new URL('main.css', CHORDICE), 'utf8');
 
 /** Returns the markup and script files whose class names the stylesheet has to cover. */
 function sourceFiles() {
-  const files = [new URL('../index.html', import.meta.url)];
+  const files = [new URL('../index.html', import.meta.url), new URL('../chordice/help.html', import.meta.url)];
   // Every JS file in js/ and its group folders is a source file; folders themselves have no class names to check.
   const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = new URL(`${entry.name}${entry.isDirectory() ? '/' : ''}`, dir);

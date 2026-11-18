@@ -944,6 +944,120 @@ button[aria-expanded="true"] {
   display: none;
 }
 
+/* The Help link at the bottom of the options panel: a full-width chip with the label centred. */
+.help-link {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 0.5rem;
+  border: 1px solid var(--icon-blue);
+  background: var(--surface);
+  color: var(--icon-blue);
+  font: inherit;
+  text-decoration: none;
+}
+
+/* The help page is a document that scrolls as a whole, so the fixed-height app layout does not apply to it. */
+.help-page {
+  display: block;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.help-back {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--icon-blue);
+  background: var(--surface);
+  color: var(--icon-blue);
+  text-decoration: none;
+}
+
+.help {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 1rem 1.25rem 3rem;
+  color: var(--text);
+  line-height: 1.55;
+}
+
+.help h2 {
+  margin: 1.8rem 0 0.6rem;
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--icon-blue);
+}
+
+.help h3 {
+  margin: 1.3rem 0 0.4rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--icon-blue);
+}
+
+.help p,
+.help ul {
+  margin: 0.5rem 0 0.9rem;
+}
+
+.help li {
+  margin-bottom: 0.4rem;
+}
+
+.help a {
+  color: var(--icon-blue);
+}
+
+.help-footer {
+  margin-top: 2rem;
+}
+
+/* The toolbar controls on the help page: each line starts with the icon of its button, in place of a bullet. */
+.help-controls {
+  list-style: none;
+  padding-left: 0;
+}
+
+.help-controls li {
+  margin-bottom: 0.6rem;
+}
+
+/* An icon as drawn on the page, sized like the text it sits beside. */
+.help-icon {
+  display: inline-block;
+  width: 1.4rem;
+  height: 1.4rem;
+  margin-right: 0.5rem;
+  vertical-align: -0.3rem;
+  color: var(--icon-blue);
+}
+
+.help-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.help-table {
+  width: 100%;
+  margin: 0.5rem 0 1rem;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.help-table th,
+.help-table td {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.help-table th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
 
 /* Phones in portrait: the options sit above the chords, each in its own scrolling area. The safe-area insets are on body. */
 @media (max-width: 600px) {
