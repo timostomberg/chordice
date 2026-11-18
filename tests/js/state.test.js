@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { effectiveState, isUnavailable } from '../../chordice/js/state.js';
 import { buildLibrary } from '../../chordice/js/library.js';
 import { createSeeds, SEED_NAMES } from '../../chordice/js/random.js';
 import {
@@ -387,4 +388,73 @@ test('the foreign variations switch toggles on and off, and changes nothing else
   assert.equal(off.foreignVariations, false);
   assert.deepEqual({ ...off, foreignVariations: true }, state);
   assert.equal(applyAction(off, 'toggle-foreign-variations', {}, LIBRARY).foreignVariations, true);
+});
+
+test('the instrument is the piano by default, and a tab sets it to the guitar or back, changing nothing else', () => {
+  const state = defaultState(LIBRARY, FIXED);
+  assert.equal(state.instrument, 'piano');
+  const guitar = applyAction(state, 'set-instrument', { instrument: 'guitar' }, LIBRARY);
+  assert.equal(guitar.instrument, 'guitar');
+  assert.deepEqual({ ...guitar, instrument: 'piano' }, state);
+  assert.equal(applyAction(guitar, 'set-instrument', { instrument: 'piano' }, LIBRARY).instrument, 'piano');
+});
+
+test('an unknown instrument leaves the state unchanged', () => {
+  const state = defaultState(LIBRARY, FIXED);
+  assert.equal(applyAction(state, 'set-instrument', { instrument: 'ukulele' }, LIBRARY), state);
+});
+
+test('the instrument is kept by cookies; a cookie without it, or with a broken value, is the piano', () => {
+  assert.equal(sanitizeState({ instrument: 'guitar' }, LIBRARY, FIXED).instrument, 'guitar');
+  assert.equal(sanitizeState({ instrument: 'piano' }, LIBRARY, FIXED).instrument, 'piano');
+  assert.equal(sanitizeState({ rotation: 3 }, LIBRARY, FIXED).instrument, 'piano');
+  assert.equal(sanitizeState({ instrument: 'harp' }, LIBRARY, FIXED).instrument, 'piano');
+});
+
+test('the guitar makes the bass amount and the inversions unavailable, and the other options stay available', () => {
+  const guitar = { ...defaultState(LIBRARY, () => 0.5), instrument: 'guitar' };
+  assert.equal(isUnavailable(guitar, 'bassProbability'), true);
+  assert.equal(isUnavailable(guitar, 'inversions'), true);
+  assert.equal(isUnavailable(guitar, 'rotation'), false);
+  assert.equal(isUnavailable({ ...guitar, instrument: 'piano' }, 'bassProbability'), false);
+});
+
+test('on the guitar the effective settings have no bass and no inversions, but the stored values stay in the state', () => {
+  const state = { ...defaultState(LIBRARY, () => 0.5), instrument: 'guitar', bassProbability: 4, inversions: true };
+  const effective = effectiveState(state);
+  assert.equal(effective.bassProbability, 0);
+  assert.equal(effective.inversions, false);
+  assert.equal(state.bassProbability, 4);
+  assert.equal(state.inversions, true);
+});
+
+test('on the piano the effective settings are the stored ones', () => {
+  const state = { ...defaultState(LIBRARY, () => 0.5), bassProbability: 4, inversions: true };
+  assert.deepEqual(effectiveState(state), state);
+});
+
+test('switching back to the piano restores the bass amount and the inversions as they were set', () => {
+  let state = { ...defaultState(LIBRARY, () => 0.5), bassProbability: 4, inversions: true };
+  state = applyAction(state, 'set-instrument', { instrument: 'guitar' }, LIBRARY);
+  assert.equal(effectiveState(state).bassProbability, 0);
+  state = applyAction(state, 'set-instrument', { instrument: 'piano' }, LIBRARY);
+  assert.equal(effectiveState(state).bassProbability, 4);
+  assert.equal(effectiveState(state).inversions, true);
+});
+
+test('on the guitar the bass amount and the inversions cannot be changed, even by an action that reaches them', () => {
+  const guitar = { ...defaultState(LIBRARY, () => 0.5), instrument: 'guitar', bassProbability: 4, inversions: false };
+  assert.equal(applyAction(guitar, 'toggle-inversions', {}, LIBRARY), guitar);
+  assert.equal(applyAction(guitar, 'set-probability', { option: 'bassProbability', value: '1' }, LIBRARY), guitar);
+  const rotated = applyAction(guitar, 'set-probability', { option: 'rotation', value: '1' }, LIBRARY);
+  assert.equal(rotated.rotation, 1);
+});
+
+test('on the guitar the bass variations cannot be opened or closed, but the other sections can', () => {
+  const guitar = { ...defaultState(LIBRARY, () => 0.5), instrument: 'guitar' };
+  assert.equal(applyAction(guitar, 'toggle-section', { section: 'bass' }, LIBRARY), guitar);
+  const rotations = applyAction(guitar, 'toggle-section', { section: 'progressionVariations' }, LIBRARY);
+  assert.equal(rotations.collapsed.includes('progressionVariations'), !guitar.collapsed.includes('progressionVariations'));
+  const piano = applyAction(guitar, 'set-instrument', { instrument: 'piano' }, LIBRARY);
+  assert.equal(applyAction(piano, 'toggle-section', { section: 'bass' }, LIBRARY).collapsed.includes('bass'), !piano.collapsed.includes('bass'));
 });

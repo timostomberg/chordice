@@ -412,3 +412,22 @@ test('the count button and the #b switch are chips, so they share the look of th
   // It always looks active, so it never carries the is-on class either; the stylesheet fills it.
   assert.ok(!/count-toggle"[^>]*is-on/.test(html));
 });
+
+test('the bass variations are greyed out and cannot be opened while the guitar is chosen, and their amount shows 0', () => {
+  const state = { ...defaultState(LIBRARY, () => 0.5), collapsed: [], instrument: 'guitar', bassProbability: 4 };
+  const html = renderOptions(state, LIBRARY);
+  const bass = html.match(/<section class="option[^"]*is-unavailable[\s\S]*?<\/section>/)[0];
+  assert.ok(bass.includes('Bass variations'));
+  assert.ok(/<button[^>]*class="section-toggle"[^>]*\sdisabled/.test(bass));
+  assert.ok(bass.includes('aria-expanded="false"'));
+  assert.ok(!bass.includes('data-option="bassProbability"'), 'the amount is not drawn while the section cannot be opened');
+  assert.ok(bass.includes('<span class="summary-label">Amount</span>: <span class="summary-value">0</span>'));
+});
+
+test('the bass amount is enabled on the piano, and no section is greyed out', () => {
+  const html = renderOptions({ ...defaultState(LIBRARY, () => 0.5), collapsed: [], bassProbability: 4 }, LIBRARY);
+  assert.ok(!html.includes('is-unavailable'));
+  assert.ok(!/<button[^>]*disabled/.test(html));
+  assert.ok(/data-option="bassProbability"/.test(html));
+  assert.ok(!/data-option="bassProbability"[^>]*\sdisabled/.test(html));
+});

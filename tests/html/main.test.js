@@ -64,6 +64,7 @@ const ACTION_PARAMS = {
   'toggle-inversions': {},
   'toggle-options': {},
   'toggle-theme': {},
+  'set-instrument': { instrument: 'guitar' },
   'reroll': {},
 };
 
@@ -190,17 +191,58 @@ test('a click on the header, e.g. the title, toggles the options panel, like the
   assert.ok(html.includes('<header class="toolbar" data-action="toggle-options">'));
 });
 
+test('the instrument tabs sit right of the options button, before the title: piano on the left, guitar on the right', () => {
+  const html = read('html/main.html');
+  const toolbar = /<header class="toolbar"[\s\S]*?<\/header>/.exec(html)?.[0] ?? '';
+  const tabs = /<div class="instrument-tabs"[\s\S]*?<\/div>\s*<h1>/.exec(toolbar)?.[0] ?? '';
+  assert.ok(tabs.length > 0, 'the tabs are between the options button and the title');
+  assert.ok(toolbar.indexOf('toggle-options') < toolbar.indexOf('instrument-tabs'));
+  assert.ok(tabs.indexOf('data-instrument="piano"') < tabs.indexOf('data-instrument="guitar"'));
+  // Both tabs switch the instrument, and the piano starts pressed, as the default instrument is the piano.
+  assert.equal(tabs.split('data-action="set-instrument"').length - 1, 2);
+  assert.ok(tabs.includes('class="instrument-tab" data-action="set-instrument" data-instrument="piano" aria-pressed="true"'));
+  assert.ok(tabs.includes('class="instrument-tab" data-action="set-instrument" data-instrument="guitar" aria-pressed="false"'));
+  // Each tab shows its instrument as a symbol: a keyboard with black keys, and a guitar.
+  const piano = /<button[^>]*data-instrument="piano"[\s\S]*?<\/button>/.exec(tabs)?.[0] ?? '';
+  const guitar = /<button[^>]*data-instrument="guitar"[\s\S]*?<\/button>/.exec(tabs)?.[0] ?? '';
+  assert.ok(piano.split('<rect').length - 1 >= 6, 'the keyboard has its frame and black keys');
+  assert.ok(guitar.includes('<path') && guitar.includes('<rect'), 'the guitar has its body and neck');
+  assert.ok(!piano.includes('<text') && !guitar.includes('<text'), 'the tabs are symbols, not words');
+});
+
+test('the notes window has a caption under the score, which names the guitar shape', () => {
+  const html = read('html/main.html');
+  assert.ok(html.includes('<p id="notes-caption" class="notes-caption"'));
+  const notes = /<dialog id="notes"[\s\S]*?<\/dialog>/.exec(html)?.[0] ?? '';
+  assert.ok(notes.indexOf('id="notes-staff"') < notes.indexOf('id="notes-caption"'));
+});
+
+test('the import map loads svguitar for the guitar diagrams', () => {
+  const html = read('html/main.html');
+  assert.ok(html.includes('"svguitar": "https://cdn.jsdelivr.net/npm/svguitar@2.11.0/+esm"'));
+});
+
+// The chord database is not imported as a module: it has no module entry point, so app.js fetches its lib/guitar.json instead.
+const FETCHED_DEPENDENCIES = ['@tombatossals/chords-db'];
+
 test('the CDN versions in the import map match the dependencies in package.json', () => {
   const html = read('html/main.html');
   const importMap = JSON.parse(/<script type="importmap">([\s\S]*?)<\/script>/.exec(html)[1]).imports;
   const manifest = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).dependencies;
-  const names = Object.keys(manifest);
+  const names = Object.keys(manifest).filter((name) => !FETCHED_DEPENDENCIES.includes(name));
   assert.ok(names.length > 0);
   for (const name of names) {
     assert.ok(importMap[name], `${name} is in the import map`);
     assert.ok(importMap[name].includes(`${name}@${manifest[name]}/`), `${name} is ${manifest[name]} in the import map`);
   }
   assert.deepEqual(Object.keys(importMap).sort(), names.sort());
+});
+
+test('the guitar shapes are fetched from the chord database at the version in package.json', () => {
+  const app = read('js/app.js');
+  const manifest = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).dependencies;
+  const url = /const GUITAR_URL = '([^']+)'/.exec(app)?.[1] ?? '';
+  assert.ok(url.includes(`/@tombatossals/chords-db@${manifest['@tombatossals/chords-db']}/lib/guitar.json`), url);
 });
 
 test('every data-flag in the page names a switch of the state, so app.js can set its pressed state from it', () => {

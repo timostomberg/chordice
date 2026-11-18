@@ -11,8 +11,11 @@ const CSS = readFileSync(new URL('css/main.css', CHORDICE), 'utf8');
 /** Returns the markup and script files whose class names the stylesheet has to cover. */
 function sourceFiles() {
   const files = [new URL('html/main.html', CHORDICE)];
-  for (const name of readdirSync(new URL('js/', CHORDICE))) {
-    files.push(new URL(`js/${name}`, CHORDICE));
+  // Only files are source files; a directory in js/ (e.g. a tool's folder) has no class names to check.
+  for (const entry of readdirSync(new URL('js/', CHORDICE), { withFileTypes: true })) {
+    if (entry.isFile()) {
+      files.push(new URL(`js/${entry.name}`, CHORDICE));
+    }
   }
   return files.map((file) => readFileSync(file, 'utf8'));
 }
@@ -155,6 +158,12 @@ test('the notes window does not override the font of the music symbols in its SV
   assert.ok(!/\.notes-staff svg text/.test(CSS));
 });
 
+test('nothing in the notes window can be selected, since its clicks step through the views', () => {
+  const block = declarationsOf('.notes');
+  assert.ok(block.includes('user-select: none'));
+  assert.ok(block.includes('-webkit-user-select: none'));
+});
+
 test('the chord block is centred vertically and horizontally in the content area', () => {
   assert.ok(/\.content\s*\{[^}]*display: flex/.test(CSS));
   assert.ok(/\.content\s*\{[^}]*flex-direction: column/.test(CSS));
@@ -200,6 +209,13 @@ test('the top melody note is circled like the tones below the chord, and smaller
   assert.ok(size('.chord .melody') < size('.chord'));
 });
 
+// The window must keep its size when a click shows another guitar shape, so the diagram's box has a fixed height, and the
+// diagram fills the box instead of taking its own height from its frets.
+test('the guitar diagram sits in a box of fixed height, and fills it, so the window does not change size between shapes', () => {
+  assert.match(declarationsOf('.notes-staff.is-guitar'), /height:\s*min\(\s*240px\s*,\s*40vh\s*\)/);
+  assert.ok(declarationsOf('.notes-staff.is-guitar svg').includes('height: 100%'));
+});
+
 test('the chord whose notes are open has a frame', () => {
   assert.ok(declarationsOf('.chord.is-open').includes('outline'));
 });
@@ -235,4 +251,84 @@ test('the tone colours of the notes are the light theme colours of the chord ton
   for (const [kind, colour] of Object.entries(colours)) {
     assert.ok(scoreColours.includes(`${kind}: '${colour}'`), `score.js uses ${colour} for ${kind}`);
   }
+});
+
+test('an option the guitar does not use is greyed out, and so is its header switch while it is disabled', () => {
+  // The greyed-out option is faded as a whole, as it was before the disabled buttons got their blue tint.
+  assert.ok(declarationsOf('.option.is-unavailable').includes('opacity'));
+  const block = declarationsOf('.toolbar .inversions-toggle:disabled,\n.toolbar .instrument-tab:disabled');
+  assert.ok(block.includes('background: none'));
+  assert.ok(block.includes('color: var(--disabled-text)'));
+});
+
+test('a disabled header switch is faded by the same opacity as a greyed-out option', () => {
+  const faded = declarationsOf('.toolbar .inversions-toggle:disabled,\n.toolbar .instrument-tab:disabled');
+  assert.ok(faded.includes('opacity: 0.45'));
+  assert.ok(declarationsOf('.option.is-unavailable').includes('opacity: 0.45'));
+});
+
+test('the instrument tabs turn medium blue on hover, the chosen one too, but not when disabled', () => {
+  const rule = /\.toolbar \.instrument-tab:not\(:disabled\):hover\s*\{([^}]*)\}/.exec(CSS);
+  assert.ok(rule, 'hover rule for the instrument tabs');
+  assert.ok(rule[1].includes('var(--hover-fill)'));
+});
+
+test('a disabled header switch is not highlighted under the mouse', () => {
+  assert.ok(!/\.toolbar \.inversions-toggle:disabled:hover/.test(CSS));
+  assert.ok(/button\[type="button"\]:not\(:disabled,/.test(CSS));
+});
+
+test('a disabled button has no background and grey text, a button under the mouse a medium blue one', () => {
+  assert.ok(/--hover-fill:\s*color-mix\(in srgb, var\(--icon-blue\) \d+%, var\(--surface\)\)/.test(CSS));
+  const disabled = declarationsOf('.toolbar .inversions-toggle:disabled,\n.toolbar .instrument-tab:disabled');
+  assert.ok(disabled.includes('background: none'));
+  assert.ok(disabled.includes('color: var(--disabled-text)'));
+});
+
+test('the grey text of a disabled button is defined in both themes, and differs from the text colour of the dark theme', () => {
+  const light = themeBlock(':root');
+  const dark = themeBlock(':root\\[data-theme="dark"\\]');
+  for (const block of [light, dark]) {
+    assert.match(block, /--disabled-text:\s*#[0-9a-fA-F]{6}/);
+  }
+  const darkMuted = /--muted:\s*(#\w+)/.exec(dark)[1];
+  const darkDisabled = /--disabled-text:\s*(#\w+)/.exec(dark)[1];
+  assert.notEqual(darkDisabled, darkMuted);
+});
+
+test('a button under the mouse turns medium blue, but only for real pointers, active buttons included', () => {
+  const hover = /@media \(hover: hover\)\s*\{[\s\S]*?button\[type="button"\]:not\(([^)]*)\):hover\s*\{([^}]*)\}/.exec(CSS);
+  assert.ok(hover, 'button hover rule inside a (hover: hover) media query');
+  // Disabled buttons and the section headings are excluded here; active buttons are not, so they turn medium blue too.
+  assert.ok(hover[1].includes(':disabled'));
+  assert.ok(hover[1].includes('.section-toggle'));
+  assert.ok(!hover[1].includes('.is-on'));
+  assert.ok(hover[2].includes('var(--hover-fill)'));
+});
+
+test('the section headings (Keys, Progressions, ...) are not highlighted on hover, disabled or not', () => {
+  assert.ok(!/\.option \.section-toggle:disabled:hover/.test(CSS));
+  assert.ok(!/\.section-toggle:hover\s*\{/.test(CSS));
+  // A disabled heading has no background and grey text.
+  assert.ok(declarationsOf('.option .section-toggle:disabled').includes('background: none'));
+  assert.ok(declarationsOf('.option .section-toggle:disabled').includes('color: var(--disabled-text)'));
+});
+
+test('a chord under the mouse is framed like the chord whose notes are open, only for real pointers', () => {
+  const hover = /@media \(hover: hover\)\s*\{[\s\S]*?\.chord\[data-action="show-notes"\]:hover\s*\{([^}]*)\}/.exec(CSS);
+  assert.ok(hover, 'chord hover rule inside a (hover: hover) media query');
+  assert.ok(hover[1].includes('outline: 2px solid var(--icon-blue)'));
+  assert.ok(hover[1].includes('outline-offset: 3px'));
+});
+
+test('hovering a chord does not change the instrument tabs', () => {
+  assert.ok(!/body:has\(/.test(CSS));
+});
+
+test('unselected keys of the circle of fifths hide the grey ring behind them and turn medium blue under the mouse', () => {
+  // The key disc is the panel colour, so the ring does not show through the key.
+  assert.ok(declarationsOf('.circle .key circle').includes('fill: var(--surface)'));
+  const rule = /\.circle \.key:not\(\.is-on, \.is-subdominant, \.is-dominant\):hover circle \{([^}]*)\}/.exec(CSS);
+  assert.ok(rule, 'hover rule for unselected keys');
+  assert.ok(rule[1].includes('var(--hover-fill)'));
 });

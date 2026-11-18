@@ -45,15 +45,25 @@ The extended view includes:
 
 When inversions are on, the top melody note of each chord is shown inside the chord box, to the right of the chord symbol, in lower case in a small oval with the colour and the border of the chord symbol, and in the size of the tones below the chord. This applies to both the plain and the extended view. A chord in root position shows its highest chord tone there.
 
-Clicking a chord opens its notes, starting with the inversion the chord has. The bass in the notes is the slash bass or the root, in every inversion; only the upper tones are inverted. The notes window shows the chord box above the staff, as the row shows it, and the staff has no chord symbol of its own. Each click on the staff shows the next inversion, and the chord box follows it.
+Clicking a chord opens its notes, starting with the inversion the chord has. The bass in the notes is the slash bass or the root, in every inversion; only the upper tones are inverted. The notes window shows the chord box above the staff, as the row shows it, and the staff has no chord symbol of its own. A click in the left half of the window shows the previous inversion, one in the right half the next, and the chord box follows it. The window shows the number of the inversion, as "1 / 3", where 1 is the root position. Nothing in the window can be selected.
+
+### Instrument
+
+An instrument tab in the header, right of the Options button, chooses what a click on a chord shows. It has a piano on the left and a guitar on the right; the piano is the default.
+
+- Piano: the notes window described above.
+- Guitar: the notes window shows a guitar diagram of the chord in standard tuning, from the chord database `@tombatossals/chords-db`, in place of the staff. A click in the left half of the window shows the previous shape of the chord, one in the right half the next, with the number of the shape as "1 / 4"; the shapes that sound the bass of the chord come first. A chord the database has no shape for is shown as the most similar chord it contains, and the caption under the diagram names both chords. Without any shape, the caption says so.
+- While the guitar is chosen, the Amount of the bass variations and the inversions switch in the header are greyed out and take no effect: the chords have no bass variations and no melody note. The Bass variations section cannot be opened then, and its Amount shows 0. The stored values are kept and come back when the piano is chosen.
 
 ### Cookies
 
-Cookies ensure that the website can be revisited in the same state as before.
+Cookies ensure that the website can be revisited in the same state as before. This includes the instrument.
 
 ## Dependencies
 
 Dependencies can be imported via CDN.
 
 - tonal (JavaScript)
+- svguitar (JavaScript), draws the guitar diagrams
+- The chord database `@tombatossals/chords-db` is installed with npm for its data. The page fetches its `lib/guitar.json` from the CDN, since the package has no module entry point.
 - Additional dependencies may be used where needed.

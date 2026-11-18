@@ -27,6 +27,10 @@
   --zoom: 1;
   --fill: 50%;
   --touch: 44px;
+  /* A button or key under the mouse: a medium blue. */
+  /* The text of a disabled button: a grey, darker than the white-grey text of the dark theme. */
+  --disabled-text: #7d848e;
+  --hover-fill: color-mix(in srgb, var(--icon-blue) 45%, var(--surface));
 }
 
 /* Dark theme, selected by the theme button. */
@@ -57,6 +61,9 @@
   --foreign-tone: #ff7a6b;
   --zoom: 1;
   --fill: 50%;
+  /* A button or key under the mouse: a medium blue. */
+  --disabled-text: #7d848e;
+  --hover-fill: color-mix(in srgb, var(--icon-blue) 45%, var(--surface));
 }
 
 * {
@@ -167,7 +174,8 @@ body {
 .toolbar .tones-toggle,
 .toolbar .colour-toggle,
 .toolbar .inversions-toggle,
-.toolbar .theme-toggle {
+.toolbar .theme-toggle,
+.toolbar .instrument-tab {
   border-color: var(--icon-blue);
   color: var(--icon-blue);
 }
@@ -177,9 +185,76 @@ body {
 .toolbar .roman-toggle[aria-pressed="true"],
 .toolbar .tones-toggle[aria-pressed="true"],
 .toolbar .colour-toggle[aria-pressed="true"],
-.toolbar .inversions-toggle[aria-pressed="true"] {
+.toolbar .inversions-toggle[aria-pressed="true"],
+.toolbar .instrument-tab[aria-pressed="true"] {
   background: var(--icon-blue);
   color: var(--surface);
+}
+
+/* A header switch the chosen instrument does not use is greyed out and cannot be pressed, even while its value is on. It
+   comes after the pressed rule, so it wins over the filled look. It has no background, its text is grey and it is faded
+   like the greyed-out options. */
+.toolbar .inversions-toggle:disabled,
+.toolbar .instrument-tab:disabled {
+  background: none;
+  border-color: var(--muted);
+  color: var(--disabled-text);
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* A disabled option header has no background either, and grey text. */
+.option .section-toggle:disabled {
+  background: none;
+  color: var(--disabled-text);
+}
+
+/* Hover: a button under the mouse turns medium blue, active ones too, and so does a disabled one. Only real pointers hover.
+   The text turns dark on the medium blue, so it stays readable in both themes. The instrument tabs are not highlighted, and
+   neither are the section headings (Keys, Progressions, ...): they never turn blue, disabled or not.
+   The type attribute only adds specificity, so the hover beats the filled look of the active buttons. */
+@media (hover: hover) {
+  button[type="button"]:not(:disabled, .section-toggle):hover {
+    background: var(--hover-fill);
+    color: var(--text);
+  }
+
+  /* The instrument tabs turn medium blue under the mouse, the chosen one too (it is filled otherwise). */
+  .toolbar .instrument-tab:not(:disabled):hover {
+    background: var(--hover-fill);
+    color: var(--text);
+  }
+
+  /* A chord under the mouse is framed like the chord whose notes are open. Only the clickable chords of the rows, not the
+     chord box in the notes window, and only for real pointers, so a tap does not leave a frame behind. */
+  .chord[data-action="show-notes"]:hover {
+    outline: 2px solid var(--icon-blue);
+    outline-offset: 3px;
+  }
+
+  /* The keys of the circle of fifths: an unselected key turns medium blue. The selected and harmonic keys keep their colour. */
+  .circle .key:not(.is-on, .is-subdominant, .is-dominant):hover circle {
+    fill: var(--hover-fill);
+  }
+}
+
+/* The instrument tabs are one segmented switch: the piano on the left, the guitar on the right, the chosen one filled. */
+.instrument-tabs {
+  display: flex;
+  flex: none;
+}
+
+.instrument-tab {
+  padding: 0.4rem 0.6rem;
+}
+
+.instrument-tabs .instrument-tab:first-child {
+  border-radius: 0.5rem 0 0 0.5rem;
+}
+
+.instrument-tabs .instrument-tab:last-child {
+  margin-left: -1px;
+  border-radius: 0 0.5rem 0.5rem 0;
 }
 
 .options-toggle svg,
@@ -187,6 +262,7 @@ body {
 .tones-toggle svg,
 .colour-toggle svg,
 .inversions-toggle svg,
+.instrument-tab svg,
 .theme-toggle svg {
   display: block;
   width: 1.5rem;
@@ -265,13 +341,15 @@ button[aria-expanded="true"] {
   stroke: var(--line);
 }
 
-/* Unselected keys look like unselected option buttons: blue outline and blue label. */
-/* The outline is 1px on screen like the borders of the other buttons, however much the SVG is scaled. */
+/* Unselected keys have a blue outline and blue label. Their disc is the panel colour, so it has no visible background
+   of its own, but it hides the grey ring behind the key. The disc takes the pointer, so it can be hovered.
+   The outline is 1px on screen like the borders of the other buttons, however much the SVG is scaled. */
 .circle .key circle {
   fill: var(--surface);
   stroke: var(--icon-blue);
   stroke-width: 1px;
   vector-effect: non-scaling-stroke;
+  pointer-events: all;
 }
 
 .circle .key text {
@@ -441,6 +519,16 @@ button[aria-expanded="true"] {
 
 .option.is-collapsed {
   margin-bottom: 0.6rem;
+}
+
+/* An option the chosen instrument does not use is greyed out as a whole: its heading and its slider, which is disabled. */
+.option.is-unavailable {
+  opacity: 0.45;
+}
+
+.option.is-unavailable .slider input,
+.option.is-unavailable .section-toggle {
+  cursor: default;
 }
 
 .option:not(.is-collapsed) .section-toggle {
@@ -743,6 +831,10 @@ button[aria-expanded="true"] {
   border-radius: 12px;
   background: #fff;
   color: #1b1f24;
+  /* A click steps through the views, so nothing in the window can be selected, also not by a double click or a long press. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .notes::backdrop {
@@ -775,6 +867,32 @@ button[aria-expanded="true"] {
   margin: 0 auto;
   width: 100%;
   height: auto;
+}
+
+/* The guitar diagram sits in a box of a fixed height, so the window keeps its size when a click shows another shape: the
+   frets of a shape make the diagram taller or shorter inside the box, not the window. The box is small enough for a small screen. */
+.notes-staff.is-guitar {
+  height: min(240px, 40vh);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notes-staff.is-guitar svg {
+  width: auto;
+  height: 100%;
+  max-width: 100%;
+}
+
+/* The caption under the score names the shape shown, and the stand-in chord if there is one. It is empty, and hidden, for the piano. */
+.notes-caption {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: #5b6470;
+}
+
+.notes-caption:empty {
+  display: none;
 }
 
 

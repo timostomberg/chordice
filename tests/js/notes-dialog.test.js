@@ -1,12 +1,23 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createNotesDialog } from '../../chordice/js/notes-dialog.js';
+import { diagramOf } from '../../chordice/js/guitar.js';
 
 // Minimal stand-ins for the dialog parts. The staff is drawn by an injected function, so no VexFlow or DOM is needed.
 class FakeNode {
   constructor() {
     this.textContent = '';
     this.listeners = {};
+    this.classes = new Set();
+    this.classList = {
+      toggle: (name, force) => {
+        if (force) {
+          this.classes.add(name);
+        } else {
+          this.classes.delete(name);
+        }
+      },
+    };
   }
 
   addEventListener(type, listener) {
@@ -27,11 +38,17 @@ class FakeDialog extends FakeNode {
     this.parts = {
       '#notes-staff': new FakeNode(),
       '#notes-chord': new FakeNode(),
+      '#notes-caption': new FakeNode(),
     };
   }
 
   querySelector(selector) {
     return this.parts[selector];
+  }
+
+  // The window is 400 px wide, from x = 0 to 400, as the stylesheet sizes it at most.
+  getBoundingClientRect() {
+    return { left: 0, width: 400 };
   }
 
   showModal() {
@@ -47,6 +64,15 @@ class FakeDialog extends FakeNode {
 
 // The first inversion of C, shown over its bass E.
 const E_OVER_C = { displaySymbol: 'C/E', tones: ['C', 'E', 'G'], bass: 'E', inversion: 1 };
+
+// The x positions of a click in the left and in the right half of the 400 px wide window.
+const BACK = 100;
+const FORWARD = 300;
+
+/** A click on the window at the given x position, which lands on the content and not on the backdrop. */
+function click(dialog, clientX) {
+  dialog.emit('click', { target: { closest: () => null }, clientX });
+}
 
 function setup() {
   const dialog = new FakeDialog();
@@ -77,9 +103,9 @@ test('a slash chord in root position opens in root position, with its bass in th
 test('each click on the staff shows the next inversion with the same bass, and wraps back to the root position', () => {
   const { dialog, drawn, notes } = setup();
   notes.open(E_OVER_C);
-  dialog.parts['#notes-staff'].emit('click');
-  dialog.parts['#notes-staff'].emit('click');
-  dialog.parts['#notes-staff'].emit('click');
+  click(dialog, FORWARD);
+  click(dialog, FORWARD);
+  click(dialog, FORWARD);
   assert.deepEqual(drawn.map((voicing) => voicing.bass), ['E3', 'E3', 'E3', 'E3']);
   assert.deepEqual(drawn.map((voicing) => voicing.upper[0]), ['E4', 'G4', 'C4', 'E4']);
   assert.deepEqual(drawn[3], { key: null, bass: 'E3', upper: ['E4', 'G4', 'C5'] });
@@ -88,7 +114,7 @@ test('each click on the staff shows the next inversion with the same bass, and w
 test('reopening a chord starts again at its own bass, not at the last inversion shown', () => {
   const { dialog, drawn, notes } = setup();
   notes.open(E_OVER_C);
-  dialog.parts['#notes-staff'].emit('click');
+  click(dialog, FORWARD);
   notes.open({ displaySymbol: 'C', tones: ['C', 'E', 'G'], bass: null });
   assert.deepEqual(drawn.at(-1), { key: null, bass: 'C3', upper: ['C4', 'E4', 'G4'] });
 });
@@ -171,7 +197,7 @@ test('the notes are coloured by how their tones are judged in the key of the row
   notes.open(C7, null, 'F');
   // Root position: C, E, G, Bb. The Bb is the one the seventh adds.
   assert.deepEqual(kinds[0], { bass: '', upper: ['', '', '', 'variation'] });
-  dialog.parts['#notes-staff'].emit('click');
+  click(dialog, FORWARD);
   // First inversion: E, G, Bb, C. The colours follow the tones, not their positions.
   assert.deepEqual(kinds[1], { bass: '', upper: ['', '', 'variation', ''] });
 });
@@ -223,10 +249,10 @@ test('the chord box follows the inversion on the staff, with the top melody note
   notes.open(E_OVER_C, null, null, { melody: true });
   // First inversion E, G, C: top note C.
   assert.equal(melody(), 'c');
-  dialog.parts['#notes-staff'].emit('click');
+  click(dialog, FORWARD);
   // Second inversion G, C, E: top note E.
   assert.equal(melody(), 'e');
-  dialog.parts['#notes-staff'].emit('click');
+  click(dialog, FORWARD);
   // Root position C, E, G: top note G.
   assert.equal(melody(), 'g');
 });
@@ -234,8 +260,141 @@ test('the chord box follows the inversion on the staff, with the top melody note
 test('the chord box shows the inversion that the staff shows, and reopening starts again at the chord own inversion', () => {
   const { dialog, notes } = setup();
   notes.open(E_OVER_C, null, null, { melody: true });
-  dialog.parts['#notes-staff'].emit('click');
+  click(dialog, FORWARD);
   assert.ok(dialog.parts['#notes-chord'].innerHTML.includes('>e</span>'));
   notes.open(E_OVER_C, null, null, { melody: true });
   assert.ok(dialog.parts['#notes-chord'].innerHTML.includes('>c</span>'));
+});
+
+// Two shapes of C: the open one, and the one at the third fret with a barre, so that the diagrams tell them apart.
+const OPEN_C = { frets: [-1, 3, 2, 0, 1, 0], barres: [], baseFret: 1, midi: [48, 52, 55, 60, 64] };
+const THIRD_FRET_C = { frets: [1, 1, 3, 3, 3, 1], barres: [1], baseFret: 3, midi: [43, 48, 55, 60, 64, 67] };
+const C_SHAPES = { name: 'C', requested: 'C', exact: true, shapes: [OPEN_C, THIRD_FRET_C] };
+
+/** A dialog for the guitar: the staff and the diagram are drawn by fakes that record what they get. */
+function guitarSetup() {
+  const dialog = new FakeDialog();
+  const staffVoicings = [];
+  const diagrams = [];
+  const notes = createNotesDialog(
+    dialog,
+    (_, voicing) => staffVoicings.push(voicing),
+    () => '',
+    (_, diagram) => diagrams.push(diagram),
+  );
+  return { dialog, notes, staffVoicings, diagrams };
+}
+
+test('the guitar opens the first shape of the chord as a diagram, and draws no staff', () => {
+  const { dialog, notes, staffVoicings, diagrams } = guitarSetup();
+  // E_OVER_C has its first inversion, but the guitar starts at the first shape.
+  notes.open(E_OVER_C, null, null, {}, { instrument: 'guitar', fingering: C_SHAPES });
+  assert.equal(dialog.isOpen, true);
+  assert.deepEqual(staffVoicings, []);
+  assert.deepEqual(diagrams, [diagramOf(C_SHAPES, 0)]);
+});
+
+test('each click on the diagram shows the next shape, and wraps back to the first one', () => {
+  const { dialog, notes, diagrams } = guitarSetup();
+  notes.open(E_OVER_C, null, null, {}, { instrument: 'guitar', fingering: C_SHAPES });
+  click(dialog, FORWARD);
+  click(dialog, FORWARD);
+  // The open shape is at position 1, the barre shape at position 3.
+  assert.deepEqual(diagrams.map((diagram) => diagram.position), [1, 3, 1]);
+});
+
+test('the caption under the guitar diagram names the shape, and changes with each click', () => {
+  const { dialog, notes } = guitarSetup();
+  notes.open(E_OVER_C, null, null, {}, { instrument: 'guitar', fingering: C_SHAPES });
+  assert.equal(dialog.parts['#notes-caption'].textContent, '1 / 2');
+  click(dialog, FORWARD);
+  assert.equal(dialog.parts['#notes-caption'].textContent, '2 / 2');
+});
+
+test('a chord shown as a stand-in names the chord it stands in for in the caption', () => {
+  const { dialog, notes } = guitarSetup();
+  const standIn = { name: 'Cm9', requested: 'Cm13', exact: false, shapes: [OPEN_C] };
+  notes.open({ ...E_OVER_C, displaySymbol: 'Cm13', tones: ['C', 'Eb', 'G'] }, null, null, {}, { instrument: 'guitar', fingering: standIn });
+  assert.equal(dialog.parts['#notes-caption'].textContent, 'Cm13 is not in the chord database; showing Cm9. 1 / 1');
+});
+
+test('a chord without any shape in the database opens with a caption that says so, and no diagram', () => {
+  const { dialog, notes, diagrams } = guitarSetup();
+  notes.open(E_OVER_C, null, null, {}, { instrument: 'guitar', fingering: null });
+  assert.equal(dialog.isOpen, true);
+  assert.deepEqual(diagrams, []);
+  assert.equal(dialog.parts['#notes-caption'].textContent, 'No shape for this chord in the chord database.');
+});
+
+test('opening a chord for the piano draws the staff again, with its inversion numbered in the caption instead of the guitar shape', () => {
+  const { dialog, notes, staffVoicings } = guitarSetup();
+  notes.open(E_OVER_C, null, null, {}, { instrument: 'guitar', fingering: C_SHAPES });
+  notes.open(E_OVER_C, null, null, {}, { instrument: 'piano' });
+  assert.equal(staffVoicings.length, 1);
+  assert.equal(dialog.parts['#notes-caption'].textContent, '2 / 3');
+});
+
+test('the caption of the piano numbers the inversion shown, and changes with each click in either half', () => {
+  const { dialog, notes } = guitarSetup();
+  notes.open(E_OVER_C, null, null, {}, { instrument: 'piano' });
+  assert.equal(dialog.parts['#notes-caption'].textContent, '2 / 3');
+  click(dialog, FORWARD);
+  assert.equal(dialog.parts['#notes-caption'].textContent, '3 / 3');
+  click(dialog, BACK);
+  click(dialog, BACK);
+  assert.equal(dialog.parts['#notes-caption'].textContent, '1 / 3');
+});
+
+test('a click in the left half of the window shows the previous inversion, and the first one goes back to the last', () => {
+  const { dialog, drawn, notes } = setup();
+  notes.open(E_OVER_C);
+  click(dialog, BACK);
+  assert.deepEqual(drawn.map((voicing) => voicing.upper[0]), ['E4', 'C4']);
+});
+
+test('a click in the right half of the window shows the next inversion, as a click anywhere in the window does', () => {
+  const { dialog, drawn, notes } = setup();
+  notes.open(E_OVER_C);
+  click(dialog, FORWARD);
+  assert.deepEqual(drawn.map((voicing) => voicing.upper[0]), ['E4', 'G4']);
+});
+
+test('a click in the left half of the window shows the previous shape of the guitar, and the first one goes back to the last', () => {
+  const { dialog, notes, diagrams } = guitarSetup();
+  notes.open(E_OVER_C, null, null, {}, { instrument: 'guitar', fingering: C_SHAPES });
+  click(dialog, BACK);
+  assert.deepEqual(diagrams.map((diagram) => diagram.position), [1, 3]);
+  assert.equal(dialog.parts['#notes-caption'].textContent, '2 / 2');
+});
+
+test('the staff box is marked for the guitar only while it shows a diagram, so the piano keeps its own size', () => {
+  const { dialog, notes } = guitarSetup();
+  const staff = dialog.parts['#notes-staff'];
+  notes.open(E_OVER_C, null, null, {}, { instrument: 'guitar', fingering: C_SHAPES });
+  assert.ok(staff.classes.has('is-guitar'));
+  notes.open(E_OVER_C, null, null, {}, { instrument: 'piano' });
+  assert.ok(!staff.classes.has('is-guitar'));
+});
+
+test('a click on the diagram keeps the staff box marked, so the window does not change size', () => {
+  const { dialog, notes } = guitarSetup();
+  notes.open(E_OVER_C, null, null, {}, { instrument: 'guitar', fingering: C_SHAPES });
+  click(dialog, FORWARD);
+  assert.ok(dialog.parts['#notes-staff'].classes.has('is-guitar'));
+});
+
+test('the first diagram is drawn while the window is already open, as the later ones are', () => {
+  const dialog = new FakeDialog();
+  const openWhenDrawn = [];
+  const notes = createNotesDialog(dialog, () => {}, () => '', () => openWhenDrawn.push(dialog.isOpen));
+  notes.open(E_OVER_C, null, null, {}, { instrument: 'guitar', fingering: C_SHAPES });
+  click(dialog, FORWARD);
+  assert.deepEqual(openWhenDrawn, [true, true]);
+});
+
+test('without options the chord opens for the piano, as before', () => {
+  const { dialog, notes, staffVoicings } = guitarSetup();
+  notes.open(E_OVER_C);
+  assert.equal(staffVoicings.length, 1);
+  assert.equal(dialog.parts['#notes-caption'].textContent, '2 / 3');
 });

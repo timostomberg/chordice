@@ -10,6 +10,8 @@ export const COUNTS = [1, 2, 4, 8, 12];
 export const PROBABILITY_OPTIONS = ['rotation', 'permutation', 'variationProbability', 'bassProbability'];
 export const FLAGS = ['showOptions', 'colour', 'roman', 'tones', 'inversions', 'foreignVariations'];
 export const THEMES = ['light', 'dark'];
+// The instrument whose notes window the chords open: notes for the piano, a diagram for the guitar.
+export const INSTRUMENTS = ['piano', 'guitar'];
 export const SECTIONS = ['keys', 'progressions', 'progressionVariations', 'variations', 'bass'];
 
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
@@ -35,6 +37,7 @@ export function defaultState(library, random = Math.random) {
     // On: every chord variation is used. Off: only variations without tones foreign to the key.
     foreignVariations: true,
     theme: 'dark',
+    instrument: 'piano',
     showOptions: true,
     // Only the key circle is expanded by default.
     collapsed: SECTIONS.filter((name) => name !== 'keys'),
@@ -94,6 +97,7 @@ export function sanitizeState(raw, library, random = Math.random) {
     inversions: typeof raw.inversions === 'boolean' ? raw.inversions : fallback.inversions,
     foreignVariations: typeof raw.foreignVariations === 'boolean' ? raw.foreignVariations : fallback.foreignVariations,
     theme: THEMES.includes(raw.theme) ? raw.theme : fallback.theme,
+    instrument: INSTRUMENTS.includes(raw.instrument) ? raw.instrument : fallback.instrument,
     showOptions: typeof raw.showOptions === 'boolean' ? raw.showOptions : fallback.showOptions,
     collapsed: Array.isArray(raw.collapsed)
       ? withAtMostOneExpanded(SECTIONS.filter((name) => raw.collapsed.includes(name)))
@@ -225,6 +229,31 @@ export function toggleTheme(state) {
   return { ...state, theme: next };
 }
 
+/** Chooses the instrument of the notes window. An unknown instrument leaves the state unchanged. */
+export function setInstrument(state, instrument) {
+  return INSTRUMENTS.includes(instrument) ? { ...state, instrument } : state;
+}
+
+/**
+ * The options the chosen instrument does not use: the guitar has no bass variations and no inversions, so no melody note.
+ * They stay in the state with their values, and take effect again when the piano is chosen.
+ */
+export const GUITAR_UNAVAILABLE = ['bassProbability', 'inversions'];
+
+/** Whether an option is unavailable for the chosen instrument, so that it is greyed out and does not take effect. */
+export function isUnavailable(state, option) {
+  return state.instrument === 'guitar' && GUITAR_UNAVAILABLE.includes(option);
+}
+
+/** The settings that take effect for the chosen instrument: unavailable options count as off, the stored values stay. */
+export function effectiveState(state) {
+  return {
+    ...state,
+    bassProbability: isUnavailable(state, 'bassProbability') ? 0 : state.bassProbability,
+    inversions: state.inversions && !isUnavailable(state, 'inversions'),
+  };
+}
+
 /**
  * Switches one of the on/off flags: the options panel, the colours of the chords, the roman numerals, the chord tones,
  * the inversions or the foreign chord variations.
@@ -251,8 +280,23 @@ const FLAG_ACTIONS = {
   'toggle-options': 'showOptions',
 };
 
+/** The option an action changes, when that option can be unavailable; null for every other action. */
+function optionOf(action, params) {
+  if (action === 'toggle-inversions') {
+    return 'inversions';
+  }
+  if (action === 'toggle-section' && params.section === 'bass') {
+    return 'bassProbability';
+  }
+  return action === 'set-probability' ? params.option : null;
+}
+
 /** Maps a UI action (from data-attributes) onto a state transition. Unknown actions leave the state unchanged. */
 export function applyAction(state, action, params, library, random = Math.random) {
+  // An option that is unavailable for the chosen instrument cannot be changed, even by an event that reaches it.
+  if (isUnavailable(state, optionOf(action, params))) {
+    return state;
+  }
   if (Object.hasOwn(FLAG_ACTIONS, action)) {
     return toggleFlag(state, FLAG_ACTIONS[action]);
   }
@@ -266,6 +310,7 @@ export function applyAction(state, action, params, library, random = Math.random
     'toggle-section': () => toggleSection(state, params.section),
     'open-keys': () => openKeys(state),
     'toggle-theme': () => toggleTheme(state),
+    'set-instrument': () => setInstrument(state, params.instrument),
     'reroll': () => reroll(state, random),
   };
   return Object.hasOwn(transitions, action) ? transitions[action]() : state;

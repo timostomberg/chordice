@@ -9,6 +9,8 @@ import { defaultState, serializeCookie } from '../../chordice/js/state.js';
 // app.js has no side effects on import; startApp runs against the minimal fake DOM installed by loadApp below.
 const YAML_TEXT = readFileSync(new URL('../../chordice/data/chord_progressions.yaml', import.meta.url), 'utf8');
 const BASS_TEXT = readFileSync(new URL('../../chordice/data/bass_patterns.yaml', import.meta.url), 'utf8');
+// The guitar shapes as the CDN serves them; app.js fetches them from the URL of the installed version.
+const GUITAR_TEXT = readFileSync(new URL('../../node_modules/@tombatossals/chords-db/lib/guitar.json', import.meta.url), 'utf8');
 const LIBRARY = buildLibrary(load(YAML_TEXT));
 
 class FakeClassList {
@@ -90,6 +92,8 @@ async function loadApp({ cookie = '', yaml = YAML_TEXT, bass = BASS_TEXT, ok = t
   };
   const listeners = {};
   const fetched = [];
+  // The piano and guitar tabs of the header, as the page has them.
+  const instrumentTabs = [new FakeElement({ instrument: 'piano' }), new FakeElement({ instrument: 'guitar' })];
   const document = {
     cookie,
     body: { classList: new FakeClassList() },
@@ -102,6 +106,9 @@ async function loadApp({ cookie = '', yaml = YAML_TEXT, bass = BASS_TEXT, ok = t
     },
     // Only the view switches carry a data-flag; they are the elements with a flag in the fake page.
     querySelectorAll(selector) {
+      if (selector === '[data-instrument]') {
+        return instrumentTabs;
+      }
       if (selector !== '[data-flag]') {
         throw new Error(`unexpected selector ${selector}`);
       }
@@ -116,7 +123,9 @@ async function loadApp({ cookie = '', yaml = YAML_TEXT, bass = BASS_TEXT, ok = t
   globalThis.HTMLInputElement = FakeInput;
   globalThis.fetch = async (url) => {
     fetched.push(String(url));
-    const text = String(url).endsWith('/bass_patterns.yaml') ? bass : yaml;
+    const text = String(url).endsWith('/bass_patterns.yaml')
+      ? bass
+      : String(url).endsWith('/guitar.json') ? GUITAR_TEXT : yaml;
     return { ok, status: ok ? 200 : 404, text: async () => text };
   };
 
@@ -138,7 +147,7 @@ async function loadApp({ cookie = '', yaml = YAML_TEXT, bass = BASS_TEXT, ok = t
       listener({ target });
     }
   };
-  return { document, elements, fetched, dispatch, click, change };
+  return { document, elements, fetched, dispatch, click, change, instrumentTabs };
 }
 
 function uninstall() {
@@ -154,9 +163,10 @@ function rowCount(html) {
 test('app.js loads the YAML library and renders the circle, option sections, rows and toggle state', async () => {
   try {
     const app = await loadApp();
-    assert.deepEqual(app.fetched.length, 2);
+    assert.deepEqual(app.fetched.length, 3);
     assert.ok(app.fetched[0].endsWith('/chordice/data/chord_progressions.yaml'));
     assert.ok(app.fetched[1].endsWith('/chordice/data/bass_patterns.yaml'));
+    assert.ok(app.fetched[2].endsWith('/@tombatossals/chords-db@0.5.1/lib/guitar.json'));
     assert.ok(app.elements['#option-list'].innerHTML.includes('<svg class="circle"'));
     assert.ok(app.elements['#option-list'].innerHTML.includes('<span class="section-title">Progressions</span>'));
     assert.equal(app.elements['#options'].hidden, false);
@@ -301,6 +311,76 @@ test('app.js shows an error in the rows when the data file cannot be loaded', as
   try {
     const app = await loadApp({ ok: false });
     assert.equal(app.elements['#rows'].textContent, `Chordice could not start: Could not load ${app.fetched[0]}: 404`);
+  } finally {
+    uninstall();
+  }
+});
+
+test('app.js marks the tab of the piano by default, and a click on the guitar tab marks the guitar and stores it', async () => {
+  try {
+    const app = await loadApp();
+    const [piano, guitar] = app.instrumentTabs;
+    assert.equal(piano.attributes['aria-pressed'], 'true');
+    assert.equal(guitar.attributes['aria-pressed'], 'false');
+    app.dispatch({ action: 'set-instrument', instrument: 'guitar' });
+    assert.equal(piano.attributes['aria-pressed'], 'false');
+    assert.equal(guitar.attributes['aria-pressed'], 'true');
+    assert.ok(decodeURIComponent(app.document.cookie).includes('"instrument":"guitar"'));
+  } finally {
+    uninstall();
+  }
+});
+
+test('app.js restores the guitar tab from the cookie', async () => {
+  try {
+    const cookie = serializeCookie({ ...defaultState(LIBRARY, () => 0.5), instrument: 'guitar' });
+    const app = await loadApp({ cookie });
+    assert.equal(app.instrumentTabs[1].attributes['aria-pressed'], 'true');
+    assert.equal(app.instrumentTabs[0].attributes['aria-pressed'], 'false');
+  } finally {
+    uninstall();
+  }
+});
+
+test('on the guitar the inversions switch is greyed out, the melody notes are gone, and the stored switch comes back on the piano', async () => {
+  try {
+    const cookie = serializeCookie({ ...defaultState(LIBRARY, () => 0.5), instrument: 'guitar', inversions: true });
+    const app = await loadApp({ cookie });
+    const inversions = app.elements['[data-action="toggle-inversions"]'];
+    assert.equal(inversions.disabled, true);
+    assert.equal(inversions.attributes['aria-pressed'], 'true');
+    assert.ok(!app.elements['#rows'].innerHTML.includes('Top melody note'));
+    app.dispatch({ action: 'toggle-inversions' });
+    assert.equal(inversions.attributes['aria-pressed'], 'true');
+    app.dispatch({ action: 'set-instrument', instrument: 'piano' });
+    assert.equal(inversions.disabled, false);
+    assert.ok(app.elements['#rows'].innerHTML.includes('Top melody note'));
+  } finally {
+    uninstall();
+  }
+});
+
+test('on the guitar the rows have no bass variations, and the bass returns with the piano at the amount set before', async () => {
+  try {
+    const cookie = serializeCookie({ ...defaultState(LIBRARY, () => 0.5), instrument: 'guitar', bassProbability: 5 });
+    const app = await loadApp({ cookie });
+    assert.ok(!app.elements['#rows'].innerHTML.includes('class="bass"'));
+    assert.ok(app.elements['#option-list'].innerHTML.includes('is-unavailable'));
+    app.dispatch({ action: 'set-instrument', instrument: 'piano' });
+    assert.ok(app.elements['#rows'].innerHTML.includes('class="bass"'));
+    assert.ok(!app.elements['#option-list'].innerHTML.includes('is-unavailable'));
+  } finally {
+    uninstall();
+  }
+});
+
+test('on the guitar a click on the bass variations heading does not open it, and its amount shows 0', async () => {
+  try {
+    const cookie = serializeCookie({ ...defaultState(LIBRARY, () => 0.5), instrument: 'guitar', bassProbability: 4 });
+    const app = await loadApp({ cookie });
+    app.dispatch({ action: 'toggle-section', section: 'bass' });
+    assert.ok(!app.elements['#option-list'].innerHTML.includes('data-option="bassProbability"'));
+    assert.ok(app.elements['#option-list'].innerHTML.includes('<span class="summary-label">Amount</span>: <span class="summary-value">0</span>'));
   } finally {
     uninstall();
   }

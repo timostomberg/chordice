@@ -5,28 +5,35 @@
 import { load } from 'js-yaml';
 import { generate } from './generator.js';
 import { buildBassPatterns, buildLibrary } from './library.js';
-import { applyAction, parseCookie, sanitizeState, serializeCookie } from './state.js';
+import { applyAction, effectiveState, isUnavailable, parseCookie, sanitizeState, serializeCookie } from './state.js';
 import { renderOptions, renderRows } from './render.js';
 import { createNotesDialog } from './notes-dialog.js';
+import { fingeringOf } from './guitar.js';
 import { bindZoom, blockZoom } from './zoom.js';
 
 const PROGRESSIONS_URL = new URL('../data/chord_progressions.yaml', import.meta.url);
 const BASS_URL = new URL('../data/bass_patterns.yaml', import.meta.url);
+// The guitar shapes are read from the chord database on the CDN, at the version pinned in package.json.
+const GUITAR_URL = 'https://cdn.jsdelivr.net/npm/@tombatossals/chords-db@0.5.1/lib/guitar.json';
 
-async function loadYaml(url) {
+async function fetchText(url) {
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Could not load ${url}: ${response.status}`);
   }
-  return load(await response.text());
+  return response.text();
 }
 
 async function loadData() {
-  const [progressions, bass] = await Promise.all([loadYaml(PROGRESSIONS_URL), loadYaml(BASS_URL)]);
-  return { library: buildLibrary(progressions), bassPatterns: buildBassPatterns(bass) };
+  const [progressions, bass, guitar] = await Promise.all([
+    fetchText(PROGRESSIONS_URL).then(load),
+    fetchText(BASS_URL).then(load),
+    fetchText(GUITAR_URL).then((text) => JSON.parse(text)),
+  ]);
+  return { library: buildLibrary(progressions), bassPatterns: buildBassPatterns(bass), guitar };
 }
 
-function start({ library, bassPatterns }) {
+function start({ library, bassPatterns, guitar }) {
   let state = sanitizeState(parseCookie(document.cookie), library);
 
   const sidePanel = document.querySelector('#side-panel');
@@ -43,7 +50,8 @@ function start({ library, bassPatterns }) {
 
   /** The display switches of the rows, which the notes window's chord box follows too. */
   function displayOf(current) {
-    return { colour: current.colour, roman: current.roman, tones: current.tones, melody: current.inversions };
+    const effective = effectiveState(current);
+    return { colour: effective.colour, roman: effective.roman, tones: effective.tones, melody: effective.inversions };
   }
 
   function render() {
@@ -57,7 +65,7 @@ function start({ library, bassPatterns }) {
     if (list) {
       list.scrollTop = listScroll;
     }
-    currentRows = generate({ ...state, library, bassPatterns });
+    currentRows = generate({ ...effectiveState(state), library, bassPatterns });
     rows.innerHTML = renderRows(currentRows, displayOf(state));
     content.scrollTop = contentScroll;
     document.documentElement.dataset.theme = state.theme;
@@ -66,6 +74,12 @@ function start({ library, bassPatterns }) {
     // Each view switch names its flag in data-flag, so its pressed state follows the state.
     for (const button of document.querySelectorAll('[data-flag]')) {
       button.setAttribute('aria-pressed', String(state[button.dataset.flag]));
+      // A switch the chosen instrument does not use is greyed out. Its pressed state still shows the stored value.
+      button.disabled = isUnavailable(state, button.dataset.flag);
+    }
+    // The instrument tabs: exactly the tab of the chosen instrument is pressed.
+    for (const button of document.querySelectorAll('[data-instrument]')) {
+      button.setAttribute('aria-pressed', String(button.dataset.instrument === state.instrument));
     }
     // The options button is the element with the class; the header carries the same action but is not the button.
     document.querySelector('.options-toggle').setAttribute('aria-expanded', String(state.showOptions));
@@ -80,7 +94,10 @@ function start({ library, bassPatterns }) {
 
   function openNotes(target) {
     const row = currentRows[Number(target.dataset.row)];
-    notes.open(row.chords[Number(target.dataset.chord)], target, row.tonic, displayOf(state));
+    const chord = row.chords[Number(target.dataset.chord)];
+    const instrument = state.instrument;
+    const fingering = instrument === 'guitar' ? fingeringOf(chord, guitar) : null;
+    notes.open(chord, target, row.tonic, displayOf(state), { instrument, fingering });
   }
 
   document.addEventListener('click', (event) => {

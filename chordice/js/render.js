@@ -10,7 +10,7 @@ import {
   minorNameOf,
   toneKind,
 } from './theory.js';
-import { SECTIONS } from './state.js';
+import { SECTIONS, isUnavailable } from './state.js';
 import { PROBABILITY_MAX } from './random.js';
 import { escapeHtml } from './escape.js';
 import { renderCircleSvg } from './circle.js';
@@ -36,10 +36,15 @@ function toggleButton(label, attributes, pressed) {
 }
 
 /** A slider from 0 to PROBABILITY_MAX, where PROBABILITY_MAX means 100%. The value is shown as the number on that scale. */
-function probabilitySlider(option, value) {
+/** The value an option shows: an option the chosen instrument does not use shows 0, as it takes no effect. */
+function shownValue(option, state) {
+  return isUnavailable(state, option) ? 0 : state[option];
+}
+
+function probabilitySlider(option, value, disabled = false) {
   const fill = (value / PROBABILITY_MAX) * 100;
   return `<label class="slider"><span>${PROBABILITY_LABELS[option]} <output>${value}</output></span>` +
-    `<input type="range" min="0" max="${PROBABILITY_MAX}" step="1" value="${value}" data-option="${option}" style="--fill: ${fill}%"></label>`;
+    `<input type="range" min="0" max="${PROBABILITY_MAX}" step="1" value="${value}" data-option="${option}" style="--fill: ${fill}%"${disabled ? ' disabled' : ''}></label>`;
 }
 
 /** The progressions of the library, one list per genre, in library order. */
@@ -90,7 +95,7 @@ function sectionBody(name, state, library) {
           toggleButton(variation, `data-action="toggle-variation" data-variation="${escapeHtml(variation)}"`, state.variations.includes(variation)),
         ).join('')}</div>`;
     case 'bass':
-      return probabilitySlider('bassProbability', state.bassProbability);
+      return probabilitySlider('bassProbability', shownValue('bassProbability', state), isUnavailable(state, 'bassProbability'));
     default:
       return '';
   }
@@ -131,7 +136,7 @@ function sectionSummary(name, state, library) {
 /** One probability as a summary line, e.g. "Rotation: 2" with the label in blue. */
 function probabilitySummary(option, state) {
   return `<span class="summary-label">${escapeHtml(PROBABILITY_LABELS[option])}</span>: ` +
-    `<span class="summary-value">${state[option]}</span>`;
+    `<span class="summary-value">${shownValue(option, state)}</span>`;
 }
 
 /**
@@ -154,11 +159,13 @@ function foreignButton(state) {
 }
 
 function optionSection(name, state, library) {
-  const expanded = !state.collapsed.includes(name);
+  // A section whose option the chosen instrument does not use is greyed out and cannot be opened; it stays collapsed.
+  const unavailable = name === 'bass' && isUnavailable(state, 'bassProbability');
+  const expanded = !state.collapsed.includes(name) && !unavailable;
   const lines = sectionSummary(name, state, library).join('<br>');
   const summary = expanded ? '' : `<span class="section-summary">${lines}</span>`;
   const toggle = `<button type="button" class="section-toggle" data-action="toggle-section" ` +
-    `data-section="${name}" aria-expanded="${expanded}">` +
+    `data-section="${name}" aria-expanded="${expanded}"${unavailable ? ' disabled' : ''}>` +
     `<span class="section-title">${SECTION_TITLES[name]}</span>${summary}</button>`;
   // The headings with a button beside them draw their arrow after that button, so the arrow is on the header, not on the toggle.
   const sideButton = name === 'progressions' ? countButton(state) : name === 'variations' ? foreignButton(state) : '';
@@ -166,7 +173,8 @@ function optionSection(name, state, library) {
     ? `<h2 class="section-header${expanded ? ' is-expanded' : ''}">${toggle}${sideButton}</h2>`
     : `<h2>${toggle}</h2>`;
   const body = expanded ? sectionBody(name, state, library) : '';
-  return `<section class="option${expanded ? '' : ' is-collapsed'}">${header}${body}</section>`;
+  const classes = `option${expanded ? '' : ' is-collapsed'}${unavailable ? ' is-unavailable' : ''}`;
+  return `<section class="${classes}">${header}${body}</section>`;
 }
 
 /** Renders the options panel: one collapsible section per option group. */
