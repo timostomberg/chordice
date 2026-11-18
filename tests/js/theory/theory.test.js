@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { Chord, Note } from 'tonal';
 import {
   VARIATION_NAMES,
   buildChord,
@@ -166,11 +167,38 @@ test('keySignatureOf lists the sharps or flats of a major key in signature order
   assert.deepEqual(keySignatureOf('Gb'), ['Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb']);
 });
 
-test('invertedTones gives the root position for 0 and puts the tone at the inversion index at the bottom', () => {
+test('invertedTones puts the tone at the inversion index at the bottom, the root position included', () => {
   assert.deepEqual(invertedTones(['C', 'E', 'G']), ['C', 'E', 'G']);
   assert.deepEqual(invertedTones(['C', 'E', 'G'], 1), ['E', 'G', 'C']);
   assert.deepEqual(invertedTones(['C', 'E', 'G'], 2), ['G', 'C', 'E']);
   assert.deepEqual(invertedTones(['G', 'B', 'D', 'F'], 3), ['F', 'G', 'B', 'D']);
+});
+
+test('invertedTones of an extended chord puts each tone at the bottom once, with the others close above it', () => {
+  // Every inversion, the root position included, is ascending within one octave above its bass.
+  const c9 = ['C', 'E', 'G', 'Bb', 'D'];
+  assert.deepEqual(invertedTones(c9, 0), ['C', 'D', 'E', 'G', 'Bb']);
+  assert.deepEqual(invertedTones(c9, 1), ['E', 'G', 'Bb', 'C', 'D']);
+  assert.deepEqual(invertedTones(c9, 2), ['G', 'Bb', 'C', 'D', 'E']);
+  assert.deepEqual(invertedTones(c9, 3), ['Bb', 'C', 'D', 'E', 'G']);
+  assert.deepEqual(invertedTones(c9, 4), ['D', 'E', 'G', 'Bb', 'C']);
+});
+
+test('every inversion of a chord has each tone once, its own tone at the bottom, and no gap wider than a perfect fourth', () => {
+  const symbols = ['C7', 'Cmaj7', 'C6', 'Cadd9', 'Csus4', 'C9', 'Cmaj9', 'C11', 'C13', 'Cmaj13', 'C6/9', 'C7b9', 'C7#9', 'C7#11', 'C7b13', 'Cm7b5'];
+  for (const symbol of symbols) {
+    const tones = Chord.get(symbol).notes;
+    tones.forEach((bass, inversion) => {
+      const order = invertedTones(tones, inversion);
+      assert.equal(order[0], bass, `${symbol} inversion ${inversion}`);
+      assert.deepEqual([...order].sort(), [...tones].sort(), `${symbol} inversion ${inversion}`);
+      const steps = order.map((tone) => (Note.chroma(tone) - Note.chroma(bass) + 12) % 12);
+      assert.deepEqual(steps, [...steps].sort((a, b) => a - b), `${symbol} inversion ${inversion} is not ascending above the bass`);
+      for (let index = 1; index < steps.length; index += 1) {
+        assert.ok(steps[index] - steps[index - 1] <= 5, `${symbol} inversion ${inversion} jumps from ${order[index - 1]} to ${order[index]}`);
+      }
+    });
+  }
 });
 
 test('invertedTones rejects an inversion the chord does not have', () => {

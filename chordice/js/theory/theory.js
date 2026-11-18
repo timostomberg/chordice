@@ -84,14 +84,22 @@ export function buildChord(root, quality, variation = null) {
 }
 
 /**
- * The chord tones in the order of one inversion, the lowest note first. Inversion 0 is the root position; inversion k
- * puts the tone at index k at the bottom, followed by the remaining tones in their order.
+ * The chord tones in the order of one inversion, the lowest note first. Inversion k puts the tone at index k at the
+ * bottom, and the remaining tones follow in ascending order of their distance above it, so every tone lies within one
+ * octave of the bass and no tone jumps over another. Inversion 0 is the root position and is voiced the same way.
+ * For a triad this is the plain rotation of the chord tones.
  */
 export function invertedTones(tones, inversion = 0) {
   if (!Number.isInteger(inversion) || inversion < 0 || inversion >= tones.length) {
     throw new Error(`Inversion ${inversion} does not exist for ${tones.length} chord tones`);
   }
-  return [...tones.slice(inversion), ...tones.slice(0, inversion)];
+  const bass = tones[inversion];
+  const above = tones
+    .filter((_, index) => index !== inversion)
+    .map((tone, index) => ({ tone, steps: (Note.chroma(tone) - Note.chroma(bass) + 12) % 12, index }))
+    .sort((a, b) => a.steps - b.steps || a.index - b.index)
+    .map(({ tone }) => tone);
+  return [bass, ...above];
 }
 
 // Quality of the simple interval numbers 1 to 7 when they are major/minor or perfect; 9, 11 and 13 are compound.
