@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { load } from 'js-yaml';
-import { buildBassPatterns, buildLibrary } from '../../chordice/js/library.js';
+import { buildBassPatterns, buildLibrary } from '../../chordice/js/data/validate.js';
 
 const YAML_TEXT = readFileSync(new URL('../../chordice/data/bass_patterns.yaml', import.meta.url), 'utf8');
 const CHORDS_TEXT = readFileSync(new URL('../../chordice/data/chord_progressions.yaml', import.meta.url), 'utf8');

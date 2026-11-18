@@ -8,6 +8,6 @@ const ROOT = new URL('../', import.meta.url);
 test('index.html at the root redirects to the main page, which exists', () => {
   const html = readFileSync(new URL('index.html', ROOT), 'utf8');
   const target = /url=([^"]+)"/.exec(html)?.[1];
-  assert.equal(target, 'chordice/html/main.html');
+  assert.equal(target, 'chordice/main.html');
   assert.ok(existsSync(fileURLToPath(new URL(target, ROOT))));
 });

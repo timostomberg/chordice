@@ -3,6 +3,6 @@
  * side effects on import and its tests can start it on a fake page.
  */
 
-import { startApp } from './app.js';
+import { startApp } from './core/app.js';
 
 startApp();
