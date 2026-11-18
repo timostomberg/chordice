@@ -74,12 +74,13 @@ class FakeInput {
 }
 
 /** Installs the globals app.js uses, loads it and waits until its start-up promise has settled. */
-async function loadApp({ cookie = '', yaml = YAML_TEXT, bass = BASS_TEXT, ok = true } = {}) {
+async function loadApp({ cookie = '', yaml = YAML_TEXT, bass = BASS_TEXT, ok = true, guitarOk = true } = {}) {
   const elements = {
     '#side-panel': new FakeElement(),
     '#options': new FakeElement(),
     '#option-list': new FakeElement(),
     '#rows': new FakeElement(),
+    '#status': new FakeElement(),
     '.options-toggle': new FakeElement(),
     '.count-toggle': new FakeElement(),
     '.content': new FakeElement(),
@@ -123,19 +124,18 @@ async function loadApp({ cookie = '', yaml = YAML_TEXT, bass = BASS_TEXT, ok = t
   globalThis.HTMLInputElement = FakeInput;
   globalThis.fetch = async (url) => {
     fetched.push(String(url));
-    const text = String(url).endsWith('/bass_patterns.yaml')
-      ? bass
-      : String(url).endsWith('/guitar.json') ? GUITAR_TEXT : yaml;
-    return { ok, status: ok ? 200 : 404, text: async () => text };
+    const isGuitar = String(url).endsWith('/guitar.json');
+    const good = isGuitar ? guitarOk : ok;
+    const text = String(url).endsWith('/bass_patterns.yaml') ? bass : isGuitar ? GUITAR_TEXT : yaml;
+    return { ok: good, status: good ? 200 : 404, text: async () => text };
   };
 
   await startApp();
 
-  const dispatch = (dataset) => {
-    for (const listener of listeners.click ?? []) {
-      listener({ target: { closest: () => ({ dataset }) } });
-    }
-  };
+  // Returns a promise that settles once the click has been handled, e.g. after the guitar shapes are loaded.
+  const dispatch = (dataset) => Promise.all(
+    (listeners.click ?? []).map((listener) => listener({ target: { closest: () => ({ dataset }) } })),
+  );
   // A raw click, e.g. on the chords area; the target is not inside any element with a data-action.
   const click = (target) => {
     for (const listener of listeners.click ?? []) {
@@ -163,10 +163,11 @@ function rowCount(html) {
 test('app.js loads the YAML library and renders the circle, option sections, rows and toggle state', async () => {
   try {
     const app = await loadApp();
-    assert.deepEqual(app.fetched.length, 3);
+    assert.deepEqual(app.fetched.length, 2);
     assert.ok(app.fetched[0].endsWith('/chordice/data/chord_progressions.yaml'));
     assert.ok(app.fetched[1].endsWith('/chordice/data/bass_patterns.yaml'));
-    assert.ok(app.fetched[2].endsWith('/@tombatossals/chords-db@0.5.1/lib/guitar.json'));
+    // The piano needs no guitar shapes, so they are not fetched at start-up.
+    assert.ok(!app.fetched.some((url) => url.endsWith('guitar.json')));
     assert.ok(app.elements['#option-list'].innerHTML.includes('<svg class="circle"'));
     assert.ok(app.elements['#option-list'].innerHTML.includes('<span class="section-title">Progressions</span>'));
     assert.equal(app.elements['#options'].hidden, false);
@@ -316,17 +317,58 @@ test('app.js shows an error in the rows when the data file cannot be loaded', as
   }
 });
 
-test('app.js marks the tab of the piano by default, and a click on the guitar tab marks the guitar and stores it', async () => {
+test('app.js marks the tab of the piano by default, and a click on the guitar tab loads the shapes, marks the guitar and stores it', async () => {
   try {
     const app = await loadApp();
     const [piano, guitar] = app.instrumentTabs;
     assert.equal(piano.attributes['aria-pressed'], 'true');
     assert.equal(guitar.attributes['aria-pressed'], 'false');
-    app.dispatch({ action: 'set-instrument', instrument: 'guitar' });
+    await app.dispatch({ action: 'set-instrument', instrument: 'guitar' });
+    assert.equal(app.elements['#status'].hidden, true);
+    assert.ok(app.fetched.some((url) => url.endsWith('/@tombatossals/chords-db@0.5.1/lib/guitar.json')));
     assert.equal(piano.attributes['aria-pressed'], 'false');
     assert.equal(guitar.attributes['aria-pressed'], 'true');
     assert.ok(decodeURIComponent(app.document.cookie).includes('"instrument":"guitar"'));
   } finally {
+    uninstall();
+  }
+});
+
+test('app.js keeps the piano when the guitar shapes cannot be loaded, and does not store the guitar', async () => {
+  const logged = [];
+  const error = console.error;
+  console.error = (message) => logged.push(message);
+  try {
+    const app = await loadApp({ guitarOk: false });
+    const [piano, guitar] = app.instrumentTabs;
+    await app.dispatch({ action: 'set-instrument', instrument: 'guitar' });
+    assert.equal(piano.attributes['aria-pressed'], 'true');
+    assert.equal(guitar.attributes['aria-pressed'], 'false');
+    assert.ok(!decodeURIComponent(app.document.cookie).includes('"instrument":"guitar"'));
+    // The rows still show, so the page works without the guitar.
+    assert.equal(rowCount(app.elements['#rows'].innerHTML), 4);
+    assert.ok(logged.some((message) => message.includes('could not load the guitar shapes')));
+    // The page says so, in a message above the chords.
+    assert.equal(app.elements['#status'].hidden, false);
+    assert.ok(app.elements['#status'].textContent.includes('guitar shapes could not be loaded'));
+  } finally {
+    console.error = error;
+    uninstall();
+  }
+});
+
+test('app.js starts on the piano when the stored guitar cannot be loaded, and the page still shows its rows', async () => {
+  const error = console.error;
+  console.error = () => {};
+  try {
+    const cookie = serializeCookie({ ...defaultState(LIBRARY, () => 0.5), instrument: 'guitar' });
+    const app = await loadApp({ cookie, guitarOk: false });
+    assert.equal(app.instrumentTabs[0].attributes['aria-pressed'], 'true');
+    assert.equal(app.instrumentTabs[1].attributes['aria-pressed'], 'false');
+    assert.equal(rowCount(app.elements['#rows'].innerHTML), 4);
+    assert.equal(app.elements['#status'].hidden, false);
+  } finally {
+    console.error = error;
     uninstall();
   }
 });

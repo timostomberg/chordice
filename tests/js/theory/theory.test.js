@@ -119,6 +119,8 @@ test('intervalOf turns bass pattern degrees into tonal intervals, with b and # a
 test('intervalOf rejects tokens that are not chord degrees', () => {
   assert.throws(() => intervalOf('x'));
   assert.throws(() => intervalOf('8'));
+  assert.throws(() => intervalOf('0'));
+  assert.throws(() => intervalOf('b0'));
   assert.throws(() => intervalOf('bb3'));
   assert.throws(() => intervalOf(''));
 });

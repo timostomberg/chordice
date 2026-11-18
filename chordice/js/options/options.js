@@ -29,12 +29,12 @@ function toggleButton(label, attributes, pressed) {
     `${escapeHtml(label)}</button>`;
 }
 
-/** A slider from 0 to PROBABILITY_MAX, where PROBABILITY_MAX means 100%. The value is shown as the number on that scale. */
 /** The value an option shows: an option the chosen instrument does not use shows 0, as it takes no effect. */
 function shownValue(option, state) {
   return isUnavailable(state, option) ? 0 : state[option];
 }
 
+/** A slider from 0 to PROBABILITY_MAX, where PROBABILITY_MAX means 100%. The value is shown as the number on that scale. */
 function probabilitySlider(option, value, disabled = false) {
   const fill = (value / PROBABILITY_MAX) * 100;
   return `<label class="slider"><span>${PROBABILITY_LABELS[option]} <output>${value}</output></span>` +

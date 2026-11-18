@@ -105,7 +105,7 @@ export function intervalOf(token) {
   const match = /^(b|#)?(\d+)$/.exec(token);
   const number = match ? Number(match[2]) : NaN;
   const simple = ((number - 1) % 7) + 1;
-  const known = number <= 7 || [9, 11, 13].includes(number);
+  const known = number >= 1 && (number <= 7 || [9, 11, 13].includes(number));
   if (!match || !known) {
     throw new Error(`Invalid chord degree in bass pattern: ${token}`);
   }

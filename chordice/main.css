@@ -410,6 +410,14 @@ button[aria-expanded="true"] {
   margin: auto;
 }
 
+/* A message from the page, e.g. that the guitar shapes could not be loaded. Hidden when there is none. */
+.status {
+  max-width: 100%;
+  margin: 0 auto 0.75rem;
+  color: var(--foreign-tone);
+  font-size: 0.9rem;
+}
+
 /* Generate floats in the bottom right corner, reachable from anywhere on the page. */
 .generate {
   position: fixed;

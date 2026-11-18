@@ -3,8 +3,8 @@
  * colours of its function. Shared by the progression rows (progressions.js) and the chord box of the notes window (notes/notes.js).
  */
 
-import { invertedTones, melodyTopOf, toneKind } from "../theory/theory.js";
-import { escapeHtml } from "../core/escape.js";
+import { invertedTones, melodyTopOf, toneKind } from '../theory/theory.js';
+import { escapeHtml } from '../core/escape.js';
 
 /** Attributes that make a chord open its notes window when clicked. */
 export function chordAttributes(rowIndex, chordIndex) {

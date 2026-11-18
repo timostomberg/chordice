@@ -5,7 +5,7 @@
 import { load } from 'js-yaml';
 import { generate } from '../generation/generator.js';
 import { buildBassPatterns, buildLibrary } from '../data/validate.js';
-import { applyAction, effectiveState, parseCookie, sanitizeState, serializeCookie } from './state.js';
+import { applyAction, effectiveState, parseCookie, sanitizeState, serializeCookie, setInstrument } from './state.js';
 import { updateHeader } from '../header/header.js';
 import { renderOptions } from '../options/options.js';
 import { renderRows } from '../progressions/progressions.js';
@@ -16,6 +16,7 @@ import { fingeringOf } from '../notes/guitar/fingering.js';
 const PROGRESSIONS_URL = new URL('../../data/chord_progressions.yaml', import.meta.url);
 const BASS_URL = new URL('../../data/bass_patterns.yaml', import.meta.url);
 // The guitar shapes are read from the chord database on the CDN, at the version pinned in package.json.
+// They are only needed for the guitar, so they are loaded when the guitar is first chosen, not at start-up.
 const GUITAR_URL = 'https://cdn.jsdelivr.net/npm/@tombatossals/chords-db@0.5.1/lib/guitar.json';
 
 async function fetchText(url) {
@@ -27,16 +28,43 @@ async function fetchText(url) {
 }
 
 async function loadData() {
-  const [progressions, bass, guitar] = await Promise.all([
+  const [progressions, bass] = await Promise.all([
     fetchText(PROGRESSIONS_URL).then(load),
     fetchText(BASS_URL).then(load),
-    fetchText(GUITAR_URL).then((text) => JSON.parse(text)),
   ]);
-  return { library: buildLibrary(progressions), bassPatterns: buildBassPatterns(bass), guitar };
+  return { library: buildLibrary(progressions), bassPatterns: buildBassPatterns(bass) };
 }
 
-function start({ library, bassPatterns, guitar }) {
-  let state = sanitizeState(parseCookie(document.cookie), library);
+/**
+ * Returns a function that loads the guitar shapes once and shares the result. A failed load is not kept, so the next
+ * call tries again.
+ */
+function guitarLoader() {
+  let pending = null;
+  return () => {
+    pending ??= fetchText(GUITAR_URL)
+      .then((text) => JSON.parse(text))
+      .catch((error) => {
+        pending = null;
+        throw error;
+      });
+    return pending;
+  };
+}
+
+/** The message shown when the guitar shapes cannot be loaded; the piano stays chosen. */
+const GUITAR_FAILED = 'The guitar shapes could not be loaded, so the piano stays chosen.';
+
+function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, guitarError = false }) {
+  let state = initial;
+  let guitar = loaded;
+
+  const status = document.querySelector('#status');
+  /** Shows a message above the chords, or hides the message line when there is none. */
+  function showStatus(message) {
+    status.textContent = message ?? '';
+    status.hidden = !message;
+  }
 
   const sidePanel = document.querySelector('#side-panel');
   const options = document.querySelector('#options');
@@ -90,10 +118,30 @@ function start({ library, bassPatterns, guitar }) {
     notes.open(chord, target, row.tonic, displayOf(state), { instrument, fingering });
   }
 
+  /** Chooses the guitar only once its shapes are loaded; if they cannot be loaded, the piano stays chosen. */
+  function chooseGuitar(dataset) {
+    if (guitar) {
+      dispatch(dataset.action, dataset);
+      return;
+    }
+    return loadGuitar()
+      .then((shapes) => {
+        guitar = shapes;
+        showStatus(null);
+        dispatch(dataset.action, dataset);
+      })
+      .catch((error) => {
+        console.error(`Chordice could not load the guitar shapes: ${error.message}`);
+        showStatus(GUITAR_FAILED);
+      });
+  }
+
   document.addEventListener('click', (event) => {
     const target = event.target.closest('[data-action]');
     if (target?.dataset.action === 'show-notes') {
       openNotes(target);
+    } else if (target?.dataset.action === 'set-instrument' && target.dataset.instrument === 'guitar') {
+      return chooseGuitar(target.dataset);
     } else if (target) {
       dispatch(target.dataset.action, target.dataset);
     } else if (content.contains(event.target)) {
@@ -121,12 +169,28 @@ function start({ library, bassPatterns, guitar }) {
   });
 
   render();
+  showStatus(guitarError ? GUITAR_FAILED : null);
 }
 
 /** Loads the data and shows the page. The promise settles once the page is shown, or once the error is shown. */
 export function startApp() {
+  const loadGuitar = guitarLoader();
   return loadData()
-    .then(start)
+    .then(async (data) => {
+      const stored = sanitizeState(parseCookie(document.cookie), data.library);
+      // A stored guitar needs its shapes before the page is drawn; without them the piano is shown instead.
+      let guitar = null;
+      let guitarError = false;
+      if (stored.instrument === 'guitar') {
+        guitar = await loadGuitar().catch((error) => {
+          console.error(`Chordice could not load the guitar shapes: ${error.message}`);
+          guitarError = true;
+          return null;
+        });
+      }
+      const initial = guitar ? stored : setInstrument(stored, 'piano');
+      start({ ...data, initial, guitar, loadGuitar, guitarError });
+    })
     .catch((error) => {
       document.querySelector('#rows').textContent = `Chordice could not start: ${error.message}`;
     });

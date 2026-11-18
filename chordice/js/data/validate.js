@@ -3,7 +3,7 @@
  * bass_patterns.yaml. Invalid data throws, so the app never generates from a broken file.
  */
 
-import { intervalOf, parseNumeral, VARIATION_NAMES } from '../theory/theory.js';
+import { buildChord, degree, intervalOf, parseNumeral, VARIATION_NAMES } from '../theory/theory.js';
 import { PROBABILITY_MAX } from '../generation/random.js';
 
 /** Key of the standard variation in chord_progressions.yaml, which has no chord variation. */
@@ -18,6 +18,17 @@ function requireObject(value, message) {
 function requireWeight(weight, where) {
   if (!Number.isInteger(weight) || weight < 1 || weight > PROBABILITY_MAX) {
     throw new Error(`Commonness must be a whole number from 1 to ${PROBABILITY_MAX} in ${where}`);
+  }
+}
+
+/** True if the chord of the numeral with the variation can be spelled, in the quality the numeral gives it. */
+function spellable(numeral, variation) {
+  const { root, quality } = degree('C', numeral);
+  try {
+    buildChord(root, quality, variation);
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -39,6 +50,10 @@ function buildVariations(map, groupName) {
     for (const [name, weight] of Object.entries(weights)) {
       if (name !== BASE && !VARIATION_NAMES.includes(name)) {
         throw new Error(`Unknown chord variation ${name} in ${where}`);
+      }
+      // The quality of the numeral decides the chord: a minor chord cannot take every variation, e.g. no major ninth.
+      if (name !== BASE && !spellable(numeral, name)) {
+        throw new Error(`Chord variation ${name} cannot be spelled on ${numeral} in ${where}`);
       }
       requireWeight(weight, where);
       variations[numeral][name] = weight;

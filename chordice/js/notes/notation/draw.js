@@ -26,7 +26,7 @@ const PAGE_FONT = 'system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif
  */
 export function usePageFontForWords(container) {
   for (const element of container.querySelectorAll('text')) {
-    if (!/[-]/.test(element.textContent)) {
+    if (!/[\uE000-\uF8FF]/.test(element.textContent)) {
       element.style.fontFamily = PAGE_FONT;
     }
   }

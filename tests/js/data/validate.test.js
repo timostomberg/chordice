@@ -31,6 +31,17 @@ test('buildLibrary reads the genres, progressions and chord variations, and keep
   assert.equal(pop.chordVariations.I['6'], 4);
 });
 
+test('buildLibrary rejects a chord variation that cannot be spelled in the quality of its numeral', () => {
+  // A minor chord has no major ninth in chordice's spelling, so a minor numeral cannot take maj9, while a major one can.
+  const group = (numeral, variation) => ({
+    Pop: { chord_variations: { [numeral]: { base: 5, [variation]: 2 } }, progressions: { X: [numeral] } },
+  });
+  assert.throws(() => buildLibrary(group('ii', 'maj9')), /cannot be spelled on ii/);
+  assert.throws(() => buildLibrary(group('vi', '7#11')), /cannot be spelled on vi/);
+  assert.doesNotThrow(() => buildLibrary(group('I', 'maj9')));
+  assert.doesNotThrow(() => buildLibrary(group('ii', '7')));
+});
+
 test('buildBassPatterns converts the bass notes into intervals and keeps their commonness', () => {
   const bass = buildBassPatterns(BASS_DATA);
   assert.deepEqual(bass.degrees.vi, [
