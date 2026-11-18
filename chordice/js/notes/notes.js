@@ -9,7 +9,7 @@ import { renderScore } from './notation/draw.js';
 import { chordBoxHtml } from '../progressions/chord.js';
 import { renderFingering } from './guitar/draw.js';
 import { captionOf, diagramOf } from './guitar/fingering.js';
-import { toneKind } from '../theory/theory.js';
+import { toneKind } from '../theory/tones.js';
 
 /** The class that frames the chord whose notes are open. */
 const OPEN_CLASS = 'is-open';

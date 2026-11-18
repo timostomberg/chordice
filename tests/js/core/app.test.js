@@ -88,7 +88,7 @@ async function loadApp({ cookie = '', yaml = YAML_TEXT, bass = BASS_TEXT, ok = t
     '[data-action="toggle-colour"]': new FakeElement({ flag: 'colour' }),
     '[data-action="toggle-roman"]': new FakeElement({ flag: 'roman' }),
     '[data-action="toggle-tones"]': new FakeElement({ flag: 'tones' }),
-    '[data-action="toggle-inversions"]': new FakeElement({ flag: 'inversions' }),
+    '[data-action="toggle-melody"]': new FakeElement({ flag: 'inversions' }),
     '#notes': new FakeDialog(),
   };
   const listeners = {};
@@ -171,7 +171,7 @@ test('app.js loads the YAML library and renders the circle, option sections, row
     assert.ok(app.elements['#option-list'].innerHTML.includes('<svg class="circle"'));
     assert.ok(app.elements['#option-list'].innerHTML.includes('<span class="section-title">Progressions</span>'));
     assert.equal(app.elements['#options'].hidden, false);
-    assert.equal(rowCount(app.elements['#rows'].innerHTML), 4);
+    assert.equal(rowCount(app.elements['#rows'].innerHTML), 2);
     assert.equal(app.elements['.options-toggle'].attributes['aria-expanded'], 'true');
     assert.ok(app.document.cookie.startsWith('chordice_state='));
   } finally {
@@ -208,10 +208,10 @@ test('app.js re-renders and stores the state when a click dispatches an action',
   try {
     const app = await loadApp();
     app.dispatch({ action: 'cycle-count' });
-    assert.equal(rowCount(app.elements['#rows'].innerHTML), 8);
-    assert.equal(app.elements['.count-toggle'].textContent, '8');
+    assert.equal(rowCount(app.elements['#rows'].innerHTML), 4);
+    assert.equal(app.elements['.count-toggle'].textContent, '4');
     assert.ok(app.document.cookie.includes('chordice_state='));
-    assert.ok(decodeURIComponent(app.document.cookie).includes('"count":8'));
+    assert.ok(decodeURIComponent(app.document.cookie).includes('"count":4'));
   } finally {
     uninstall();
   }
@@ -238,7 +238,7 @@ test('a click on the chords area outside the chords opens Keys and closes the ot
     app.dispatch({ action: 'toggle-section', section: 'bass' });
     app.click({ closest: () => null, insideContent: true });
     const cookie = decodeURIComponent(app.document.cookie);
-    assert.ok(cookie.includes('"collapsed":["progressions","progressionVariations","variations","bass"]'));
+    assert.ok(cookie.includes('"collapsed":["progressions","progressionVariations","variations","bass","melody"]'));
   } finally {
     uninstall();
   }
@@ -287,11 +287,11 @@ test('app.js shows the top melody notes while inversions are on, and hides them 
     // The melody note alone is shown as a circled tone; with the tones switch on it is the top tone of the column.
     app.dispatch({ action: 'toggle-tones' });
     assert.ok(!app.elements['#rows'].innerHTML.includes('tone-top'));
-    assert.equal(app.elements['[data-action="toggle-inversions"]'].attributes['aria-pressed'], 'false');
-    app.dispatch({ action: 'toggle-inversions' });
+    assert.equal(app.elements['[data-action="toggle-melody"]'].attributes['aria-pressed'], 'false');
+    app.dispatch({ action: 'toggle-melody' });
     assert.ok(app.elements['#rows'].innerHTML.includes('<span class="tone tone-top">'));
-    assert.equal(app.elements['[data-action="toggle-inversions"]'].attributes['aria-pressed'], 'true');
-    app.dispatch({ action: 'toggle-inversions' });
+    assert.equal(app.elements['[data-action="toggle-melody"]'].attributes['aria-pressed'], 'true');
+    app.dispatch({ action: 'toggle-melody' });
     assert.ok(!app.elements['#rows'].innerHTML.includes('tone-top'));
   } finally {
     uninstall();
@@ -348,7 +348,7 @@ test('app.js keeps the piano when the guitar shapes cannot be loaded, and does n
     assert.equal(guitar.attributes['aria-pressed'], 'false');
     assert.ok(!decodeURIComponent(app.document.cookie).includes('"instrument":"guitar"'));
     // The rows still show, so the page works without the guitar.
-    assert.equal(rowCount(app.elements['#rows'].innerHTML), 4);
+    assert.equal(rowCount(app.elements['#rows'].innerHTML), 2);
     assert.ok(logged.some((message) => message.includes('could not load the guitar shapes')));
     // The page says so, in a message above the chords.
     assert.equal(app.elements['#status'].hidden, false);
@@ -367,7 +367,7 @@ test('app.js starts on the piano when the stored guitar cannot be loaded, and th
     const app = await loadApp({ cookie, guitarOk: false });
     assert.equal(app.instrumentTabs[0].attributes['aria-pressed'], 'true');
     assert.equal(app.instrumentTabs[1].attributes['aria-pressed'], 'false');
-    assert.equal(rowCount(app.elements['#rows'].innerHTML), 4);
+    assert.equal(rowCount(app.elements['#rows'].innerHTML), 2);
     assert.equal(app.elements['#status'].hidden, false);
   } finally {
     console.error = error;
@@ -386,15 +386,15 @@ test('app.js restores the guitar tab from the cookie', async () => {
   }
 });
 
-test('on the guitar the inversions switch is greyed out, the melody notes are gone, and the stored switch comes back on the piano', async () => {
+test('on the guitar the melody button is greyed out, the melody notes are gone, and the stored switch comes back on the piano', async () => {
   try {
     const cookie = serializeCookie({ ...defaultState(LIBRARY, () => 0.5), instrument: 'guitar', inversions: true, tones: false });
     const app = await loadApp({ cookie });
-    const inversions = app.elements['[data-action="toggle-inversions"]'];
+    const inversions = app.elements['[data-action="toggle-melody"]'];
     assert.equal(inversions.disabled, true);
     assert.equal(inversions.attributes['aria-pressed'], 'true');
     assert.ok(!app.elements['#rows'].innerHTML.includes('tone-top'));
-    app.dispatch({ action: 'toggle-inversions' });
+    app.dispatch({ action: 'toggle-melody' });
     assert.equal(inversions.attributes['aria-pressed'], 'true');
     app.dispatch({ action: 'set-instrument', instrument: 'piano' });
     assert.equal(inversions.disabled, false);
@@ -406,7 +406,7 @@ test('on the guitar the inversions switch is greyed out, the melody notes are go
 
 test('on the guitar the rows have no bass variations, and the bass returns with the piano at the amount set before', async () => {
   try {
-    const cookie = serializeCookie({ ...defaultState(LIBRARY, () => 0.5), instrument: 'guitar', bassProbability: 5 });
+    const cookie = serializeCookie({ ...defaultState(LIBRARY, () => 0.5), instrument: 'guitar', bassProbability: 5, inversions: true });
     const app = await loadApp({ cookie });
     assert.ok(!app.elements['#rows'].innerHTML.includes('class="bass"'));
     assert.ok(app.elements['#option-list'].innerHTML.includes('is-unavailable'));

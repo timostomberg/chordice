@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 // the notes dialog); each window stands on its own, and the music theory, the data and the generation know nothing of
 // the page. These rules keep the structure from eroding silently.
 
-const JS = fileURLToPath(new URL('../../chordice/js/', import.meta.url));
+const JS = fileURLToPath(new URL('../chordice/js/', import.meta.url));
 const WINDOWS = ['header', 'options', 'progressions', 'notes'];
 
 function sourceFiles(dir = JS) {
@@ -36,11 +36,11 @@ const RULES = [
   {
     description: 'theory imports nothing of the app',
     applies: (path) => path.startsWith('theory/'),
-    forbids: () => true,
+    forbids: (target) => !target.startsWith('theory/'),
   },
   {
     description: 'data and generation do not depend on the page, the windows or the core',
-    applies: (path) => path.startsWith('data/') || path.startsWith('generation/'),
+    applies: (path) => path.startsWith('data/') || path.startsWith('generator/'),
     forbids: (target) => /^(core|header|options|progressions|notes)\//.test(target),
   },
   {
@@ -89,7 +89,7 @@ for (const rule of RULES) {
 }
 
 test('structure: every window and layer folder exists', () => {
-  for (const folder of [...WINDOWS, 'theory', 'data', 'generation', 'core']) {
+  for (const folder of [...WINDOWS, 'theory', 'data', 'generator', 'core']) {
     assert.ok(statSync(join(JS, folder)).isDirectory(), `${folder}/ is missing`);
   }
 });

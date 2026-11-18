@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Chord, Note } from 'tonal';
 import { accidentalBeforeNote, inversionOrders, lowestAtLeast, voicing, vexKey } from '../../../../chordice/js/notes/notation/notation.js';
-import { keySignatureOf } from '../../../../chordice/js/theory/theory.js';
+import { keySignatureOf } from '../../../../chordice/js/theory/keys.js';
 
 const BASS_RANGE = [43, 54]; // G2 to F#3
 
@@ -118,7 +118,7 @@ test('vexKey rejects a pitch without an octave', () => {
 });
 
 test('the melody note shown for a chord is the top note of its notes window in the same inversion', async () => {
-  const { melodyTopOf } = await import('../../../../chordice/js/theory/theory.js');
+  const { melodyTopOf } = await import('../../../../chordice/js/theory/melody.js');
   const symbols = ['C', 'Cm', 'C7', 'Cmaj7', 'Csus4', 'C13', 'F#m7b5', 'Bb', 'Ab7#9', 'Eb13'];
   for (const symbol of symbols) {
     const tones = Chord.get(symbol).notes;

@@ -3,7 +3,7 @@
  */
 
 import { load } from 'js-yaml';
-import { generate } from '../generation/generator.js';
+import { generate } from '../generator/generator.js';
 import { buildBassPatterns, buildLibrary } from '../data/validate.js';
 import { applyAction, effectiveState, parseCookie, sanitizeState, serializeCookie, setInstrument } from './state.js';
 import { updateHeader } from '../header/header.js';
@@ -99,7 +99,7 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
     rows.innerHTML = renderRows(currentRows, displayOf(state));
     content.scrollTop = contentScroll;
     document.documentElement.dataset.theme = state.theme;
-    // The count button shows the number of progressions it cycles through: 1, 2, 4, 8, 12.
+    // The count button shows the number of progressions it cycles through: 1, 2, 4, 8.
     document.querySelector('.count-toggle').textContent = String(state.count);
     updateHeader(state);
     document.cookie = serializeCookie(state);

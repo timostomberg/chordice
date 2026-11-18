@@ -1,9 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { generate, NO_BASS_PATTERNS } from '../../../chordice/js/generation/generator.js';
+import { generate } from '../../../chordice/js/generator/generator.js';
+import { NO_BASS_PATTERNS } from '../../../chordice/js/generator/bass.js';
 import { buildBassPatterns, buildLibrary } from '../../../chordice/js/data/validate.js';
-import { createSeeds } from '../../../chordice/js/generation/random.js';
-import { VARIATION_NAMES } from '../../../chordice/js/theory/theory.js';
+import { createSeeds } from '../../../chordice/js/generator/utils.js';
+import { VARIATION_NAMES } from '../../../chordice/js/theory/chords.js';
+import { melodyTopOf, pitchDistance } from '../../../chordice/js/theory/melody.js';
 
 // Shaped like chord_progressions.yaml: the YAML parses 5, 6, 7 and 9 as numbers, which the library must normalise.
 const DATA = {
@@ -63,6 +65,7 @@ function settings(overrides = {}) {
     variations: [...VARIATION_NAMES],
     variationProbability: 0,
     bassProbability: 0,
+    melodyAmount: 2,
     inversions: false,
     foreignVariations: true,
     seeds: SEEDS,
@@ -79,7 +82,7 @@ test('without probabilities the progressions stay plain and in the key of the se
 });
 
 test('the number of rows equals count and follows the selection', () => {
-  for (const count of [1, 2, 4, 8, 12]) {
+  for (const count of [1, 2, 4, 8]) {
     assert.equal(generate(settings({ count })).length, count);
   }
   assert.deepEqual(generate(settings({ selection: [] })), []);
@@ -371,6 +374,47 @@ test('changing the bass probability keeps the inversions', () => {
     varied.map((row) => row.chords.map((chord) => chord.inversion)),
     plain.map((row) => row.chords.map((chord) => chord.inversion)),
   );
+});
+
+/** For each chord after the first in a row: how far its melody note lies from the previous one, and the nearest possible distance. */
+function melodyLeaps(rows) {
+  const leaps = [];
+  for (const row of rows) {
+    row.chords.slice(1).forEach((chord, j) => {
+      const previous = melodyTopOf(row.chords[j].tones, row.chords[j].inversion);
+      const chosen = pitchDistance(melodyTopOf(chord.tones, chord.inversion), previous);
+      const nearest = Math.min(...chord.tones.map((_, k) => pitchDistance(melodyTopOf(chord.tones, k), previous)));
+      leaps.push({ chosen, nearest });
+    });
+  }
+  return leaps;
+}
+
+test('at melody amount 0 every chord takes the melody note nearest to the one before', () => {
+  const rows = generate(settings({ selection: [POP, MINOR], count: 16, variationProbability: 5, inversions: true, melodyAmount: 0 }));
+  const leaps = melodyLeaps(rows);
+  assert.ok(leaps.length > 0);
+  assert.ok(leaps.every(({ chosen, nearest }) => chosen === nearest));
+});
+
+test('at melody amount 5 melody notes further away than the nearest are chosen as well', () => {
+  const rows = generate(settings({ selection: [POP, MINOR], count: 16, variationProbability: 5, inversions: true, melodyAmount: 5 }));
+  assert.ok(melodyLeaps(rows).some(({ chosen, nearest }) => chosen > nearest));
+});
+
+test('changing the melody amount keeps the progression, variations and bass notes', () => {
+  const base = { selection: [POP, MINOR], count: 8, inversions: true, variationProbability: 3, bassProbability: 3 };
+  const outline = (rows) => rows.map((row) => row.chords.map((chord) => [chord.roman, chord.symbol, chord.bass]));
+  const near = generate(settings({ ...base, melodyAmount: 0 }));
+  const far = generate(settings({ ...base, melodyAmount: 5 }));
+  assert.deepEqual(outline(far), outline(near));
+});
+
+test('changing the melody amount with inversions off changes nothing: every chord stays in root position', () => {
+  const base = { selection: [POP], count: 8, variationProbability: 3 };
+  for (const row of generate(settings({ ...base, inversions: false, melodyAmount: 5 }))) {
+    assert.ok(row.chords.every((chord) => chord.inversion === 0));
+  }
 });
 
 test('with foreign variations off, a chord takes no variation with a tone foreign to the key of its row', () => {

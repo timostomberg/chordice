@@ -7,7 +7,8 @@
  */
 
 import { Note } from 'tonal';
-import { bassOf, invertedTones } from '../../theory/theory.js';
+import { bassOf } from '../../theory/bass.js';
+import { invertedTones } from '../../theory/melody.js';
 
 // Bass notes stay within G2 to F#3, which sits on and around the bass staff.
 const BASS_LOWEST = 43;

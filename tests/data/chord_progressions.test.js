@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { load } from 'js-yaml';
 import { buildLibrary } from '../../chordice/js/data/validate.js';
-import { VARIATION_NAMES, MAJOR_KEYS, buildChord, degree } from '../../chordice/js/theory/theory.js';
+import { VARIATION_NAMES, buildChord } from '../../chordice/js/theory/chords.js';
+import { MAJOR_KEYS } from '../../chordice/js/theory/keys.js';
+import { degree } from '../../chordice/js/theory/numerals.js';
 
 const YAML_TEXT = readFileSync(new URL('../../chordice/data/chord_progressions.yaml', import.meta.url), 'utf8');
 const LIBRARY = buildLibrary(load(YAML_TEXT));

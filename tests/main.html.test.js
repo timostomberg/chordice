@@ -62,7 +62,7 @@ const ACTION_PARAMS = {
   'toggle-colour': {},
   'toggle-roman': {},
   'toggle-tones': {},
-  'toggle-inversions': {},
+  'toggle-melody': {},
   'toggle-options': {},
   'toggle-theme': {},
   'set-instrument': { instrument: 'guitar' },
@@ -151,7 +151,7 @@ test('the colour, roman and tones buttons are symbol buttons that show their swi
   const html = readIndex();
   assert.ok(html.includes('class="colour-toggle" data-action="toggle-colour" aria-label="Colours" aria-pressed="true"'));
   assert.ok(html.includes('class="roman-toggle" data-action="toggle-roman" aria-label="Roman numerals" aria-pressed="true"'));
-  assert.ok(html.includes('class="tones-toggle" data-action="toggle-tones" aria-label="Chord tones" aria-pressed="true"'));
+  assert.ok(html.includes('class="tones-toggle" data-action="toggle-tones" aria-label="Chord tones" aria-pressed="false"'));
   assert.equal(html.split('data-action="toggle-colour"').length - 1, 1);
   assert.equal(html.split('data-action="toggle-roman"').length - 1, 1);
   assert.equal(html.split('data-action="toggle-tones"').length - 1, 1);
@@ -171,16 +171,13 @@ test('the roman button shows the IV symbol, the tones button three stacked noteh
   assert.ok(!tones.includes('<text'));
 });
 
-test('the inversions button is a symbol button that starts unpressed, and sits in the view switches', () => {
+test('the melody button is no longer in the header: the view switches are roman numerals, chord tones and colours', () => {
   const html = readIndex();
-  assert.ok(html.includes('class="inversions-toggle" data-action="toggle-inversions" aria-label="Inversions" aria-pressed="false"'));
-  assert.equal(html.split('data-action="toggle-inversions"').length - 1, 1);
+  assert.equal(html.split('toggle-melody').length - 1, 0);
   const group = /<div class="view-toggles">[\s\S]*?<\/div>/.exec(html)?.[0] ?? '';
-  assert.ok(group.includes('toggle-inversions'));
-  // Order in the header: roman numerals, chord tones, inversions (melody note), then a gap, then colours.
+  // Order in the header: roman numerals, chord tones, then a gap, then colours.
   assert.ok(group.indexOf('toggle-roman') < group.indexOf('toggle-tones'));
-  assert.ok(group.indexOf('toggle-tones') < group.indexOf('toggle-inversions'));
-  assert.ok(group.indexOf('toggle-inversions') < group.indexOf('toggle-colour'));
+  assert.ok(group.indexOf('toggle-tones') < group.indexOf('toggle-colour'));
 });
 
 test('a gap separates the colour button from the music switches', () => {
@@ -250,7 +247,7 @@ test('the guitar shapes are fetched from the chord database at the version in pa
 test('every data-flag in the page names a switch of the state, so app.js can set its pressed state from it', () => {
   const html = readIndex();
   const flags = [...html.matchAll(/data-flag="([^"]+)"/g)].map((match) => match[1]);
-  assert.ok(flags.length >= 4);
+  assert.ok(flags.length >= 3);
   for (const flag of flags) {
     assert.ok(FLAGS.includes(flag), flag);
   }

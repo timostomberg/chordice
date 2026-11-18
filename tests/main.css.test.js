@@ -236,10 +236,16 @@ test('the tones below a chord are circled in the variation and foreign colours',
   assert.ok(declarationsOf('.chord .tone-variation,\n.chord .tone-foreign,\n.chord .tone-top').includes('border-radius: 999px'));
 });
 
-test('the circled tones, the top tone among them, have a round border of the same width', () => {
+test('the circled tones have a round border of the same width', () => {
   const circled = declarationsOf('.chord .tone-variation,\n.chord .tone-foreign,\n.chord .tone-top');
   assert.ok(circled.includes('border: 1px solid currentColor'));
   assert.ok(circled.includes('border-radius: 999px'));
+});
+
+test('the top melody tone is circled in the colour of the chord symbol', () => {
+  assert.ok(declarationsOf('.chord .tone-variation,\n.chord .tone-foreign,\n.chord .tone-top').includes('border-radius: 999px'));
+  assert.match(CSS, /\.chord \.tone-top \{[^}]*color: var\(--chord-text\)/);
+  assert.ok(!/\.chord \.tone-top::(before|after)/.test(CSS));
 });
 
 // The window must keep its size when a click shows another guitar shape, so the diagram's box has a fixed height, and the
@@ -258,6 +264,16 @@ test('the count button is always filled in the accent blue, like an active chip'
   assert.ok(block.includes('background: var(--icon-blue)'));
   assert.ok(block.includes('border-color: var(--icon-blue)'));
   assert.ok(block.includes('color: var(--surface)'));
+});
+
+test('the bass below the tones is set without a box, in the colour of the tones, with space above it', () => {
+  const block = declarationsOf('.chord .bass-line .tone');
+  // The bass has no box and no brackets: it is set like the other tones.
+  assert.ok(!block.includes('border'));
+  assert.ok(!block.includes('color:'));
+  assert.ok(!declarationsOf('.chord .bass-line').includes('border-top'));
+  assert.ok(declarationsOf('.chord .bass-line').includes('margin-top'));
+  assert.ok(!CSS.includes('--bass-tone'));
 });
 
 // The notes staff must not force a fill or stroke on its drawing: VexFlow sets the colour of each note as an attribute,
@@ -289,13 +305,13 @@ test('the tone colours of the notes are the light theme colours of the chord ton
 test('an option the guitar does not use is greyed out, and so is its header switch while it is disabled', () => {
   // The greyed-out option is faded as a whole, as it was before the disabled buttons got their blue tint.
   assert.ok(declarationsOf('.option.is-unavailable').includes('opacity'));
-  const block = declarationsOf('.toolbar .inversions-toggle:disabled,\n.toolbar .instrument-tab:disabled');
+  const block = declarationsOf('.toolbar .instrument-tab:disabled');
   assert.ok(block.includes('background: none'));
   assert.ok(block.includes('color: var(--disabled-text)'));
 });
 
 test('a disabled header switch is faded by the same opacity as a greyed-out option', () => {
-  const faded = declarationsOf('.toolbar .inversions-toggle:disabled,\n.toolbar .instrument-tab:disabled');
+  const faded = declarationsOf('.toolbar .instrument-tab:disabled');
   assert.ok(faded.includes('opacity: 0.45'));
   assert.ok(declarationsOf('.option.is-unavailable').includes('opacity: 0.45'));
 });
@@ -307,13 +323,13 @@ test('the instrument tabs turn medium blue on hover, the chosen one too, but not
 });
 
 test('a disabled header switch is not highlighted under the mouse', () => {
-  assert.ok(!/\.toolbar \.inversions-toggle:disabled:hover/.test(CSS));
+  assert.ok(!/\.toolbar \.instrument-tab:disabled:hover/.test(CSS));
   assert.ok(/button\[type="button"\]:not\(:disabled,/.test(CSS));
 });
 
 test('a disabled button has no background and grey text, a button under the mouse a medium blue one', () => {
   assert.ok(/--hover-fill:\s*color-mix\(in srgb, var\(--icon-blue\) \d+%, var\(--surface\)\)/.test(CSS));
-  const disabled = declarationsOf('.toolbar .inversions-toggle:disabled,\n.toolbar .instrument-tab:disabled');
+  const disabled = declarationsOf('.toolbar .instrument-tab:disabled');
   assert.ok(disabled.includes('background: none'));
   assert.ok(disabled.includes('color: var(--disabled-text)'));
 });
@@ -364,4 +380,11 @@ test('unselected keys of the circle of fifths hide the grey ring behind them and
   const rule = /\.circle \.key:not\(\.is-on, \.is-subdominant, \.is-dominant\):hover circle \{([^}]*)\}/.exec(CSS);
   assert.ok(rule, 'hover rule for unselected keys');
   assert.ok(rule[1].includes('var(--hover-fill)'));
+});
+
+test('the melody button shows its note symbol at a size of 1.25rem, as a block', () => {
+  const sizes = declarationsOf('.melody-toggle svg');
+  assert.ok(sizes.includes('display: block'));
+  assert.ok(sizes.includes('width: 1.25rem'));
+  assert.ok(sizes.includes('height: 1.25rem'));
 });

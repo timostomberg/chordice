@@ -3,7 +3,9 @@
  * colours of its function. Shared by the progression rows (progressions.js) and the chord box of the notes window (notes/notes.js).
  */
 
-import { invertedTones, toneKind } from '../theory/theory.js';
+import { bassOf } from '../theory/bass.js';
+import { toneKind } from '../theory/tones.js';
+import { invertedTones } from '../theory/melody.js';
 import { escapeHtml } from '../core/escape.js';
 
 /** Attributes that make a chord open its notes window when clicked. */
@@ -30,15 +32,25 @@ function toneHtml(tone, chord, tonic, { top = false, judged = true } = {}) {
 }
 
 /**
+ * The bass tone of the chord (its slash bass, or the root), set below the other tones, without a box or brackets.
+ * It is the tone of the bass staff in the notes window. Shown only with the tones switch.
+ */
+function bassHtml(chord, tonic) {
+  return `<span class="bass-line">${toneHtml(bassOf(chord.tones, chord.bass), chord, tonic)}</span>`;
+}
+
+/**
  * The tones of the inversion beside the chord, lowest first, the last one being the top tone. With `all`, every chord tone
- * is listed (the tones switch); without it, only the top tone is (the melody switch alone). The top tone is circled when the
- * melody switch is on, as it is then the melody note. The bass is not listed: the slash bass is part of the chord symbol.
+ * is listed (the tones switch), followed by the bass; without it, only the top tone is (the melody switch
+ * alone). The top tone is circled when the melody switch is on, as it is then the melody note. The column is stacked
+ * upwards, so the bass, written first, sits at the bottom.
  */
 function tonesHtml(chord, tonic, { all, melody }) {
   const order = invertedTones(chord.tones, chord.inversion);
   const last = order.length - 1;
   const shown = all ? order.map((tone, index) => [tone, index]) : [[order[last], last]];
-  return shown.map(([tone, index]) => toneHtml(tone, chord, tonic, { top: melody && index === last, judged: all })).join('');
+  const bass = all ? bassHtml(chord, tonic) : '';
+  return bass + shown.map(([tone, index]) => toneHtml(tone, chord, tonic, { top: melody && index === last, judged: all })).join('');
 }
 
 /**

@@ -1,6 +1,6 @@
 /**
- * The header bar: the options button, the instrument tabs, the view switches (roman numerals, chord tones, inversions and
- * colours) and the dark mode switch. The markup is in index.html; updateHeader shows the state on its buttons.
+ * The header bar: the options button, the instrument tabs, the view switches (roman numerals, chord tones and colours) and
+ * the dark mode switch. The melody button sits beside the Melody variations heading in the options. The markup is in index.html; updateHeader shows the state on its buttons.
  */
 
 import { isUnavailable } from '../core/state.js';

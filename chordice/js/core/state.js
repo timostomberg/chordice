@@ -2,17 +2,20 @@
  * Application state: defaults, validation, cookie persistence and pure state transitions.
  */
 
-import { VARIATION_NAMES, isKeyName, majorKeyOf } from '../theory/theory.js';
-import { PROBABILITY_MAX, SEED_NAMES, createSeeds } from '../generation/random.js';
+import { VARIATION_NAMES } from '../theory/chords.js';
+import { isKeyName, majorKeyOf } from '../theory/keys.js';
+import { PROBABILITY_MAX, SEED_NAMES, createSeeds } from '../generator/utils.js';
 
 export const COOKIE_NAME = 'chordice_state';
-export const COUNTS = [1, 2, 4, 8, 12];
-export const PROBABILITY_OPTIONS = ['rotation', 'permutation', 'variationProbability', 'bassProbability'];
+export const COUNTS = [1, 2, 4, 8];
+export const PROBABILITY_OPTIONS = ['rotation', 'permutation', 'variationProbability', 'bassProbability', 'melodyAmount'];
 export const FLAGS = ['showOptions', 'colour', 'roman', 'tones', 'inversions', 'foreignVariations'];
 export const THEMES = ['light', 'dark'];
 // The instrument whose notes window the chords open: notes for the piano, a diagram for the guitar.
 export const INSTRUMENTS = ['piano', 'guitar'];
-export const SECTIONS = ['keys', 'progressions', 'progressionVariations', 'variations', 'bass'];
+export const SECTIONS = ['keys', 'progressions', 'progressionVariations', 'variations', 'bass', 'melody'];
+// The option each section's Amount belongs to; a section whose option is unavailable cannot be opened.
+export const SECTION_OPTIONS = { bass: 'bassProbability', melody: 'melodyAmount' };
 
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 // Default for the probabilities, on the scale from 0 to 5 (2 means 40%).
@@ -24,15 +27,16 @@ export function defaultState(library, random = Math.random) {
     version: 1,
     keys: ['C'],
     selection: library.map((progression) => progression.id),
-    count: 4,
+    count: 2,
     rotation: DEFAULT_PROBABILITY,
     permutation: DEFAULT_PROBABILITY,
     variations: [...VARIATION_NAMES],
     variationProbability: DEFAULT_PROBABILITY,
     bassProbability: DEFAULT_PROBABILITY,
+    melodyAmount: DEFAULT_PROBABILITY,
     colour: true,
     roman: true,
-    tones: true,
+    tones: false,
     inversions: false,
     // On: every chord variation is used. Off: only variations without tones foreign to the key.
     foreignVariations: true,
@@ -64,10 +68,8 @@ export function sanitizeState(raw, library, random = Math.random) {
   }
 
   const rawKeys = Array.isArray(raw.keys) ? [...new Set(raw.keys.map(majorKeyOf).filter(Boolean))] : [];
-  // An empty selection or an empty variation list is valid: nothing is shown or added for it.
-  const selection = Array.isArray(raw.selection)
-    ? library.map((progression) => progression.id).filter((id) => raw.selection.includes(id))
-    : fallback.selection;
+  // Every progression is selected on start-up, whatever was stored, so the selection never depends on an older cookie.
+  const selection = fallback.selection;
   const variations = Array.isArray(raw.variations)
     ? VARIATION_NAMES.filter((name) => raw.variations.includes(name))
     : fallback.variations;
@@ -91,6 +93,7 @@ export function sanitizeState(raw, library, random = Math.random) {
     variations,
     variationProbability: toProbability(raw.variationProbability, fallback.variationProbability),
     bassProbability: toProbability(raw.bassProbability, fallback.bassProbability),
+    melodyAmount: toProbability(raw.melodyAmount, fallback.melodyAmount),
     colour: typeof raw.colour === 'boolean' ? raw.colour : (legacyView ?? fallback.colour),
     roman: typeof raw.roman === 'boolean' ? raw.roman : (legacyDetails ?? fallback.roman),
     tones: typeof raw.tones === 'boolean' ? raw.tones : (legacyDetails ?? fallback.tones),
@@ -169,7 +172,7 @@ export function setCount(state, count) {
   return COUNTS.includes(count) ? { ...state, count } : state;
 }
 
-/** Moves the number of progressions to the next value in 1, 2, 4, 8, 12, and back to 1 after 12. */
+/** Moves the number of progressions to the next value in 1, 2, 4, 8, and back to 1 after 8. */
 export function cycleCount(state) {
   const next = COUNTS[(COUNTS.indexOf(state.count) + 1) % COUNTS.length];
   return setCount(state, next);
@@ -240,8 +243,14 @@ export function setInstrument(state, instrument) {
  */
 export const GUITAR_UNAVAILABLE = ['bassProbability', 'inversions'];
 
-/** Whether an option is unavailable for the chosen instrument, so that it is greyed out and does not take effect. */
+/**
+ * Whether an option is unavailable, so that it is greyed out and does not take effect. The melody variations need the
+ * melody note: they are unavailable on the guitar, and on the piano while the inversions switch (the melody button) is off.
+ */
 export function isUnavailable(state, option) {
+  if (option === 'melodyAmount') {
+    return state.instrument === 'guitar' || !state.inversions;
+  }
   return state.instrument === 'guitar' && GUITAR_UNAVAILABLE.includes(option);
 }
 
@@ -250,6 +259,7 @@ export function effectiveState(state) {
   return {
     ...state,
     bassProbability: isUnavailable(state, 'bassProbability') ? 0 : state.bassProbability,
+    melodyAmount: isUnavailable(state, 'melodyAmount') ? 0 : state.melodyAmount,
     inversions: state.inversions && !isUnavailable(state, 'inversions'),
   };
 }
@@ -275,18 +285,18 @@ const FLAG_ACTIONS = {
   'toggle-colour': 'colour',
   'toggle-roman': 'roman',
   'toggle-tones': 'tones',
-  'toggle-inversions': 'inversions',
+  'toggle-melody': 'inversions',
   'toggle-foreign-variations': 'foreignVariations',
   'toggle-options': 'showOptions',
 };
 
 /** The option an action changes, when that option can be unavailable; null for every other action. */
 function optionOf(action, params) {
-  if (action === 'toggle-inversions') {
+  if (action === 'toggle-melody') {
     return 'inversions';
   }
-  if (action === 'toggle-section' && params.section === 'bass') {
-    return 'bassProbability';
+  if (action === 'toggle-section' && Object.hasOwn(SECTION_OPTIONS, params.section)) {
+    return SECTION_OPTIONS[params.section];
   }
   return action === 'set-probability' ? params.option : null;
 }

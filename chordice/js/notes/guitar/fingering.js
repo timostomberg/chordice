@@ -8,7 +8,8 @@
  */
 
 import { Note } from 'tonal';
-import { bassOf, buildChord } from '../../theory/theory.js';
+import { bassOf } from '../../theory/bass.js';
+import { buildChord } from '../../theory/chords.js';
 
 /** The database's key for each pitch class, indexed by chroma (0 is C). Sharps are spelled out, e.g. "Csharp". */
 const ROOT_KEYS = ['C', 'Csharp', 'D', 'Eb', 'E', 'F', 'Fsharp', 'G', 'Ab', 'A', 'Bb', 'B'];

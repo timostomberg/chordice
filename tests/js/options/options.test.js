@@ -31,14 +31,16 @@ test('renderOptions shows unselected progressions and groups as not pressed', ()
 });
 
 test('the sliders sit in their own sections: rotation and permutation in Progression variations, the amount slider above the chord variation chips, and the bass amount alone in Bass variations', () => {
-  const html = renderOptions({ ...defaultState(LIBRARY, () => 0.5), collapsed: [] }, LIBRARY);
+  const html = renderOptions({ ...defaultState(LIBRARY, () => 0.5), collapsed: [], inversions: true }, LIBRARY);
   const sections = html.match(/<section class="option[\s\S]*?<\/section>/g);
-  assert.equal(sections.length, 5);
-  const [, , progressionVariations, variations, bass] = sections;
+  assert.equal(sections.length, 6);
+  const [, , progressionVariations, variations, bass, melody] = sections;
   assert.deepEqual(progressionVariations.match(/data-option="\w+"/g), ['data-option="rotation"', 'data-option="permutation"']);
   assert.deepEqual(variations.match(/data-option="\w+"/g), ['data-option="variationProbability"']);
   assert.ok(variations.indexOf('data-option="variationProbability"') < variations.indexOf('data-action="toggle-variation"'));
   assert.deepEqual(bass.match(/data-option="\w+"/g), ['data-option="bassProbability"']);
+  assert.deepEqual(melody.match(/data-option="\w+"/g), ['data-option="melodyAmount"']);
+  assert.ok(melody.includes('Melody variations'));
   assert.ok(!html.includes('Probabilities'));
 });
 
@@ -168,9 +170,9 @@ test('the count button is shown in the Progressions section while it is expanded
   assert.ok(html.includes('>2</button>'));
 });
 
-test('only the Progressions and Chord variations headings carry a button; the other sections keep a plain heading', () => {
+test('only the Progressions, Chord variations and Melody variations headings carry a button; the other sections keep a plain heading', () => {
   const html = renderOptions({ ...defaultState(LIBRARY, () => 0.5), collapsed: [] }, LIBRARY);
-  assert.equal(html.split('class="section-header').length - 1, 2);
+  assert.equal(html.split('class="section-header').length - 1, 3);
   assert.equal(html.split('<h2><button type="button" class="section-toggle"').length - 1, 3);
 });
 
@@ -223,9 +225,45 @@ test('the bass variations are greyed out and cannot be opened while the guitar i
 });
 
 test('the bass amount is enabled on the piano, and no section is greyed out', () => {
-  const html = renderOptions({ ...defaultState(LIBRARY, () => 0.5), collapsed: [], bassProbability: 4 }, LIBRARY);
+  const html = renderOptions({ ...defaultState(LIBRARY, () => 0.5), collapsed: [], bassProbability: 4, inversions: true }, LIBRARY);
   assert.ok(!html.includes('is-unavailable'));
   assert.ok(!/<button[^>]*disabled/.test(html));
   assert.ok(/data-option="bassProbability"/.test(html));
   assert.ok(!/data-option="bassProbability"[^>]*\sdisabled/.test(html));
+});
+
+test('the melody variations section is titled, has the Amount slider from 0 to 5, and is greyed out on the guitar', () => {
+  const piano = renderOptions({ ...defaultState(LIBRARY, () => 0.5), collapsed: [], melodyAmount: 3, inversions: true }, LIBRARY);
+  assert.ok(piano.includes('Melody variations'));
+  assert.ok(piano.includes('value="3" data-option="melodyAmount"'), 'the slider shows the stored amount');
+  assert.ok(!/data-option="melodyAmount"[^>]*\sdisabled/.test(piano));
+  const guitar = renderOptions({ ...defaultState(LIBRARY, () => 0.5), collapsed: [], instrument: 'guitar', melodyAmount: 3 }, LIBRARY);
+  const section = guitar.split('<section').find((part) => part.includes('Melody variations'));
+  assert.ok(section.includes('is-unavailable'), 'the melody section is greyed out');
+  assert.ok(!section.includes('data-option="melodyAmount"'), 'the amount is not drawn while the section cannot be opened');
+  assert.ok(section.includes('Amount</span>: <span class="summary-value">0</span>'), 'its amount shows 0 while the guitar is chosen');
+});
+
+test('with the melody button off the melody variations section is greyed out, and its amount shows 0', () => {
+  const html = renderOptions({ ...defaultState(LIBRARY, () => 0.5), collapsed: [], inversions: false, melodyAmount: 4 }, LIBRARY);
+  const section = html.split('<section').find((part) => part.includes('Melody variations'));
+  assert.ok(section.includes('is-unavailable'), 'the melody section is greyed out');
+  assert.ok(!section.includes('data-option="melodyAmount"'), 'the amount is not drawn while the section cannot be opened');
+  assert.ok(section.includes('Amount</span>: <span class="summary-value">0</span>'), 'its amount shows 0');
+  const on = renderOptions({ ...defaultState(LIBRARY, () => 0.5), collapsed: [], inversions: true, melodyAmount: 4 }, LIBRARY);
+  const enabled = on.split('<section').find((part) => part.includes('Melody variations'));
+  assert.ok(!enabled.includes('is-unavailable'));
+  assert.ok(enabled.includes('value="4" data-option="melodyAmount"'));
+});
+
+test('the melody button sits beside the Melody variations heading, pressed with the inversions, and is greyed out on the guitar', () => {
+  const piano = renderOptions({ ...defaultState(LIBRARY, () => 0.5), collapsed: [], inversions: true }, LIBRARY);
+  const header = piano.split('<section').find((part) => part.includes('Melody variations'));
+  assert.ok(header.includes('class="chip melody-toggle is-on" aria-pressed="true" data-action="toggle-melody" data-flag="inversions"'));
+  assert.ok(header.includes('<svg'), 'the button shows the note symbol');
+  assert.ok(!header.includes('>Melody<'), 'the button shows no text');
+  assert.ok(!header.includes('disabled'));
+  const guitar = renderOptions({ ...defaultState(LIBRARY, () => 0.5), collapsed: [], instrument: 'guitar' }, LIBRARY);
+  const greyed = guitar.split('<section').find((part) => part.includes('Melody variations'));
+  assert.ok(/data-flag="inversions"[^>]*\sdisabled/.test(greyed), 'the melody button is disabled on the guitar');
 });

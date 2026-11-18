@@ -3,9 +3,10 @@
  * probability sliders. Every function returns a string of HTML.
  */
 
-import { VARIATION_NAMES, keySignatureOf, minorNameOf } from '../theory/theory.js';
-import { SECTIONS, isUnavailable } from '../core/state.js';
-import { PROBABILITY_MAX } from '../generation/random.js';
+import { VARIATION_NAMES } from '../theory/chords.js';
+import { keySignatureOf, minorNameOf } from '../theory/keys.js';
+import { SECTIONS, SECTION_OPTIONS, isUnavailable } from '../core/state.js';
+import { PROBABILITY_MAX } from '../generator/utils.js';
 import { escapeHtml } from '../core/escape.js';
 import { renderCircleSvg } from './circle-of-fifths.js';
 
@@ -15,6 +16,7 @@ const SECTION_TITLES = {
   progressionVariations: 'Progression variations',
   variations: 'Chord variations',
   bass: 'Bass variations',
+  melody: 'Melody variations',
 };
 
 const PROBABILITY_LABELS = {
@@ -22,10 +24,11 @@ const PROBABILITY_LABELS = {
   permutation: 'Permutations',
   variationProbability: 'Amount',
   bassProbability: 'Amount',
+  melodyAmount: 'Amount',
 };
 
-function toggleButton(label, attributes, pressed) {
-  return `<button type="button" class="chip${pressed ? ' is-on' : ''}" aria-pressed="${pressed}" ${attributes}>` +
+function toggleButton(label, attributes, pressed, disabled = false) {
+  return `<button type="button" class="chip${pressed ? ' is-on' : ''}" aria-pressed="${pressed}" ${attributes}${disabled ? ' disabled' : ''}>` +
     `${escapeHtml(label)}</button>`;
 }
 
@@ -90,6 +93,8 @@ function sectionBody(name, state, library) {
         ).join('')}</div>`;
     case 'bass':
       return probabilitySlider('bassProbability', shownValue('bassProbability', state), isUnavailable(state, 'bassProbability'));
+    case 'melody':
+      return probabilitySlider('melodyAmount', shownValue('melodyAmount', state), isUnavailable(state, 'melodyAmount'));
     default:
       return '';
   }
@@ -122,6 +127,8 @@ function sectionSummary(name, state, library) {
     }
     case 'bass':
       return [probabilitySummary('bassProbability', state)];
+    case 'melody':
+      return [probabilitySummary('melodyAmount', state)];
     default:
       return [];
   }
@@ -134,7 +141,7 @@ function probabilitySummary(option, state) {
 }
 
 /**
- * The number of progressions as a button that cycles through 1, 2, 4, 8, 12. It sits beside the Progressions heading, not inside
+ * The number of progressions as a button that cycles through 1, 2, 4, 8. It sits beside the Progressions heading, not inside
  * it, so it stays clickable while the section is collapsed. It is a chip like the other buttons, but not a switch, so it
  * has no pressed state: its look is always the filled, active one (see .count-toggle in the stylesheet).
  */
@@ -152,9 +159,26 @@ function foreignButton(state) {
     'title="Chord variations with tones foreign to the key"', state.foreignVariations);
 }
 
+// The note of the melody button: a symbol of a note with its stem, as the header showed the inversions before.
+const MELODY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+  '<g transform="translate(3 0)">' +
+  '<ellipse cx="7" cy="17.5" rx="3" ry="2.3" transform="rotate(-20 7 17.5)" fill="currentColor"/>' +
+  '<path d="M9.8 17V4c0 0 .4 3.2 4.2 5.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+  '</g></svg>';
+
+/**
+ * The melody button beside the Melody variations heading, a chip with the note symbol. It switches the inversions (the
+ * flag data-flag names), so it is pressed while they are on, and greyed out on the guitar.
+ */
+function melodyButton(state) {
+  const disabled = isUnavailable(state, 'inversions');
+  return `<button type="button" class="chip melody-toggle${state.inversions ? ' is-on' : ''}" aria-pressed="${state.inversions}" ` +
+    `data-action="toggle-melody" data-flag="inversions" aria-label="Melody" title="Melody"${disabled ? ' disabled' : ''}>${MELODY_ICON}</button>`;
+}
+
 function optionSection(name, state, library) {
   // A section whose option the chosen instrument does not use is greyed out and cannot be opened; it stays collapsed.
-  const unavailable = name === 'bass' && isUnavailable(state, 'bassProbability');
+  const unavailable = Object.hasOwn(SECTION_OPTIONS, name) && isUnavailable(state, SECTION_OPTIONS[name]);
   const expanded = !state.collapsed.includes(name) && !unavailable;
   const lines = sectionSummary(name, state, library).join('<br>');
   const summary = expanded ? '' : `<span class="section-summary">${lines}</span>`;
@@ -162,7 +186,9 @@ function optionSection(name, state, library) {
     `data-section="${name}" aria-expanded="${expanded}"${unavailable ? ' disabled' : ''}>` +
     `<span class="section-title">${SECTION_TITLES[name]}</span>${summary}</button>`;
   // The headings with a button beside them draw their arrow after that button, so the arrow is on the header, not on the toggle.
-  const sideButton = name === 'progressions' ? countButton(state) : name === 'variations' ? foreignButton(state) : '';
+  const sideButton = name === 'progressions' ? countButton(state)
+    : name === 'variations' ? foreignButton(state)
+      : name === 'melody' ? melodyButton(state) : '';
   const header = sideButton
     ? `<h2 class="section-header${expanded ? ' is-expanded' : ''}">${toggle}${sideButton}</h2>`
     : `<h2>${toggle}</h2>`;

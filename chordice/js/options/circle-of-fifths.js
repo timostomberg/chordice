@@ -4,7 +4,7 @@
  * Each element carries data-action="toggle-key" and its own key name, so that clicks select exactly that key.
  */
 
-import { KEY_CIRCLE, minorNameOf, neighbourKeysOf } from '../theory/theory.js';
+import { KEY_CIRCLE, minorNameOf, neighbourKeysOf } from '../theory/keys.js';
 import { escapeHtml } from '../core/escape.js';
 
 const CENTER = 120;

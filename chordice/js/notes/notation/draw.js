@@ -4,7 +4,7 @@
 
 import { Accidental, Formatter, Renderer, Stave, StaveConnector, StaveNote, Voice } from 'vexflow';
 import { accidentalBeforeNote, vexKey } from './notation.js';
-import { keySignatureOf } from '../../theory/theory.js';
+import { keySignatureOf } from '../../theory/keys.js';
 
 // Drawing units. A staff is 40 units high and its lines start 40 units below its y, so the bass staff ends at BASS_Y + 80.
 const WIDTH = 400;
@@ -74,7 +74,7 @@ function addAccidentals(note, names, colours, signature) {
  * window shows the chord box above the staff.
  * `key` is the major key of the row (e.g. 'G'): its key signature is drawn at the start of both staves, and only the
  * tones it does not show get an accidental. Without a key there is no signature, so every altered tone gets one.
- * `kinds` says how each tone is judged in the key (see toneKind in theory.js): `upper[i]` and `bass` take 'foreign',
+ * `kinds` says how each tone is judged in the key (see toneKind in theory/tones.js): `upper[i]` and `bass` take 'foreign',
  * 'variation' or '' and are coloured to match the chord tones in the rows.
  */
 export function renderScore(container, { bass, upper, key = null }, kinds = {}) {

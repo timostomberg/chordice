@@ -116,7 +116,6 @@ body {
 .roman-toggle,
 .tones-toggle,
 .colour-toggle,
-.inversions-toggle,
 .theme-toggle {
   color: var(--text);
 }
@@ -173,19 +172,17 @@ body {
 .toolbar .roman-toggle,
 .toolbar .tones-toggle,
 .toolbar .colour-toggle,
-.toolbar .inversions-toggle,
 .toolbar .theme-toggle,
 .toolbar .instrument-tab {
   border-color: var(--icon-blue);
   color: var(--icon-blue);
 }
 
-/* An active options, roman, tones, colour or inversions toggle is filled with the icon blue, and its symbol takes the background colour. */
+/* An active options, roman, tones or colour toggle is filled with the icon blue, and its symbol takes the background colour. */
 .toolbar .options-toggle[aria-expanded="true"],
 .toolbar .roman-toggle[aria-pressed="true"],
 .toolbar .tones-toggle[aria-pressed="true"],
 .toolbar .colour-toggle[aria-pressed="true"],
-.toolbar .inversions-toggle[aria-pressed="true"],
 .toolbar .instrument-tab[aria-pressed="true"] {
   background: var(--icon-blue);
   color: var(--surface);
@@ -194,7 +191,6 @@ body {
 /* A header switch the chosen instrument does not use is greyed out and cannot be pressed, even while its value is on. It
    comes after the pressed rule, so it wins over the filled look. It has no background, its text is grey and it is faded
    like the greyed-out options. */
-.toolbar .inversions-toggle:disabled,
 .toolbar .instrument-tab:disabled {
   background: none;
   border-color: var(--muted);
@@ -261,7 +257,6 @@ body {
 .roman-toggle svg,
 .tones-toggle svg,
 .colour-toggle svg,
-.inversions-toggle svg,
 .instrument-tab svg,
 .theme-toggle svg {
   display: block;
@@ -587,6 +582,13 @@ button[aria-expanded="true"] {
   color: var(--surface);
 }
 
+/* The melody button shows the note symbol, sized like the chip text. */
+.melody-toggle svg {
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
 /* Progression buttons (groups and the progressions inside them) are narrower than the other option buttons. */
 .group .chip {
   min-width: 0;
@@ -818,6 +820,18 @@ button[aria-expanded="true"] {
   flex-direction: column-reverse;
   align-items: center;
   gap: 2px;
+}
+
+/* The bass below the other tones: set apart by space, without a box, in the colour of the tones. */
+.chord .bass-line {
+  align-self: stretch;
+  text-align: center;
+  /* The column is stacked upwards, so this margin sits between the bass and the tone above it. */
+  margin-top: calc(var(--zoom) * 0.6rem);
+}
+
+.chord .bass-line .tone {
+  display: inline-block;
 }
 
 /* A tone beside the chord is circled: blue when the chord variation adds it, red when it is foreign to the key, and the top

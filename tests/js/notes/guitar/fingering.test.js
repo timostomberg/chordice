@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Note } from 'tonal';
-import { buildChord } from '../../../../chordice/js/theory/theory.js';
+import { buildChord } from '../../../../chordice/js/theory/chords.js';
 import { CHORD_TYPES, STANDARD_TUNING, captionOf, chordTypeOf, diagramOf, fingeringOf } from '../../../../chordice/js/notes/guitar/fingering.js';
 
 // The chord database as the app loads it from the CDN, here from the copy installed with the dependencies.
