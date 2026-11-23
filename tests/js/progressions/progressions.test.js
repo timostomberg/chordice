@@ -242,3 +242,11 @@ test('the tones column lists the chord tones, then the bass after a line, withou
   assert.ok(html.includes(tones([tone('c'), tone('e'), tone('g')], tone('e'))));
   assert.ok(!html.includes('&nbsp;|&nbsp;'));
 });
+
+test('renderRows starts each row with its key and relative minor, in the font of the name and set off by a middle dot, only when showKey is on', () => {
+  const rows = [{ ...ROWS[0], tonic: 'F' }];
+  assert.ok(renderRows(rows, PLAIN, { showKey: true })
+    .includes('<span class="row-title">F (Dm) · Pop Progression <span class="meta">· Pop</span></span>'));
+  assert.ok(!renderRows(rows, PLAIN).includes('F (Dm)'));
+  assert.ok(!renderRows(rows, PLAIN, { showKey: false }).includes('F (Dm)'));
+});

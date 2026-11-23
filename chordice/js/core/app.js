@@ -96,12 +96,13 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
     if (list) {
       list.scrollTop = listScroll;
     }
-    currentRows = generate({ ...effectiveState(state), library, bassPatterns });
-    rows.innerHTML = renderRows(currentRows, displayOf(state));
+    const effective = effectiveState(state);
+    currentRows = generate({ ...effective, library, bassPatterns });
+    rows.innerHTML = renderRows(currentRows, displayOf(state), { showKey: effective.circleOfFifths });
     content.scrollTop = contentScroll;
     document.documentElement.dataset.theme = state.theme;
-    // The count button shows the number of progressions it cycles through: 1, 2, 4, 8.
-    document.querySelector('.count-toggle').textContent = String(state.count);
+    // The count button shows the number of progressions it cycles through: 1, 2, 4, 8, or 12 with the circle of fifths.
+    document.querySelector('.count-toggle').textContent = String(effective.count);
     updateHeader(state);
     document.cookie = serializeCookie(state);
   }

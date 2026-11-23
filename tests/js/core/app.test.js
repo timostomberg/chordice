@@ -238,7 +238,7 @@ test('a click on the chords area outside the chords opens Keys and closes the ot
     app.dispatch({ action: 'toggle-section', section: 'bass' });
     app.click({ closest: () => null, insideContent: true });
     const cookie = decodeURIComponent(app.document.cookie);
-    assert.ok(cookie.includes('"collapsed":["progressions","progressionVariations","variations","bass","melody"]'));
+    assert.ok(cookie.includes('"collapsed":["progressions","progressionVariations","variations","bass","melody","exercises"]'));
   } finally {
     uninstall();
   }
@@ -425,6 +425,24 @@ test('on the guitar a click on the bass variations heading does not open it, and
     app.dispatch({ action: 'toggle-section', section: 'bass' });
     assert.ok(!app.elements['#option-list'].innerHTML.includes('data-option="bassProbability"'));
     assert.ok(app.elements['#option-list'].innerHTML.includes('<span class="summary-label">Amount</span>: <span class="summary-value">0</span>'));
+  } finally {
+    uninstall();
+  }
+});
+
+test('app.js shows 12 rows, one per key with its key in the heading, while the circle of fifths switch is on', async () => {
+  try {
+    const app = await loadApp();
+    app.dispatch({ action: 'toggle-circle-of-fifths' });
+    const html = app.elements['#rows'].innerHTML;
+    assert.equal(rowCount(html), 12);
+    assert.ok(html.includes('<span class="row-title">C (Am) · '));
+    assert.ok(html.includes('<span class="row-title">F (Dm) · '));
+    assert.ok(html.indexOf('C (Am)') < html.indexOf('F (Dm)'));
+    assert.equal(app.elements['.count-toggle'].textContent, '12');
+    app.dispatch({ action: 'toggle-circle-of-fifths' });
+    assert.equal(rowCount(app.elements['#rows'].innerHTML), 2, 'the stored count comes back');
+    assert.ok(!app.elements['#rows'].innerHTML.includes('C (Am)'));
   } finally {
     uninstall();
   }

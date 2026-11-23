@@ -13,6 +13,12 @@ export const KEY_CIRCLE = [
 
 export const MAJOR_KEYS = KEY_CIRCLE.flat();
 
+/**
+ * The slots of the circle, counterclockwise from C: C, F, Bb, Eb, Ab, Db, F#/Gb, B, E, A, D, G. Each slot lists its
+ * major keys; the enharmonic slot has two (F# and Gb).
+ */
+export const SLOTS_COUNTERCLOCKWISE = [KEY_CIRCLE[0], ...KEY_CIRCLE.slice(1).reverse()];
+
 export function relativeMinorOf(major) {
   const minor = Key.majorKey(major).minorRelative;
   if (!minor) {

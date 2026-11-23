@@ -17,6 +17,8 @@ export const SEED_NAMES = [
   'permutationOrder',
   'rotationActive',
   'rotationAmount',
+  // The spelling of an enharmonic key (F# or Gb) with the circle of fifths switch on.
+  'enharmonic',
 ];
 
 /** Deterministic pseudo-random number in [0, 1) for a seed and an index (murmur3 finalizer). */

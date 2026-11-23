@@ -130,7 +130,7 @@ body {
   fill: currentColor;
 }
 
-/* The count and the #b chips sit beside a section heading. They keep the touch height of the heading row. */
+/* The circle of fifths, count, #b and melody chips sit beside a section heading. They keep the touch height of the heading row. */
 .section-header > .chip {
   flex: none;
   align-self: flex-start;
@@ -231,6 +231,11 @@ body {
   /* The keys of the circle of fifths: an unselected key turns medium blue. The selected and harmonic keys keep their colour. */
   .circle .key:not(.is-on, .is-subdominant, .is-dominant):hover circle {
     fill: var(--hover-fill);
+  }
+
+  /* Disabled keys do not react to the mouse. */
+  .circle.is-disabled .key:hover circle {
+    fill: var(--surface);
   }
 }
 
@@ -386,6 +391,20 @@ button[aria-expanded="true"] {
   cursor: pointer;
 }
 
+/* With the circle of fifths switch on, every key is used, so the keys are greyed out and cannot be clicked. */
+.circle.is-disabled {
+  opacity: 0.45;
+}
+
+/* Disabled keys take no pointer events, so a click or tap neither focuses them (no frame) nor highlights them. */
+.circle.is-disabled .key,
+.circle.is-disabled .key circle {
+  cursor: default;
+  pointer-events: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* The chords scroll on their own, independently of the options and below the header. */
 .content {
   display: flex;
@@ -524,8 +543,12 @@ button[aria-expanded="true"] {
   margin-bottom: 0.6rem;
 }
 
-/* An option the chosen instrument does not use is greyed out as a whole: its heading and its slider, which is disabled. */
-.option.is-unavailable {
+/* An unavailable option is greyed out: its heading and its content. The button beside the heading is not, as it may still
+   be pressed (e.g. the circle of fifths button beside Keys); it is only faded while it is disabled itself and not filled.
+   A filled disabled button (the count of 12, a pressed switch) is already grey, and faded its label would vanish. */
+.option.is-unavailable .section-toggle,
+.option.is-unavailable > :not(h2),
+.option.is-unavailable .chip:disabled:not(.is-on, .count-toggle) {
   opacity: 0.45;
 }
 
@@ -582,8 +605,24 @@ button[aria-expanded="true"] {
   color: var(--surface);
 }
 
+/* A pressed or filled chip that is disabled (e.g. the count of 12 with the circle of fifths) is filled grey, not blue. */
+.options .chip.is-on:disabled,
+.options .chip.count-toggle:disabled {
+  background: var(--disabled-text);
+  border-color: var(--disabled-text);
+  color: var(--surface);
+  cursor: default;
+}
+
 /* The melody button shows the note symbol, sized like the chip text. */
 .melody-toggle svg {
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* The circle of fifths button shows its arrow at the size of the melody note. */
+.circle-toggle svg {
   display: block;
   width: 1.25rem;
   height: 1.25rem;

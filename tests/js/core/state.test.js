@@ -50,11 +50,12 @@ test('defaults select everything, show colours and extended information, and rot
   assert.equal(state.bassProbability, 2);
   assert.equal(state.theme, 'dark');
   assert.equal(state.showOptions, true);
-  assert.deepEqual(state.collapsed, ['progressions', 'progressionVariations', 'variations', 'bass', 'melody']);
+  assert.deepEqual(state.collapsed, ['progressions', 'progressionVariations', 'variations', 'bass', 'melody', 'exercises']);
+  assert.equal(state.exercise, null);
 });
 
-test('the options sections are keys, progressions, number of progressions, chord variations, bass and melody variations', () => {
-  assert.deepEqual(SECTIONS, ['keys', 'progressions', 'progressionVariations', 'variations', 'bass', 'melody']);
+test('the options sections are keys, progressions, number of progressions, chord variations, bass and melody variations, and exercises', () => {
+  assert.deepEqual(SECTIONS, ['keys', 'progressions', 'progressionVariations', 'variations', 'bass', 'melody', 'exercises']);
 });
 
 test('sanitizeState falls back to defaults for missing or broken input', () => {
@@ -150,9 +151,9 @@ test('toggleSection expands one section and collapses all others, so only one se
   const state = defaultState(LIBRARY, FIXED);
   // Keys is open by default; opening bass closes it.
   const bass = toggleSection(state, 'bass');
-  assert.deepEqual(bass.collapsed, ['keys', 'progressions', 'progressionVariations', 'variations', 'melody']);
+  assert.deepEqual(bass.collapsed, ['keys', 'progressions', 'progressionVariations', 'variations', 'melody', 'exercises']);
   const progressions = toggleSection(bass, 'progressions');
-  assert.deepEqual(progressions.collapsed, ['keys', 'progressionVariations', 'variations', 'bass', 'melody']);
+  assert.deepEqual(progressions.collapsed, ['keys', 'progressionVariations', 'variations', 'bass', 'melody', 'exercises']);
   assert.equal(toggleSection(state, 'unknown'), state);
 });
 
@@ -173,7 +174,7 @@ test('openKeys expands Keys and collapses every other section', () => {
 test('sanitizeState keeps only known collapsed sections and at most one expanded section', () => {
   const state = sanitizeState({ collapsed: ['progressionVariations', 'view', 'keys'] }, LIBRARY, FIXED);
   // Three sections were open in the cookie; the first one in section order stays open.
-  assert.deepEqual(state.collapsed, ['keys', 'progressionVariations', 'variations', 'bass', 'melody']);
+  assert.deepEqual(state.collapsed, ['keys', 'progressionVariations', 'variations', 'bass', 'melody', 'exercises']);
   // A cookie with every section closed keeps them all closed.
   assert.deepEqual(sanitizeState({ collapsed: SECTIONS }, LIBRARY, FIXED).collapsed, SECTIONS);
   assert.deepEqual(sanitizeState({ collapsed: 'keys' }, LIBRARY, FIXED).collapsed, defaultState(LIBRARY, FIXED).collapsed);
@@ -477,11 +478,11 @@ test('the melody amount is on the scale from 0 to 5, starts at 2, and is kept in
   assert.equal(sanitizeState({}, LIBRARY, FIXED).melodyAmount, 2);
 });
 
-test('the melody variations section comes last, after bass, and an older cookie without it opens the section it had open', () => {
-  assert.equal(SECTIONS.at(-1), 'melody');
+test('the melody variations section comes after bass, before the exercises, and an older cookie without it opens the section it had open', () => {
+  assert.deepEqual(SECTIONS.slice(-3), ['bass', 'melody', 'exercises']);
   // A cookie from before the section existed had the bass section open: it stays open, and melody stays closed.
   const older = sanitizeState({ collapsed: ['keys', 'progressions', 'progressionVariations', 'variations'] }, LIBRARY, FIXED);
-  assert.deepEqual(older.collapsed, ['keys', 'progressions', 'progressionVariations', 'variations', 'melody']);
+  assert.deepEqual(older.collapsed, ['keys', 'progressions', 'progressionVariations', 'variations', 'melody', 'exercises']);
 });
 
 test('on the guitar the melody amount cannot be changed and takes no effect, and the stored value comes back on the piano', () => {
@@ -524,4 +525,42 @@ test('the cookie leaves out the selection, which start-up never reads back, and 
   assert.equal('selection' in stored, false);
   assert.equal(stored.count, 4);
   assert.deepEqual(sanitizeState(parseCookie(cookie), LIBRARY, () => 0.5).selection, LIBRARY.map((progression) => progression.id));
+});
+
+test('the circle of fifths switch is off by default, stored in the cookie, and switched by its action', () => {
+  const state = defaultState(LIBRARY, FIXED);
+  assert.equal(state.circleOfFifths, false);
+  assert.ok(FLAGS.includes('circleOfFifths'));
+  const on = applyAction(state, 'toggle-circle-of-fifths', {}, LIBRARY);
+  assert.equal(on.circleOfFifths, true);
+  assert.equal(applyAction(on, 'toggle-circle-of-fifths', {}, LIBRARY).circleOfFifths, false);
+  assert.equal(sanitizeState(parseCookie(serializeCookie(on)), LIBRARY, FIXED).circleOfFifths, true);
+  assert.equal(sanitizeState({ circleOfFifths: 'yes' }, LIBRARY, FIXED).circleOfFifths, false);
+});
+
+test('with the circle of fifths switch on, the count takes effect as 12 and cannot be changed; the stored count stays', () => {
+  const state = { ...defaultState(LIBRARY, FIXED), count: 4, circleOfFifths: true };
+  assert.equal(isUnavailable(state, 'count'), true);
+  assert.equal(effectiveState(state).count, 12);
+  assert.equal(state.count, 4);
+  assert.equal(applyAction(state, 'cycle-count', {}, LIBRARY), state, 'the count button takes no effect');
+  const off = applyAction(state, 'toggle-circle-of-fifths', {}, LIBRARY);
+  assert.equal(isUnavailable(off, 'count'), false);
+  assert.equal(effectiveState(off).count, 4, 'the stored count comes back');
+  assert.equal(applyAction(off, 'cycle-count', {}, LIBRARY).count, 8);
+});
+
+test('with the circle of fifths switch on, the keys are unavailable and a click on a key changes nothing', () => {
+  const state = { ...defaultState(LIBRARY, FIXED), keys: ['G'], circleOfFifths: true };
+  assert.equal(isUnavailable(state, 'keys'), true);
+  assert.equal(applyAction(state, 'toggle-key', { key: 'D' }, LIBRARY), state);
+  const off = { ...state, circleOfFifths: false };
+  assert.equal(isUnavailable(off, 'keys'), false);
+  assert.deepEqual(applyAction(off, 'toggle-key', { key: 'D' }, LIBRARY).keys, ['D']);
+});
+
+test('the enharmonic seed is created and kept in the cookie like the other seeds', () => {
+  const state = defaultState(LIBRARY, FIXED);
+  assert.ok(Number.isInteger(state.seeds.enharmonic));
+  assert.equal(sanitizeState(parseCookie(serializeCookie(state)), LIBRARY, FIXED).seeds.enharmonic, state.seeds.enharmonic);
 });

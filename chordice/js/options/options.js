@@ -1,11 +1,13 @@
 /**
  * The options panel on the left: the keys on the circle, the progressions, the chord and bass variations and the
- * probability sliders. Every function returns a string of HTML.
+ * probability sliders, and the exercises. Every function returns a string of HTML.
+ * While an exercise is on, the options it fixes show its values and are greyed out (see exerciseState).
  */
 
 import { VARIATION_NAMES } from '../theory/chords.js';
 import { keySignatureOf, minorNameOf } from '../theory/keys.js';
-import { SECTIONS, SECTION_OPTIONS, isUnavailable } from '../core/state.js';
+import { SECTIONS, SECTION_OPTIONS, effectiveState, exerciseState, isUnavailable } from '../core/state.js';
+import { EXERCISES } from '../core/exercises.js';
 import { PROBABILITY_MAX } from '../constants.js';
 import { escapeHtml } from '../escape.js';
 import { renderCircleSvg } from './circle-of-fifths.js';
@@ -17,6 +19,7 @@ const SECTION_TITLES = {
   variations: 'Chord variations',
   bass: 'Bass variations',
   melody: 'Melody variations',
+  exercises: 'Exercises',
 };
 
 const PROBABILITY_LABELS = {
@@ -32,9 +35,12 @@ function toggleButton(label, attributes, pressed, disabled = false) {
     `${escapeHtml(label)}</button>`;
 }
 
-/** The value an option shows: an option the chosen instrument does not use shows 0, as it takes no effect. */
+/**
+ * The value an option shows: an option the chosen instrument does not use shows 0, as it takes no effect, and an option
+ * the exercise that is on fixes shows the exercise's value.
+ */
 function shownValue(option, state) {
-  return isUnavailable(state, option) ? 0 : state[option];
+  return effectiveState(state)[option];
 }
 
 /** A slider from 0 to PROBABILITY_MAX, where PROBABILITY_MAX means 100%. The value is shown as the number on that scale. */
@@ -53,14 +59,15 @@ function groupsOf(library) {
 }
 
 function progressionGroups(state, library) {
-  const selected = new Set(state.selection);
+  const selected = new Set(exerciseState(state).selection);
+  const disabled = isUnavailable(state, 'selection');
   return groupsOf(library).map(({ group, members }) => {
     const allSelected = members.every((progression) => selected.has(progression.id));
     const chips = members.map((progression) =>
-      toggleButton(progression.name, `data-action="toggle-progression" data-id="${escapeHtml(progression.id)}"`, selected.has(progression.id)),
+      toggleButton(progression.name, `data-action="toggle-progression" data-id="${escapeHtml(progression.id)}"`, selected.has(progression.id), disabled),
     ).join('');
     return `<fieldset class="group"><legend>` +
-      toggleButton(group, `data-action="toggle-group" data-group="${escapeHtml(group)}"`, allSelected) +
+      toggleButton(group, `data-action="toggle-group" data-group="${escapeHtml(group)}"`, allSelected, disabled) +
       `</legend><div class="chips">${chips}</div></fieldset>`;
   }).join('');
 }
@@ -72,10 +79,16 @@ function keySignatureTags(major) {
     .join('');
 }
 
+/** The slider of a probability option with the value it shows, greyed out while the option is unavailable. */
+function slider(option, state) {
+  return probabilitySlider(option, shownValue(option, state), isUnavailable(state, option));
+}
+
 /** The content of one options section, shown while the section is expanded. */
 function sectionBody(name, state, library) {
   switch (name) {
     case 'keys':
+      // With the circle of fifths switch on, the section cannot be opened (see SECTION_OPTIONS), so the circle is not drawn.
       return `<div class="circle-wrap">${renderCircleSvg(state.keys)}</div>` +
         state.keys
           .map((key) => keySignatureTags(key))
@@ -85,16 +98,23 @@ function sectionBody(name, state, library) {
     case 'progressions':
       return `<div class="progression-list">${progressionGroups(state, library)}</div>`;
     case 'progressionVariations':
-      return probabilitySlider('rotation', state.rotation) + probabilitySlider('permutation', state.permutation);
-    case 'variations':
-      return probabilitySlider('variationProbability', state.variationProbability) +
+      return slider('rotation', state) + slider('permutation', state);
+    case 'variations': {
+      const variations = exerciseState(state).variations;
+      const disabled = isUnavailable(state, 'variations');
+      return slider('variationProbability', state) +
         `<div class="chips">${VARIATION_NAMES.map((variation) =>
-          toggleButton(variation, `data-action="toggle-variation" data-variation="${escapeHtml(variation)}"`, state.variations.includes(variation)),
+          toggleButton(variation, `data-action="toggle-variation" data-variation="${escapeHtml(variation)}"`, variations.includes(variation), disabled),
         ).join('')}</div>`;
+    }
     case 'bass':
-      return probabilitySlider('bassProbability', shownValue('bassProbability', state), isUnavailable(state, 'bassProbability'));
+      return slider('bassProbability', state);
     case 'melody':
-      return probabilitySlider('melodyAmount', shownValue('melodyAmount', state), isUnavailable(state, 'melodyAmount'));
+      return slider('melodyAmount', state);
+    case 'exercises':
+      return `<div class="chips">${EXERCISES.map((exercise) =>
+        toggleButton(exercise.name, `data-action="toggle-exercise" data-exercise="${escapeHtml(exercise.id)}"`, state.exercise === exercise.id),
+      ).join('')}</div>`;
     default:
       return '';
   }
@@ -105,23 +125,28 @@ function sectionBody(name, state, library) {
  * Shown only while the section is collapsed. Progressions are listed per category as "Category: Name · Name".
  */
 function sectionSummary(name, state, library) {
+  const shown = exerciseState(state);
   switch (name) {
     case 'keys':
+      // With the circle of fifths switch on, every key is used, one row each.
+      if (shown.circleOfFifths) {
+        return ['all'];
+      }
       return state.keys.map((key) => escapeHtml(`${key} (${minorNameOf(key)})`));
     case 'progressions':
-      if (library.every((progression) => state.selection.includes(progression.id))) {
+      if (library.every((progression) => shown.selection.includes(progression.id))) {
         return ['all'];
       }
       return groupsOf(library).flatMap(({ group, members }) => {
         const names = members
-          .filter((progression) => state.selection.includes(progression.id))
+          .filter((progression) => shown.selection.includes(progression.id))
           .map((progression) => escapeHtml(progression.name));
         return names.length > 0 ? [`<span class="summary-label">${escapeHtml(group)}</span>: ${names.join(' · ')}`] : [];
       });
     case 'progressionVariations':
       return [probabilitySummary('rotation', state), probabilitySummary('permutation', state)];
     case 'variations': {
-      const names = state.variations.length === VARIATION_NAMES.length ? 'all' : state.variations.join(', ');
+      const names = shown.variations.length === VARIATION_NAMES.length ? 'all' : shown.variations.join(', ');
       return [probabilitySummary('variationProbability', state),
         `<span class="summary-label">Variations</span>: ${escapeHtml(names)}`];
     }
@@ -129,6 +154,9 @@ function sectionSummary(name, state, library) {
       return [probabilitySummary('bassProbability', state)];
     case 'melody':
       return [probabilitySummary('melodyAmount', state)];
+    case 'exercises':
+      // The exercise that is on, or nothing.
+      return EXERCISES.filter((exercise) => exercise.id === state.exercise).map((exercise) => escapeHtml(exercise.name));
     default:
       return [];
   }
@@ -146,8 +174,29 @@ function probabilitySummary(option, state) {
  * has no pressed state: its look is always the filled, active one (see .count-toggle in the stylesheet).
  */
 function countButton(state) {
+  // With the circle of fifths switch on, the count is fixed at one per key: it shows 12 and is greyed out.
+  const disabled = isUnavailable(state, 'count');
   return `<button type="button" class="chip count-toggle" data-action="cycle-count" aria-label="Number of progressions" ` +
-    `title="Number of progressions">${state.count}</button>`;
+    `title="Number of progressions"${disabled ? ' disabled' : ''}>${effectiveState(state).count}</button>`;
+}
+
+// The arrow of the circle of fifths button: an open circle running counterclockwise from the top, round the left and the
+// bottom, up the right side, where its head points up.
+const CIRCLE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+  '<path d="M9.78 5.11A7 7 0 1 0 18 12V9.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+  '<path d="M15.2 11.2 18 8.4l2.8 2.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+  '</svg>';
+
+/**
+ * The circle of fifths button beside the Keys heading, a chip with a counterclockwise arrow. Pressed, every key gets one
+ * row, counterclockwise from C (C, F, Bb, ...), so there are 12 rows; not pressed (the default), the selected key is used.
+ */
+function circleButton(state) {
+  const on = exerciseState(state).circleOfFifths;
+  const disabled = isUnavailable(state, 'circleOfFifths');
+  return `<button type="button" class="chip circle-toggle${on ? ' is-on' : ''}" aria-pressed="${on}" ` +
+    'data-action="toggle-circle-of-fifths" data-flag="circleOfFifths" aria-label="All keys, counterclockwise on the circle of fifths" ' +
+    `title="All keys, counterclockwise on the circle of fifths"${disabled ? ' disabled' : ''}>${CIRCLE_ICON}</button>`;
 }
 
 /**
@@ -156,7 +205,7 @@ function countButton(state) {
  */
 function foreignButton(state) {
   return toggleButton('#b', 'data-action="toggle-foreign-variations" aria-label="Chord variations with tones foreign to the key" ' +
-    'title="Chord variations with tones foreign to the key"', state.foreignVariations);
+    'title="Chord variations with tones foreign to the key"', exerciseState(state).foreignVariations, isUnavailable(state, 'foreignVariations'));
 }
 
 // The note of the melody button: a symbol of a note with its stem, as the header showed the inversions before.
@@ -177,7 +226,8 @@ function melodyButton(state) {
 }
 
 function optionSection(name, state, library) {
-  // A section whose option the chosen instrument does not use is greyed out and cannot be opened; it stays collapsed.
+  // A section whose option is unavailable (for the instrument, the circle of fifths switch or the exercise) is greyed out
+  // and cannot be opened; it stays collapsed. The button beside its heading keeps its own look, as it may still be pressed.
   const unavailable = Object.hasOwn(SECTION_OPTIONS, name) && isUnavailable(state, SECTION_OPTIONS[name]);
   const expanded = !state.collapsed.includes(name) && !unavailable;
   const lines = sectionSummary(name, state, library).join('<br>');
@@ -186,7 +236,8 @@ function optionSection(name, state, library) {
     `data-section="${name}" aria-expanded="${expanded}"${unavailable ? ' disabled' : ''}>` +
     `<span class="section-title">${SECTION_TITLES[name]}</span>${summary}</button>`;
   // The headings with a button beside them draw their arrow after that button, so the arrow is on the header, not on the toggle.
-  const sideButton = name === 'progressions' ? countButton(state)
+  const sideButton = name === 'keys' ? circleButton(state)
+    : name === 'progressions' ? countButton(state)
     : name === 'variations' ? foreignButton(state)
       : name === 'melody' ? melodyButton(state) : '';
   const header = sideButton
@@ -197,11 +248,16 @@ function optionSection(name, state, library) {
   return `<section class="${classes}">${header}${body}</section>`;
 }
 
+/** The headings that stand above a section, by the name of the first section under them. */
+const HEADINGS = { progressionVariations: 'Variations', exercises: 'Exercises' };
+
 /** Renders the options panel: one collapsible section per option group. */
 export function renderOptions(state, library) {
   return SECTIONS.map((name) => {
     const section = optionSection(name, state, library);
-    // One heading "Variations" stands above the three variation sections, which are Progression, Chord and Bass variations.
-    return name === 'progressionVariations' ? `<h2 class="options-heading">Variations</h2>${section}` : section;
+    // One heading "Variations" stands above the variation sections (Progression, Chord, Bass and Melody variations), and one
+    // heading "Exercises" above the exercises.
+    const heading = HEADINGS[name];
+    return heading ? `<h2 class="options-heading">${heading}</h2>${section}` : section;
   }).join('');
 }

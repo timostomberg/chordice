@@ -451,3 +451,48 @@ test('changing the foreign variations switch keeps the progression and the rows'
     on.map((row) => [row.name, row.tonic, row.chords.map((chord) => chord.roman)]),
   );
 });
+
+test('with the circle of fifths on, row i is in the i-th key counterclockwise from C', () => {
+  const rows = generate(settings({ circleOfFifths: true, count: 12, keys: ['D'] }));
+  const tonics = rows.map((row) => row.tonic);
+  assert.deepEqual([...tonics.slice(0, 6), ...tonics.slice(7)], ['C', 'F', 'Bb', 'Eb', 'Ab', 'Db', 'B', 'E', 'A', 'D', 'G']);
+  assert.ok(['F#', 'Gb'].includes(tonics[6]));
+});
+
+test('with the circle of fifths on, the enharmonic key is F# or Gb, each about half of the time, by its own seed', () => {
+  let gb = 0;
+  const runs = 400;
+  let state = 7;
+  for (let run = 0; run < runs; run += 1) {
+    const seeds = createSeeds(() => {
+      state = (state * 16807) % 2147483647;
+      return state / 2147483647;
+    });
+    const tonic = generate(settings({ circleOfFifths: true, count: 12, seeds }))[6].tonic;
+    assert.ok(['F#', 'Gb'].includes(tonic));
+    gb += tonic === 'Gb' ? 1 : 0;
+  }
+  assert.ok(gb > runs * 0.35 && gb < runs * 0.65, `Gb in ${gb} of ${runs} runs`);
+  // Only the enharmonic seed decides the spelling.
+  const flat = generate(settings({ circleOfFifths: true, count: 12, seeds: { ...SEEDS, enharmonic: 0 } }))[6];
+  const other = [1, 2, 3, 4, 5, 6, 7, 8].map((seed) =>
+    generate(settings({ circleOfFifths: true, count: 12, seeds: { ...SEEDS, enharmonic: seed * 123456789 } }))[6].tonic);
+  assert.ok(new Set([flat.tonic, ...other]).size === 2, 'changing the enharmonic seed can change the spelling');
+});
+
+test('the circle of fifths changes only the keys: the progressions and their transformations stay the same', () => {
+  const base = { count: 12, rotation: 3, permutation: 3, variationProbability: 3, bassProbability: 3, inversions: true };
+  const plain = generate(settings(base));
+  const circle = generate(settings({ ...base, circleOfFifths: true }));
+  assert.deepEqual(circle.map((row) => row.name), plain.map((row) => row.name));
+  assert.deepEqual(circle.map((row) => [row.permuted, row.rotated]), plain.map((row) => [row.permuted, row.rotated]));
+  assert.deepEqual(circle.map((row) => row.chords.map((chord) => chord.roman)), plain.map((row) => row.chords.map((chord) => chord.roman)));
+  // Row 0 is in C either way, so it is identical.
+  assert.deepEqual(circle[0], plain[0]);
+});
+
+test('the Pop Progression in F with the circle of fifths: the second row is transposed to F', () => {
+  const rows = generate(settings({ selection: [POP], circleOfFifths: true, count: 12 }));
+  assert.equal(rows[1].tonic, 'F');
+  assert.deepEqual(rows[1].chords.map((chord) => chord.displaySymbol), ['F', 'C', 'Dm', 'Bb']);
+});

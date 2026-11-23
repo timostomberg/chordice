@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { renderOptions } from '../../../chordice/js/options/options.js';
 import { buildLibrary } from '../../../chordice/js/data/validate.js';
 import { defaultState } from '../../../chordice/js/core/state.js';
+import { applyAction } from '../../../chordice/js/core/actions.js';
 
 const LIBRARY = buildLibrary({
   Pop: { progressions: { 'Pop Progression': ['I', 'V'] } },
@@ -33,8 +34,9 @@ test('renderOptions shows unselected progressions and groups as not pressed', ()
 test('the sliders sit in their own sections: rotation and permutation in Progression variations, the amount slider above the chord variation chips, and the bass amount alone in Bass variations', () => {
   const html = renderOptions({ ...defaultState(LIBRARY, () => 0.5), collapsed: [], inversions: true }, LIBRARY);
   const sections = html.match(/<section class="option[\s\S]*?<\/section>/g);
-  assert.equal(sections.length, 6);
-  const [, , progressionVariations, variations, bass, melody] = sections;
+  assert.equal(sections.length, 7);
+  const [, , progressionVariations, variations, bass, melody, exercises] = sections;
+  assert.equal(exercises.match(/data-option="\w+"/g), null);
   assert.deepEqual(progressionVariations.match(/data-option="\w+"/g), ['data-option="rotation"', 'data-option="permutation"']);
   assert.deepEqual(variations.match(/data-option="\w+"/g), ['data-option="variationProbability"']);
   assert.ok(variations.indexOf('data-option="variationProbability"') < variations.indexOf('data-action="toggle-variation"'));
@@ -75,7 +77,7 @@ test('renderOptions puts the circle of fifths under the Keys section, which is e
 
 test('renderOptions lists the options sections in order', () => {
   const html = renderOptions(defaultState(LIBRARY, () => 0.5), LIBRARY);
-  const titles = ['Keys', 'Progressions', 'Progression variations', 'Chord variations', 'Bass variations'];
+  const titles = ['Keys', 'Progressions', 'Progression variations', 'Chord variations', 'Bass variations', 'Melody variations', 'Exercises'];
   const positions = titles.map((title) => html.indexOf(`<span class="section-title">${title}</span>`));
   assert.ok(positions.every((position) => position >= 0), positions.join());
   assert.deepEqual([...positions].sort((a, b) => a - b), positions);
@@ -83,7 +85,11 @@ test('renderOptions lists the options sections in order', () => {
   const heading = html.indexOf('<h2 class="options-heading">Variations</h2>');
   assert.ok(heading > 0);
   assert.ok(heading < html.indexOf('<span class="section-title">Progression variations</span>'));
-  assert.equal(html.split('class="options-heading"').length - 1, 1);
+  // A second heading "Exercises" stands above the Exercises section, below the variation sections.
+  const exercises = html.indexOf('<h2 class="options-heading">Exercises</h2>');
+  assert.ok(exercises > html.indexOf('<span class="section-title">Melody variations</span>'));
+  assert.ok(exercises < html.indexOf('<span class="section-title">Exercises</span>'));
+  assert.equal(html.split('class="options-heading"').length - 1, 2);
 });
 
 test('a collapsed section shows only a muted summary of what is selected', () => {
@@ -97,7 +103,8 @@ test('a collapsed section shows only a muted summary of what is selected', () =>
   assert.ok(html.includes('<span class="section-summary">G (Em)</span>'));
   assert.ok(html.includes('<span class="section-summary"><span class="summary-label">Rotations</span>: <span class="summary-value">2</span><br><span class="summary-label">Permutations</span>: <span class="summary-value">2</span></span>'));
   assert.ok(html.includes('<span class="section-summary"><span class="summary-label">Amount</span>: <span class="summary-value">2</span></span>'));
-  assert.ok(!html.includes('circle'));
+  // The circle itself is not drawn while Keys is collapsed; only the circle of fifths button beside its heading is.
+  assert.ok(!html.includes('<svg class="circle"'));
   assert.ok(!html.includes('data-action="set-count"'));
   assert.ok(html.includes('class="option is-collapsed"'));
   assert.ok(html.includes('aria-expanded="false"'));
@@ -153,7 +160,8 @@ test('a key without accidentals says so, and a single sharp is singular', () => 
 test('the count button sits beside the Progressions heading, outside the toggle, so it is clickable when collapsed', () => {
   const state = { ...defaultState(LIBRARY, () => 0.5), count: 8, collapsed: ['progressions'] };
   const html = renderOptions(state, LIBRARY);
-  const header = /<h2 class="section-header[^"]*">[\s\S]*?<\/h2>/.exec(html)?.[0] ?? '';
+  const header = [...html.matchAll(/<h2 class="section-header[^"]*">[\s\S]*?<\/h2>/g)]
+    .map((match) => match[0]).find((part) => part.includes('Progressions')) ?? '';
   assert.ok(header.includes('class="section-toggle"'));
   assert.ok(header.includes('data-action="cycle-count"'));
   assert.ok(header.includes('aria-label="Number of progressions"'));
@@ -170,10 +178,33 @@ test('the count button is shown in the Progressions section while it is expanded
   assert.ok(html.includes('>2</button>'));
 });
 
-test('only the Progressions, Chord variations and Melody variations headings carry a button; the other sections keep a plain heading', () => {
+test('only the Keys, Progressions, Chord variations and Melody variations headings carry a button; the other sections keep a plain heading', () => {
   const html = renderOptions({ ...defaultState(LIBRARY, () => 0.5), collapsed: [] }, LIBRARY);
-  assert.equal(html.split('class="section-header').length - 1, 3);
+  assert.equal(html.split('class="section-header').length - 1, 4);
   assert.equal(html.split('<h2><button type="button" class="section-toggle"').length - 1, 3);
+});
+
+test('the circle of fifths button sits beside the Keys heading, not pressed by default, with an arrow and no text', () => {
+  const html = renderOptions(defaultState(LIBRARY, () => 0.5), LIBRARY);
+  const header = html.split('<section').find((part) => part.includes('>Keys<'));
+  assert.ok(header.includes('<button type="button" class="chip circle-toggle" aria-pressed="false" ' +
+    'data-action="toggle-circle-of-fifths" data-flag="circleOfFifths"'));
+  assert.ok(header.includes('<svg'), 'the button shows the arrow');
+  // A button inside a button is invalid HTML, so the switch comes after the toggle has closed.
+  assert.ok(header.indexOf('</button>') < header.indexOf('circle-toggle'));
+  const on = renderOptions({ ...defaultState(LIBRARY, () => 0.5), circleOfFifths: true }, LIBRARY);
+  assert.ok(on.includes('class="chip circle-toggle is-on" aria-pressed="true" data-action="toggle-circle-of-fifths"'));
+});
+
+test('with the circle of fifths switch on, the count button shows 12 and is greyed out, and the stored count is kept', () => {
+  const state = { ...defaultState(LIBRARY, () => 0.5), count: 4, circleOfFifths: true, collapsed: ['keys'] };
+  const html = renderOptions(state, LIBRARY);
+  assert.ok(/count-toggle"[^>]*\sdisabled>12<\/button>/.test(html));
+  assert.ok(html.includes('<span class="section-summary">all</span>'), 'the collapsed Keys summary says every key is used');
+  const off = renderOptions({ ...state, circleOfFifths: false }, LIBRARY);
+  assert.ok(/count-toggle"[^>]*>4<\/button>/.test(off));
+  assert.ok(!/count-toggle"[^>]*disabled/.test(off));
+  assert.ok(off.includes('<span class="section-summary">C (Am)</span>'));
 });
 
 test('the Progressions heading carries the expanded state, so its arrow can sit after the count button', () => {
@@ -266,4 +297,25 @@ test('the melody button sits beside the Melody variations heading, pressed with 
   const guitar = renderOptions({ ...defaultState(LIBRARY, () => 0.5), collapsed: [], instrument: 'guitar' }, LIBRARY);
   const greyed = guitar.split('<section').find((part) => part.includes('Melody variations'));
   assert.ok(/data-flag="inversions"[^>]*\sdisabled/.test(greyed), 'the melody button is disabled on the guitar');
+});
+
+test('with the circle of fifths switch on, Keys is greyed out and closed, and the circle button beside it stays clickable', () => {
+  // Keys was the open section; it stays stored as open and opens again when the switch is off.
+  const state = { ...defaultState(LIBRARY, () => 0.5), keys: ['G'], circleOfFifths: true };
+  const html = renderOptions(state, LIBRARY);
+  const keys = html.split('</section>')[0];
+  assert.ok(keys.startsWith('<section class="option is-collapsed is-unavailable">'));
+  assert.ok(keys.includes('data-section="keys" aria-expanded="false" disabled>'));
+  assert.ok(keys.includes('<span class="section-summary">all</span>'));
+  assert.ok(!html.includes('<svg class="circle'));
+  assert.ok(!html.includes('class="key-signature"'));
+  assert.ok(/class="chip circle-toggle is-on" aria-pressed="true"[^>]*title="[^"]*">/.test(keys), 'the circle button is not disabled');
+  assert.equal(applyAction(state, 'toggle-section', { section: 'keys' }, LIBRARY), state);
+  assert.equal(applyAction(state, 'open-keys', {}, LIBRARY), state);
+  assert.equal(applyAction(state, 'toggle-circle-of-fifths', {}, LIBRARY).circleOfFifths, false);
+  const off = renderOptions({ ...state, circleOfFifths: false }, LIBRARY);
+  assert.ok(off.includes('<svg class="circle"'));
+  assert.ok(!off.includes('aria-disabled'));
+  assert.ok(off.includes('class="key is-on"'));
+  assert.ok(off.includes('class="key-signature"'));
 });

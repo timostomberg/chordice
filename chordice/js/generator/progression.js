@@ -8,6 +8,7 @@ import { buildChord } from '../theory/chords.js';
 import { degree, harmonicFunction } from '../theory/numerals.js';
 import { isDiatonicChord } from '../theory/tones.js';
 import { BASE, PROBABILITY_MAX } from '../constants.js';
+import { SLOTS_COUNTERCLOCKWISE } from '../theory/keys.js';
 import { withInversions } from './inversion.js';
 import { chooseBass } from './bass.js';
 import { chordSlot, classifyOrder, pick, rotate, shuffle, unit, weightedPick } from './utils.js';
@@ -68,11 +69,22 @@ export function keyChoices(keys) {
   return [...new Set(keys)];
 }
 
-/** The progression and the key of the row `rowIndex`, chosen from the pool and the keys by their seeds. */
-export function chooseProgressionAndKey(pool, tonics, seeds, rowIndex) {
+/** The key of row `rowIndex` with the circle of fifths switch on; an enharmonic slot is spelled by the seed. */
+function circleKey(seeds, rowIndex) {
+  const names = SLOTS_COUNTERCLOCKWISE[rowIndex % SLOTS_COUNTERCLOCKWISE.length];
+  return names[pick(seeds.enharmonic, rowIndex, names.length)];
+}
+
+/**
+ * The progression and the key of the row `rowIndex`, chosen from the pool and the keys by their seeds. With `circle`
+ * (the circle of fifths switch), the key is not chosen: the rows run counterclockwise round the circle from C, so row 0
+ * is in C, row 1 in F and so on. The enharmonic slot is F# or Gb, each with the same chance, chosen by its own seed.
+ * The progression is chosen by its seed either way.
+ */
+export function chooseProgressionAndKey(pool, tonics, seeds, rowIndex, circle = false) {
   return {
     progression: pool[pick(seeds.progression, rowIndex, pool.length)],
-    tonic: tonics[pick(seeds.key, rowIndex, tonics.length)],
+    tonic: circle ? circleKey(seeds, rowIndex) : tonics[pick(seeds.key, rowIndex, tonics.length)],
   };
 }
 

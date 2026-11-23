@@ -3,20 +3,31 @@
  */
 
 import { VARIATION_NAMES } from '../theory/chords.js';
-import { isKeyName, majorKeyOf } from '../theory/keys.js';
+import { SLOTS_COUNTERCLOCKWISE, isKeyName, majorKeyOf } from '../theory/keys.js';
 import { PROBABILITY_MAX } from '../constants.js';
 import { SEED_NAMES, createSeeds } from '../generator/utils.js';
+import { exerciseById, exerciseSettings } from './exercises.js';
 
 export const COOKIE_NAME = 'chordice_state';
 export const COUNTS = [1, 2, 4, 8];
+// With the circle of fifths switch on, there is one row per key of the circle, so the count is fixed at 12.
+export const CIRCLE_COUNT = SLOTS_COUNTERCLOCKWISE.length;
 export const PROBABILITY_OPTIONS = ['rotation', 'permutation', 'variationProbability', 'bassProbability', 'melodyAmount'];
-export const FLAGS = ['showOptions', 'colour', 'roman', 'tones', 'inversions', 'foreignVariations'];
+export const FLAGS = ['showOptions', 'colour', 'roman', 'tones', 'inversions', 'foreignVariations', 'circleOfFifths'];
 export const THEMES = ['light', 'dark'];
 // The instrument whose notes window the chords open: notes for the piano, a diagram for the guitar.
 export const INSTRUMENTS = ['piano', 'guitar'];
-export const SECTIONS = ['keys', 'progressions', 'progressionVariations', 'variations', 'bass', 'melody'];
-// The option each section's Amount belongs to; a section whose option is unavailable cannot be opened.
-export const SECTION_OPTIONS = { bass: 'bassProbability', melody: 'melodyAmount' };
+export const SECTIONS = ['keys', 'progressions', 'progressionVariations', 'variations', 'bass', 'melody', 'exercises'];
+// The option each section belongs to; a section whose option is unavailable is greyed out and cannot be opened. Keys is
+// unavailable while the circle of fifths switch is on; the progressions and the variation sections while an exercise fixes them.
+export const SECTION_OPTIONS = {
+  keys: 'keys',
+  progressions: 'selection',
+  progressionVariations: 'rotation',
+  variations: 'variations',
+  bass: 'bassProbability',
+  melody: 'melodyAmount',
+};
 
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 // Default for the probabilities, on the scale from 0 to 5 (2 means 40%).
@@ -41,6 +52,10 @@ export function defaultState(library, random = Math.random) {
     inversions: false,
     // On: every chord variation is used. Off: only variations without tones foreign to the key.
     foreignVariations: true,
+    // On: one row per key, counterclockwise on the circle of fifths from C, so the count is 12. Off: the selected key.
+    circleOfFifths: false,
+    // The id of the exercise that is on (see exercises.js), or null.
+    exercise: null,
     theme: 'dark',
     instrument: 'piano',
     showOptions: true,
@@ -100,6 +115,8 @@ export function sanitizeState(raw, library, random = Math.random) {
     tones: typeof raw.tones === 'boolean' ? raw.tones : (legacyDetails ?? fallback.tones),
     inversions: typeof raw.inversions === 'boolean' ? raw.inversions : fallback.inversions,
     foreignVariations: typeof raw.foreignVariations === 'boolean' ? raw.foreignVariations : fallback.foreignVariations,
+    circleOfFifths: typeof raw.circleOfFifths === 'boolean' ? raw.circleOfFifths : fallback.circleOfFifths,
+    exercise: exerciseById(raw.exercise)?.id ?? fallback.exercise,
     theme: THEMES.includes(raw.theme) ? raw.theme : fallback.theme,
     instrument: INSTRUMENTS.includes(raw.instrument) ? raw.instrument : fallback.instrument,
     showOptions: typeof raw.showOptions === 'boolean' ? raw.showOptions : fallback.showOptions,
@@ -255,29 +272,66 @@ export function setInstrument(state, instrument) {
 export const GUITAR_UNAVAILABLE = ['bassProbability', 'inversions'];
 
 /**
- * Whether an option is unavailable, so that it is greyed out and does not take effect. The melody variations need the
- * melody note: they are unavailable on the guitar, and on the piano while the inversions switch (the melody button) is off.
+ * The state with the settings of the exercise that is on; the stored values of every other option. Its options show these
+ * values, also while they are greyed out.
+ */
+export function exerciseState(state) {
+  return { ...state, ...exerciseSettings(state) };
+}
+
+/** Whether the exercise that is on fixes the option, so that it is greyed out and cannot be changed. */
+export function isLocked(state, option) {
+  return Object.hasOwn(exerciseSettings(state), option);
+}
+
+/**
+ * Whether an option is unavailable, so that it is greyed out and does not take effect, or takes the value of the exercise
+ * that is on. The melody variations need the melody note: they are unavailable on the guitar, and on the piano while the
+ * inversions switch (the melody button) is off. The number of progressions and the keys of the circle are unavailable
+ * while the circle of fifths switch is on, also when an exercise switches it on.
  */
 export function isUnavailable(state, option) {
+  if (isLocked(state, option)) {
+    return true;
+  }
+  // The circle of fifths switch fixes the number of progressions at one per key.
+  if (option === 'count' || option === 'keys') {
+    return exerciseState(state).circleOfFifths === true;
+  }
   if (option === 'melodyAmount') {
     return state.instrument === 'guitar' || !state.inversions;
   }
   return state.instrument === 'guitar' && GUITAR_UNAVAILABLE.includes(option);
 }
 
-/** The settings that take effect for the chosen instrument: unavailable options count as off, the stored values stay. */
+/**
+ * The settings that take effect: the exercise that is on sets its options, and options the chosen instrument does not use
+ * count as off; the stored values stay. With the circle of fifths switch on, the count is one row per key; the stored
+ * count comes back when it is off.
+ */
 export function effectiveState(state) {
+  const fixed = exerciseState(state);
+  const offForInstrument = (option) => !isLocked(state, option) && isUnavailable(state, option);
   return {
-    ...state,
-    bassProbability: isUnavailable(state, 'bassProbability') ? 0 : state.bassProbability,
-    melodyAmount: isUnavailable(state, 'melodyAmount') ? 0 : state.melodyAmount,
-    inversions: state.inversions && !isUnavailable(state, 'inversions'),
+    ...fixed,
+    count: isUnavailable(state, 'count') ? CIRCLE_COUNT : state.count,
+    bassProbability: offForInstrument('bassProbability') ? 0 : fixed.bassProbability,
+    melodyAmount: offForInstrument('melodyAmount') ? 0 : fixed.melodyAmount,
+    inversions: fixed.inversions && !offForInstrument('inversions'),
   };
+}
+
+/** Switches the exercise on, or off when it is the one that is on. Another exercise that is on is switched off. */
+export function toggleExercise(state, id) {
+  if (!exerciseById(id)) {
+    return state;
+  }
+  return { ...state, exercise: state.exercise === id ? null : id };
 }
 
 /**
  * Switches one of the on/off flags: the options panel, the colours of the chords, the roman numerals, the chord tones,
- * the inversions or the foreign chord variations.
+ * the inversions, the foreign chord variations or the circle of fifths.
  */
 export function toggleFlag(state, flag) {
   if (!FLAGS.includes(flag)) {

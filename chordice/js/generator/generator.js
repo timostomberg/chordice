@@ -9,7 +9,8 @@ import { buildRow, chooseProgressionAndKey, keyChoices, progressionPool } from '
 
 /**
  * Generates `count` rows. Each row is one progression from the selection, placed in one of the
- * selected keys, with optional permutation, rotation, chord variations and bass notes.
+ * selected keys, with optional permutation, rotation, chord variations and bass notes. With `circleOfFifths` on, the
+ * rows run through the keys counterclockwise on the circle of fifths from C instead of the selected key.
  */
 export function generate(settings) {
   const { library, selection, keys, count, seeds } = settings;
@@ -22,7 +23,7 @@ export function generate(settings) {
 
   const rows = [];
   for (let i = 0; i < count; i += 1) {
-    const { progression, tonic } = chooseProgressionAndKey(pool, tonics, seeds, i);
+    const { progression, tonic } = chooseProgressionAndKey(pool, tonics, seeds, i, settings.circleOfFifths === true);
     rows.push(buildRow(progression, tonic, i, { ...settings, bassPatterns }));
   }
   return rows;

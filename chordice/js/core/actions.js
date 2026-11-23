@@ -1,7 +1,8 @@
 /**
  * The actions of the page: maps an action from the data attributes (e.g. "toggle-colour") onto a state transition.
  * The transitions themselves live in state.js; this module only names them and checks that the option an action
- * changes is available for the chosen instrument.
+ * changes is available (for the chosen instrument, the count while the circle of fifths switch is on, or an option the
+ * exercise that is on fixes).
  */
 
 import {
@@ -13,6 +14,7 @@ import {
   SECTION_OPTIONS,
   setProbability,
   toggleFlag,
+  toggleExercise,
   toggleGroup,
   toggleKey,
   toggleProgression,
@@ -28,13 +30,28 @@ const FLAG_ACTIONS = {
   'toggle-tones': 'tones',
   'toggle-melody': 'inversions',
   'toggle-foreign-variations': 'foreignVariations',
+  'toggle-circle-of-fifths': 'circleOfFifths',
   'toggle-options': 'showOptions',
+};
+
+/** The option of the actions that change one option, when that option can be unavailable. */
+const ACTION_OPTIONS = {
+  'toggle-melody': 'inversions',
+  'cycle-count': 'count',
+  'toggle-key': 'keys',
+  // Keys cannot be opened while the circle of fifths switch is on, so a click on the chords area does nothing then.
+  'open-keys': 'keys',
+  'toggle-group': 'selection',
+  'toggle-progression': 'selection',
+  'toggle-variation': 'variations',
+  'toggle-foreign-variations': 'foreignVariations',
+  'toggle-circle-of-fifths': 'circleOfFifths',
 };
 
 /** The option an action changes, when that option can be unavailable; null for every other action. */
 function optionOf(action, params) {
-  if (action === 'toggle-melody') {
-    return 'inversions';
+  if (Object.hasOwn(ACTION_OPTIONS, action)) {
+    return ACTION_OPTIONS[action];
   }
   if (action === 'toggle-section' && Object.hasOwn(SECTION_OPTIONS, params.section)) {
     return SECTION_OPTIONS[params.section];
@@ -44,7 +61,8 @@ function optionOf(action, params) {
 
 /** Maps a UI action (from data-attributes) onto a state transition. Unknown actions leave the state unchanged. */
 export function applyAction(state, action, params, library, random = Math.random) {
-  // An option that is unavailable for the chosen instrument cannot be changed, even by an event that reaches it.
+  // An option that is unavailable (for the chosen instrument, or fixed by the exercise) cannot be changed, even by an event
+  // that reaches it.
   if (isUnavailable(state, optionOf(action, params))) {
     return state;
   }
@@ -58,6 +76,7 @@ export function applyAction(state, action, params, library, random = Math.random
     'cycle-count': () => cycleCount(state),
     'toggle-variation': () => toggleVariation(state, params.variation),
     'set-probability': () => setProbability(state, params.option, params.value),
+    'toggle-exercise': () => toggleExercise(state, params.exercise),
     'toggle-section': () => toggleSection(state, params.section),
     'open-keys': () => openKeys(state),
     'toggle-theme': () => toggleTheme(state),

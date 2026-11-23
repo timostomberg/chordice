@@ -4,6 +4,7 @@
 
 import { escapeHtml } from '../escape.js';
 import { chordAttributes, chordCell } from '../chord-view.js';
+import { minorNameOf } from '../theory/keys.js';
 
 /** Tags for the transformations that were applied to the row. Inactive ones are not shown. */
 function activeTags(row) {
@@ -20,13 +21,15 @@ function activeTags(row) {
 /**
  * Renders one row per generated progression, named after the progression. `display` holds the colour, roman, tones and melody
  * switches; the melody switch is the inversions switch.
- * With no progression selected there are no rows, so the content area stays empty.
+ * With no progression selected there are no rows, so the content area stays empty. With `showKey` (the circle of fifths
+ * switch), each row starts with its key and the relative minor, e.g. "C (Am) · Pop Progression", in the font of the name.
  */
-export function renderRows(rows, display) {
+export function renderRows(rows, display, { showKey = false } = {}) {
   return rows.map((row, rowIndex) => {
     const tags = activeTags(row);
+    const key = showKey ? `${escapeHtml(`${row.tonic} (${minorNameOf(row.tonic)})`)} · ` : '';
     return `<section class="row">` +
-      `<h2><span class="row-title">${escapeHtml(row.name)} <span class="meta">· ${escapeHtml(row.group)}</span></span>` +
+      `<h2><span class="row-title">${key}${escapeHtml(row.name)} <span class="meta">· ${escapeHtml(row.group)}</span></span>` +
       (tags ? `<span class="tags">${tags}</span>` : '') + '</h2>' +
       `<ol class="chords">${row.chords.map((chord, chordIndex) =>
         chordCell(chord, chordAttributes(rowIndex, chordIndex), display, row.tonic),

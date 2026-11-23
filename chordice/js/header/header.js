@@ -3,13 +3,14 @@
  * the dark mode switch. The melody button sits beside the Melody variations heading in the options. The markup is in index.html; updateHeader shows the state on its buttons.
  */
 
-import { isUnavailable } from '../core/state.js';
+import { exerciseState, isUnavailable } from '../core/state.js';
 
 /** Shows the state on the header: pressed switches, the chosen instrument and the options button. */
 export function updateHeader(state, root = document) {
   // Each view switch names its flag in data-flag, so its pressed state follows the state.
   for (const button of root.querySelectorAll('[data-flag]')) {
-    button.setAttribute('aria-pressed', String(state[button.dataset.flag]));
+    // A switch the exercise that is on fixes shows the exercise's value.
+    button.setAttribute('aria-pressed', String(exerciseState(state)[button.dataset.flag]));
     // A switch the chosen instrument does not use is greyed out. Its pressed state still shows the stored value.
     button.disabled = isUnavailable(state, button.dataset.flag);
   }

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  SLOTS_COUNTERCLOCKWISE,
   MAJOR_KEYS,
   circleNameOf,
   isKeyName,
@@ -50,4 +51,10 @@ test('keySignatureOf lists the sharps or flats of a major key in signature order
   assert.deepEqual(keySignatureOf('F'), ['Bb']);
   assert.deepEqual(keySignatureOf('Bb'), ['Bb', 'Eb']);
   assert.deepEqual(keySignatureOf('Gb'), ['Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb']);
+});
+
+test('SLOTS_COUNTERCLOCKWISE runs once round the circle of fifths counterclockwise from C, with F# and Gb in one slot', () => {
+  assert.deepEqual(SLOTS_COUNTERCLOCKWISE,
+    [['C'], ['F'], ['Bb'], ['Eb'], ['Ab'], ['Db'], ['F#', 'Gb'], ['B'], ['E'], ['A'], ['D'], ['G']]);
+  assert.ok(SLOTS_COUNTERCLOCKWISE.flat().every(isKeyName));
 });

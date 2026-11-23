@@ -304,7 +304,7 @@ test('the tone colours of the notes are the light theme colours of the chord ton
 
 test('an option the guitar does not use is greyed out, and so is its header switch while it is disabled', () => {
   // The greyed-out option is faded as a whole, as it was before the disabled buttons got their blue tint.
-  assert.ok(declarationsOf('.option.is-unavailable').includes('opacity'));
+  assert.ok(declarationsOf('.option.is-unavailable .section-toggle,\n.option.is-unavailable > :not(h2),\n.option.is-unavailable .chip:disabled:not(.is-on, .count-toggle)').includes('opacity'));
   const block = declarationsOf('.toolbar .instrument-tab:disabled');
   assert.ok(block.includes('background: none'));
   assert.ok(block.includes('color: var(--disabled-text)'));
@@ -313,7 +313,7 @@ test('an option the guitar does not use is greyed out, and so is its header swit
 test('a disabled header switch is faded by the same opacity as a greyed-out option', () => {
   const faded = declarationsOf('.toolbar .instrument-tab:disabled');
   assert.ok(faded.includes('opacity: 0.45'));
-  assert.ok(declarationsOf('.option.is-unavailable').includes('opacity: 0.45'));
+  assert.ok(declarationsOf('.option.is-unavailable .section-toggle,\n.option.is-unavailable > :not(h2),\n.option.is-unavailable .chip:disabled:not(.is-on, .count-toggle)').includes('opacity: 0.45'));
 });
 
 test('the instrument tabs turn medium blue on hover, the chosen one too, but not when disabled', () => {
@@ -387,4 +387,47 @@ test('the melody button shows its note symbol at a size of 1.25rem, as a block',
   assert.ok(sizes.includes('display: block'));
   assert.ok(sizes.includes('width: 1.25rem'));
   assert.ok(sizes.includes('height: 1.25rem'));
+});
+
+test('the circle of fifths button shows its arrow at the size of the melody note, as a block', () => {
+  const sizes = declarationsOf('.circle-toggle svg');
+  assert.ok(sizes.includes('display: block'));
+  assert.ok(sizes.includes('width: 1.25rem'));
+  assert.ok(sizes.includes('height: 1.25rem'));
+});
+
+test('a disabled chip that is pressed or filled (the count of 12) is filled grey, not blue', () => {
+  const rule = /\.options \.chip\.is-on:disabled,\s*\.options \.chip\.count-toggle:disabled \{([^}]*)\}/.exec(CSS);
+  assert.ok(rule, 'rule for disabled filled chips');
+  assert.ok(rule[1].includes('background: var(--disabled-text)'));
+  assert.ok(rule[1].includes('border-color: var(--disabled-text)'));
+  // It comes after the blue fill of the count button and the pressed chips, so it wins over them.
+  assert.ok(CSS.indexOf('.options .chip.is-on:disabled') > CSS.indexOf('.chip.count-toggle {'));
+  assert.ok(CSS.indexOf('.options .chip.is-on:disabled') > CSS.indexOf('.options .chip.is-on {'));
+});
+
+test('a disabled circle of fifths is greyed out and its keys show no pointer', () => {
+  assert.ok(declarationsOf('.circle.is-disabled').includes('opacity: 0.45'));
+  const keys = /\.circle\.is-disabled \.key,\s*\.circle\.is-disabled \.key circle \{([^}]*)\}/.exec(CSS);
+  assert.ok(keys, 'rule for the disabled keys and their discs');
+  assert.ok(keys[1].includes('cursor: default'));
+  // A click must not reach the key, or it would be focused and framed while the mouse is down.
+  assert.ok(keys[1].includes('pointer-events: none'));
+  assert.ok(keys[1].includes('outline: none'));
+  assert.ok(keys[1].includes('-webkit-tap-highlight-color: transparent'));
+});
+
+test('a greyed-out option fades its heading and content, but not a clickable button beside its heading', () => {
+  // The melody button beside a greyed-out Melody variations heading keeps the normal blue outline while it can be pressed.
+  assert.equal(declarationsOf('.option.is-unavailable'), '');
+  const faded = declarationsOf('.option.is-unavailable .section-toggle,\n.option.is-unavailable > :not(h2),\n.option.is-unavailable .chip:disabled:not(.is-on, .count-toggle)');
+  assert.ok(faded.includes('opacity: 0.45'));
+});
+
+test('a filled disabled button beside a greyed-out heading, such as the count of 12, is not faded, so its label stays readable', () => {
+  assert.ok(CSS.includes('.option.is-unavailable .chip:disabled:not(.is-on, .count-toggle) {'));
+  assert.ok(!/\.option\.is-unavailable \.chip:disabled\s*[,{]/.test(CSS));
+  const filled = declarationsOf('.options .chip.is-on:disabled,\n.options .chip.count-toggle:disabled');
+  assert.ok(filled.includes('background: var(--disabled-text)'));
+  assert.ok(filled.includes('color: var(--surface)'));
 });
