@@ -14,7 +14,7 @@ export const COUNTS = [1, 2, 4, 8];
 // With the circle of fifths switch on, there is one row per key of the circle, so the count is fixed at 12.
 export const CIRCLE_COUNT = SLOTS_COUNTERCLOCKWISE.length;
 const PROBABILITY_OPTIONS = ['rotation', 'permutation', 'variationProbability', 'bassProbability', 'melodyAmount'];
-export const FLAGS = ['showOptions', 'colour', 'roman', 'tones', 'inversions', 'foreignVariations', 'circleOfFifths'];
+export const FLAGS = ['showOptions', 'colour', 'roman', 'tones', 'inversions', 'foreignVariations', 'circleOfFifths', 'painting'];
 export const THEMES = ['light', 'dark'];
 // The instrument whose notes window the chords open: notes for the piano, a diagram for the guitar.
 export const INSTRUMENTS = ['piano', 'guitar'];
@@ -64,7 +64,9 @@ export function defaultState(library, random = Math.random) {
     circleOfFifths: false,
     // The id of the exercise that is on (see exercises.js), or null.
     exercise: null,
-    theme: 'dark',
+    // On: the painting behind the app shows its landscape. Off: a plain background in the mean colour of the painting.
+    painting: true,
+    theme: 'light',
     instrument: 'piano',
     // Whether the side panel is open, and which panel it shows (see PANELS).
     showOptions: true,
@@ -212,7 +214,7 @@ export function toggleExercise(state, id) {
 
 /**
  * Switches one of the on/off flags: the side panel (open or closed, keeping its panel), the colours of the chords, the roman numerals, the chord tones,
- * the inversions, the foreign chord variations or the circle of fifths.
+ * the inversions, the foreign chord variations, the circle of fifths or the painting behind the app.
  */
 export function toggleFlag(state, flag) {
   if (!FLAGS.includes(flag)) {

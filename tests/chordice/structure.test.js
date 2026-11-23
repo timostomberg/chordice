@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 const JS = fileURLToPath(new URL('../../chordice/', import.meta.url));
 const MUSIC_FOLDERS = ['theory', 'data', 'generator', 'instruments'];
 // The windows of the app: a window of one file is that file in app/, a window of several files a folder.
-const WINDOWS = { header: 'header.js', options: 'options', song: 'song', notes: 'notes', help: 'help' };
+const WINDOWS = { header: 'header.js', options: 'options', song: 'song', notes: 'notes', help: 'help', landscape: 'landscape' };
 // The files that several windows share: the escaping, and the chord box that the rows and the notes window both show.
 const SHARED = ['app/escape.js', 'app/names.js', 'app/chord.js'];
 const APP_ENTRIES = ['app.js', 'main.js', 'state', ...Object.values(WINDOWS), ...SHARED.map((path) => path.slice('app/'.length))];

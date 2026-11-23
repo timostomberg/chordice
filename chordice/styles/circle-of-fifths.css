@@ -13,10 +13,21 @@
   margin: 0 auto;
 }
 
-/* The wedges take the pointer, so they can be hovered; the gaps between them do not. */
+/* The wedges take the pointer, so they can be hovered; the gaps between them do not. Each wedge is a wash of watercolour,
+   like the buttons and the chords (see "The watercolour wash" in main.css): its filter (in circle-of-fifths.js) lays the
+   bloom and the rim on it, in the colours of the theme. */
 .circle .key path {
   pointer-events: all;
+  filter: url(#circle-wash);
   transition: fill 0.15s ease;
+}
+
+.circle .wash-bloom {
+  flood-color: var(--bloom);
+}
+
+.circle .wash-rim {
+  flood-color: var(--pigment-edge);
 }
 
 .circle .key path.major {

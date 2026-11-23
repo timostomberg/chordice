@@ -1,29 +1,32 @@
 /* The base of the page: the colours of both themes, the layout of the header, the options and the chords, the shared
    controls (buttons, chips, tags) and the layout on phones. Each window adds its own stylesheet in styles/. */
 
-/* Light theme (default). Major chords get stronger colours than minor chords. */
+/* Light theme (default): a calm morning landscape in watercolour. Warm paper, ink for the text, and the harmonic functions
+   as washes of pigment: cerulean for the tonic, sap green for the subdominant, burnt sienna for the dominant. Minor chords
+   get the deeper wash, major chords the lighter one, in both themes. */
 :root {
   color-scheme: light;
-  --bg: #f4f5f8;
-  --surface: #ffffff;
-  --text: #14171c;
-  --text-soft: #3a404a;
-  --muted: #5d6573;
-  --accent: #3461e0;
-  --icon-blue: #3d6bf0;
-  --line: #e1e4ea;
-  --tonic-major: #a9c4ff;
-  --tonic-minor: #e3ecff;
-  --subdominant-major: #9fe0b5;
-  --subdominant-minor: #e1f7e8;
-  --dominant-major: #ffbf8f;
-  --dominant-minor: #ffeadb;
-  --slider-fill: #3d6bf0;
-  /* The soft shadows of the cards (options, chords) and of the floating elements (Generate, the notes window). */
-  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
-  --shadow-raised: 0 12px 32px rgba(16, 24, 40, 0.16), 0 4px 8px rgba(16, 24, 40, 0.08);
-  /* Labels of the selected and harmonic keys on the circle of fifths: black on the light colours. */
-  --key-on-text: #000;
+  --bg: #f1ebdf;
+  --surface: #fbf8f1;
+  --text: #2a2c36;
+  --text-soft: #464955;
+  --muted: #6a6c74;
+  --accent: #3f5f8c;
+  --icon-blue: #4a6a96;
+  --line: #e2d9c7;
+  --tonic-major: #c9dbec;
+  --tonic-minor: #9db9d6;
+  --subdominant-major: #d4e4c5;
+  --subdominant-minor: #a9c795;
+  --dominant-major: #f4d6ba;
+  --dominant-minor: #e2a77d;
+  --slider-fill: #4a6a96;
+  /* The soft shadows of the cards (options, chords) and of the floating elements (Generate, the notes window): warm, like
+     paper lifted from the table. */
+  --shadow: 0 1px 2px rgba(74, 56, 32, 0.07), 0 2px 6px rgba(74, 56, 32, 0.07);
+  --shadow-raised: 0 14px 36px rgba(74, 56, 32, 0.18), 0 4px 10px rgba(74, 56, 32, 0.08);
+  /* Labels of the selected and harmonic keys on the circle of fifths: ink on the light washes. */
+  --key-on-text: #1d1f27;
   --chord-text: var(--text);
   --chord-soft: var(--text-soft);
   /* The zoom of the chords (set by zoom.js): 1 means 100%. The default is DEFAULT_ZOOM in zoom.js. */
@@ -32,14 +35,26 @@
   --touch: 44px;
   /* The opacity of everything greyed out: an unavailable option, a disabled header switch, the disabled circle of fifths. */
   --faded: 0.45;
-  /* The text of a disabled button: a grey, darker than the white-grey text of the dark theme. */
-  --disabled-text: #7d848e;
-  /* A button or key under the mouse: a medium blue. */
-  --hover-fill: color-mix(in srgb, var(--icon-blue) 45%, var(--surface));
-  /* The wedges of the keys on the circle of fifths that have no harmonic role: a quiet tint of the panel, the minor band
+  /* The text of a disabled button: a warm grey. */
+  --disabled-text: #8e8a80;
+  /* A button or key under the mouse: a medium blue wash. */
+  --hover-fill: color-mix(in srgb, var(--icon-blue) 40%, var(--surface));
+  /* The wedges of the keys on the circle of fifths that have no harmonic role: a quiet tint of the paper, the minor band
      (inside) a little lighter than the major band (outside). */
   --wedge-major: color-mix(in srgb, var(--text) 8%, var(--surface));
   --wedge-minor: color-mix(in srgb, var(--text) 4%, var(--surface));
+  /* The serif of the titles, the row headings and the chords: a book face, as in a printed song book. */
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  /* The panels lie over the landscape like sheets of thin paper: it shows through, softly blurred. */
+  --panel: rgba(251, 248, 241, 0.5);
+  --card: rgba(251, 248, 241, 0.55);
+  /* Watercolour: the pigment gathers at the edge of a wash and leaves a lighter bloom in its middle (see "The watercolour
+     wash" below). On the deep blue of a filled button the bloom is fainter. */
+  --pigment-edge: rgba(70, 52, 30, 0.16);
+  --bloom: rgba(255, 255, 255, 0.4);
+  --bloom-ink: rgba(255, 255, 255, 0.14);
+  /* The opacity of the paper grain over the painting behind the app (see landscape.css). */
+  --grain: 0.55;
 }
 
 /* Tones below a chord: blue when the chord variation adds them, red when they are foreign to the key. The staff of the
@@ -51,41 +66,46 @@
   --foreign-tone: #c0392b;
 }
 
-/* Dark theme, selected by the theme button. */
+/* Dark theme, selected by the theme button: the same landscape at dusk, under an indigo sky with a pale moon. */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0e1014;
-  --surface: #171a20;
-  --text: #e6e8eb;
-  /* The grey labels and secondary texts are white-grey rather than dull grey. */
-  --text-soft: #e0e4ea;
-  --muted: #c4cad2;
-  --accent: #6b93ff;
-  --icon-blue: #5b85f5;
-  --line: #2a2f38;
-  --tonic-major: #2f56a8;
-  --tonic-minor: #1d2a45;
-  --subdominant-major: #24814f;
-  --subdominant-minor: #17332a;
-  --dominant-major: #b5622c;
-  --dominant-minor: #3d2a20;
-  --slider-fill: #5b85f5;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-raised: 0 16px 40px rgba(0, 0, 0, 0.55), 0 4px 10px rgba(0, 0, 0, 0.35);
-  /* Light grey rather than pure white: the same text colours the dark theme had before, without the glare. */
+  --bg: #141824;
+  --surface: #1c2130;
+  --text: #ebe6da;
+  /* The grey labels and secondary texts are a warm paper white rather than dull grey. */
+  --text-soft: #ddd7ca;
+  --muted: #c3bdb0;
+  --accent: #a3bbe2;
+  --icon-blue: #93acd8;
+  --line: #323a4f;
+  --tonic-major: #34527e;
+  --tonic-minor: #222f47;
+  --subdominant-major: #3d6248;
+  --subdominant-minor: #23352c;
+  --dominant-major: #8f5536;
+  --dominant-minor: #3b2b24;
+  --slider-fill: #93acd8;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.25);
+  --shadow-raised: 0 16px 40px rgba(0, 0, 0, 0.5), 0 4px 10px rgba(0, 0, 0, 0.3);
   --key-on-text: var(--text);
-  /* The chord symbols on the right are a whiter white than the other texts. */
-  --chord-text: #ffffff;
+  /* The chord symbols are the brightest paper white. */
+  --chord-text: #fbf7ee;
   --chord-soft: var(--text-soft);
-  --variation-tone: #8fb8ff;
-  --foreign-tone: #ff7a6b;
+  --variation-tone: #a6c4f2;
+  --foreign-tone: #f2907a;
   --zoom: 1.2;
   --fill: 50%;
-  /* A button or key under the mouse: a medium blue. */
-  --disabled-text: #7d848e;
-  --hover-fill: color-mix(in srgb, var(--icon-blue) 45%, var(--surface));
+  --disabled-text: #7e7b75;
+  --hover-fill: color-mix(in srgb, var(--icon-blue) 40%, var(--surface));
   --wedge-major: color-mix(in srgb, var(--text) 8%, var(--surface));
   --wedge-minor: color-mix(in srgb, var(--text) 4%, var(--surface));
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --panel: rgba(28, 33, 48, 0.55);
+  --card: rgba(28, 33, 48, 0.5);
+  --pigment-edge: rgba(0, 0, 0, 0.3);
+  --bloom: rgba(255, 255, 255, 0.08);
+  --bloom-ink: rgba(255, 255, 255, 0.06);
+  --grain: 0.35;
 }
 
 * {
@@ -119,18 +139,63 @@ body {
   scrollbar-color: var(--line) transparent;
 }
 
+/* Every button is a wash of watercolour (see below), with slightly uneven corners as if laid with the brush. Its labels
+   are set in the book face of the titles. */
 button {
   min-height: var(--touch);
   min-width: var(--touch);
   padding: 0.4rem 0.9rem;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 13px 9px 14px 10px / 10px 14px 9px 13px;
   background: var(--surface);
+  box-shadow: var(--shadow);
   color: var(--text);
   font: inherit;
+  font-family: var(--serif);
+  letter-spacing: 0.01em;
   cursor: pointer;
   touch-action: manipulation;
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+/*
+ * The watercolour wash, the one look of everything that can be pressed: the chords, the buttons (Generate among them)
+ * and, drawn by an SVG filter in the same colours, the keys of the circle of fifths (see circle-of-fifths.css). A wash
+ * has a lighter bloom in its middle, where the water pooled, and a darker rim of pigment at its edge, where it dried.
+ * Both lie in ::before, between the colour of the element and its label (the element isolates them), so they stay
+ * whatever colour, shadow or shape a rule gives the element. The rim grows with the text, so it grows with the zoom of
+ * the chords. The section headings of the options are plain text, not washes.
+ * :where() gives these rules no weight, so every other rule wins over them: Generate, for one, stays fixed in its corner
+ * rather than relative in the page.
+ */
+:where(.chord, button:not(.section-toggle)) {
+  position: relative;
+  isolation: isolate;
+}
+
+:where(.chord, button:not(.section-toggle))::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at 35% 30%, var(--bloom), transparent 70%);
+  box-shadow: inset 0 0 0.45em var(--pigment-edge);
+  pointer-events: none;
+}
+
+/* On the deep blue of a filled button the bloom is fainter, so the blue stays calm. */
+.generate::before,
+.chip.is-on::before,
+.chip.count-toggle::before,
+.toolbar button[aria-pressed="true"]::before,
+.toolbar button[aria-expanded="true"]::before {
+  background: radial-gradient(ellipse at 35% 30%, var(--bloom-ink), transparent 70%);
+}
+
+/* A greyed-out button is not painted: no bloom, no rim. */
+button:disabled::before {
+  content: none;
 }
 
 /* A pressed button gives way a little under the finger. */
@@ -149,6 +214,9 @@ button[aria-expanded="true"] {
 }
 
 .layout {
+  /* Above the landscape. */
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: minmax(320px, 400px) 1fr;
   grid-template-rows: minmax(0, 1fr);
@@ -168,7 +236,9 @@ button[aria-expanded="true"] {
   overflow-y: auto;
   padding: 1rem;
   border-right: 1px solid var(--line);
-  background: var(--surface);
+  background: var(--panel);
+  -webkit-backdrop-filter: blur(6px) saturate(1.1);
+  backdrop-filter: blur(6px) saturate(1.1);
   touch-action: pan-x pan-y;
 }
 
@@ -214,8 +284,11 @@ button[aria-expanded="true"] {
   border-radius: 999px;
   background: var(--icon-blue);
   color: var(--surface);
+  font-family: var(--serif);
+  font-size: 1.1rem;
+  font-style: italic;
   font-weight: 600;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
   box-shadow: var(--shadow-raised);
 }
 
@@ -235,7 +308,7 @@ button[aria-expanded="true"] {
 .chip.is-on {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--surface);
   box-shadow: var(--shadow);
 }
 

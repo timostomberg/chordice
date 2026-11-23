@@ -27,6 +27,26 @@ const SPLIT_FONT = { major: 12.5, minor: 8.5 };
 
 const round = (value) => Number(value.toFixed(2));
 
+/**
+ * The watercolour wash of the wedges, the same look as the buttons and chords (see "The watercolour wash" in main.css):
+ * a darker rim of pigment just inside the edge, and a lighter bloom in the middle. The colours of both come from the
+ * stylesheet (circle-of-fifths.css), so they follow the theme.
+ */
+const WASH_FILTER = '<defs><filter id="circle-wash" x="-10%" y="-10%" width="120%" height="120%">' +
+  // The rim: the shape less a blurred copy of itself leaves its edge.
+  '<feGaussianBlur in="SourceAlpha" stdDeviation="2.5" result="blurred"/>' +
+  '<feComposite in="SourceAlpha" in2="blurred" operator="out" result="edge"/>' +
+  '<feFlood class="wash-rim" result="rimColour"/>' +
+  '<feComposite in="rimColour" in2="edge" operator="in" result="rim"/>' +
+  // The bloom: the shrunk and softened shape, inside the shape.
+  '<feMorphology in="SourceAlpha" operator="erode" radius="3" result="core"/>' +
+  '<feGaussianBlur in="core" stdDeviation="4" result="softCore"/>' +
+  '<feComposite in="softCore" in2="SourceAlpha" operator="in" result="middle"/>' +
+  '<feFlood class="wash-bloom" result="bloomColour"/>' +
+  '<feComposite in="bloomColour" in2="middle" operator="in" result="bloom"/>' +
+  '<feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="bloom"/><feMergeNode in="rim"/></feMerge>' +
+  '</filter></defs>';
+
 /** A point at a radius and an angle in degrees, clockwise from the top. */
 function point(radius, degrees) {
   const angle = ((degrees - 90) * Math.PI) / 180;
@@ -147,6 +167,7 @@ export function renderCircleSvg(selectedKey, { disabled = false } = {}) {
   const roles = harmonicRoles(selected);
   const wedges = KEY_CIRCLE.map((names, index) => slotWedges(names, index, selected, roles, disabled));
   return `<svg class="circle${disabled ? ' is-disabled' : ''}" viewBox="0 0 ${VIEW_SIZE} ${VIEW_SIZE}" role="group" aria-label="Circle of fifths">` +
+    WASH_FILTER +
     wedges.join('') +
     '</svg>';
 }

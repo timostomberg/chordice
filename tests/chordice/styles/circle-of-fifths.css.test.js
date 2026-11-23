@@ -55,3 +55,9 @@ test('under the mouse, the selected key, the subdominant and the dominant turn s
     }
   }
 });
+
+test('the keys of the circle are washes of watercolour like the buttons, in the bloom and rim colours of the theme', () => {
+  assert.ok(declarationsOf('.circle .key path').includes('filter: url(#circle-wash)'));
+  assert.ok(declarationsOf('.circle .wash-bloom').includes('flood-color: var(--bloom)'));
+  assert.ok(declarationsOf('.circle .wash-rim').includes('flood-color: var(--pigment-edge)'));
+});

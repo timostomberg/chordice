@@ -43,7 +43,7 @@ test('defaults select everything, show colours and extended information, and rot
   assert.equal(state.rotation, 2);
   assert.equal(state.variationProbability, 2);
   assert.equal(state.bassProbability, 2);
-  assert.equal(state.theme, 'dark');
+  assert.equal(state.theme, 'light');
   assert.equal(state.showOptions, true);
   assert.equal(state.panel, 'options');
   assert.deepEqual(state.collapsed, ['progressions', 'progressionVariations', 'variations', 'bass', 'melody']);
@@ -138,10 +138,10 @@ test('openKeys expands Keys and collapses every other section', () => {
 
 test('toggleTheme switches between dark and light and leaves the other settings alone', () => {
   const state = defaultState(LIBRARY, FIXED);
-  const light = toggleTheme(state);
-  assert.equal(light.theme, 'light');
-  assert.deepEqual({ ...light, theme: 'dark' }, state);
-  assert.equal(toggleTheme(light).theme, 'dark');
+  const dark = toggleTheme(state);
+  assert.equal(dark.theme, 'dark');
+  assert.deepEqual({ ...dark, theme: 'light' }, state);
+  assert.equal(toggleTheme(dark).theme, 'light');
 });
 
 test('setKey selects the key, replacing the current one', () => {

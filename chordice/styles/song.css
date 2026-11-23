@@ -13,14 +13,18 @@
 }
 
 /* Headings share the colour of the option section titles. The title and the tags sit on one centre line. */
+/* The heading is written in italics onto the painting; a soft halo of the paper keeps it readable over the hills. */
 .row h2 {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   margin: 0 0 calc(var(--zoom) * 0.4rem);
-  font-size: calc(var(--zoom) * 0.9rem);
+  font-family: var(--serif);
+  font-size: calc(var(--zoom) * 1rem);
+  font-style: italic;
   font-weight: 500;
-  color: var(--muted);
+  color: var(--text-soft);
+  text-shadow: 0 0 6px var(--bg), 0 0 14px var(--bg);
 }
 
 .row-title {

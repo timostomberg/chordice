@@ -32,6 +32,7 @@ const FLAG_ACTIONS = {
   'toggle-melody': 'inversions',
   'toggle-foreign-variations': 'foreignVariations',
   'toggle-circle-of-fifths': 'circleOfFifths',
+  'toggle-painting': 'painting',
   // A click on the header outside its buttons opens or closes the side panel, which keeps the panel it shows.
   'toggle-panel': 'showOptions',
 };

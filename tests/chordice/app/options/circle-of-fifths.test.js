@@ -164,3 +164,13 @@ test('wedgePath keeps a gap between neighbouring wedges', () => {
   assert.notEqual(left, right);
   assert.ok(Math.max(...xs(left).filter((x) => x > 120)) < 120 + 110);
 });
+
+test('renderCircleSvg defines the watercolour filter of the wedges once, with the bloom and the rim', () => {
+  for (const disabled of [false, true]) {
+    const svg = renderCircleSvg('C', { disabled });
+    assert.equal(svg.split('<filter id="circle-wash"').length - 1, 1);
+    assert.ok(svg.includes('class="wash-bloom"'));
+    assert.ok(svg.includes('class="wash-rim"'));
+    assert.ok(svg.indexOf('<defs>') < svg.indexOf('<g class="key'), 'the filter comes before the wedges');
+  }
+});

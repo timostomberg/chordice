@@ -113,11 +113,11 @@ test('the help page uses no class that the stylesheet does not define', () => {
   }
 });
 
-test('the help page follows the stored theme and defaults to dark, as the app does', () => {
+test('the help page follows the stored theme and defaults to light, as the app does', () => {
   const html = help();
-  assert.match(html, /data-theme="dark"/);
+  assert.match(html, /data-theme="light"/);
   assert.ok(html.includes("chordice_state="));
-  assert.ok(html.includes("theme === 'light'"));
+  assert.ok(html.includes("theme === 'dark'"));
 });
 
 /**

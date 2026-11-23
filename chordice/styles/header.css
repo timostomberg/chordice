@@ -9,19 +9,24 @@
   /* The top inset keeps the toolbar below the status bar (clock, signal) on iPhones. */
   padding: calc(0.5rem + env(safe-area-inset-top)) 1rem 0.5rem;
   border-bottom: 1px solid var(--line);
-  background: var(--surface);
+  /* A sheet of thin paper over the sky of the landscape. */
+  background: var(--panel);
+  -webkit-backdrop-filter: blur(6px) saturate(1.1);
+  backdrop-filter: blur(6px) saturate(1.1);
   box-shadow: var(--shadow);
   /* Above the panel and the song, so its shadow falls on them. */
   position: relative;
   z-index: 5;
 }
 
-/* The name of the app: bold and tight, in the text colour. */
+/* The name of the app: an italic book face, like a title written on the painting, in the text colour. */
 .toolbar h1 {
   margin: 0 1rem;
-  font-size: 1.3rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-family: var(--serif);
+  font-size: 1.6rem;
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   color: var(--text);
 }
 
@@ -37,6 +42,7 @@
 .roman-toggle,
 .tones-toggle,
 .colour-toggle,
+.painting-toggle,
 .theme-toggle {
   color: var(--text);
 }
@@ -58,13 +64,14 @@
 .toolbar .roman-toggle,
 .toolbar .tones-toggle,
 .toolbar .colour-toggle,
+.toolbar .painting-toggle,
 .toolbar .theme-toggle,
 .toolbar .instrument-tab {
   border-color: var(--icon-blue);
   color: var(--icon-blue);
 }
 
-/* An active options, exercises, help, roman, tones or colour toggle is filled with the icon blue, and its symbol takes the
+/* An active options, exercises, help, roman, tones, colour or painting toggle is filled with the icon blue, and its symbol takes the
    background colour. */
 .toolbar .options-toggle[aria-expanded="true"],
 .toolbar .exercises-toggle[aria-expanded="true"],
@@ -72,6 +79,7 @@
 .toolbar .roman-toggle[aria-pressed="true"],
 .toolbar .tones-toggle[aria-pressed="true"],
 .toolbar .colour-toggle[aria-pressed="true"],
+.toolbar .painting-toggle[aria-pressed="true"],
 .toolbar .instrument-tab[aria-pressed="true"] {
   background: var(--icon-blue);
   color: var(--surface);
@@ -133,6 +141,7 @@
 .tones-toggle svg,
 .colour-toggle svg,
 .instrument-tab svg,
+.painting-toggle svg,
 .theme-toggle svg {
   display: block;
   width: 1.5rem;

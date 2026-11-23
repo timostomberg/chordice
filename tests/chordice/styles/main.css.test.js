@@ -173,3 +173,78 @@ test('buttons show a focus ring for the keyboard and give way when pressed', () 
   assert.ok(declarationsOf('button:focus-visible').includes('outline:'));
   assert.ok(declarationsOf('button:not(:disabled):active').includes('transform:'));
 });
+
+test('the side panel and the header are translucent paper over the landscape', () => {
+  for (const block of [declarationsOf('.side-panel'), declarationsIn(ALL, '.toolbar')]) {
+    assert.ok(block.includes('background: var(--panel)'));
+    assert.ok(block.includes('backdrop-filter:'));
+  }
+});
+
+/** The relative luminance of a colour written as #rrggbb. */
+function luminanceOf(hex) {
+  const [r, g, b] = [1, 3, 5].map((start) => parseInt(hex.slice(start, start + 2), 16) / 255)
+    .map((channel) => (channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+test('in both themes a minor chord is darker than the major chord of its harmonic function', () => {
+  for (const block of [themeBlock(':root'), themeBlock(':root\\[data-theme="dark"\\]')]) {
+    for (const fn of ['tonic', 'subdominant', 'dominant']) {
+      const colour = (mode) => new RegExp(`--${fn}-${mode}:\\s*(#[0-9a-fA-F]{6})`).exec(block)[1];
+      assert.ok(luminanceOf(colour('minor')) < luminanceOf(colour('major')), `${fn}: ${colour('minor')} vs ${colour('major')}`);
+    }
+  }
+});
+
+test('the chords and every button share one watercolour wash, defined once: a bloom and a rim of pigment', () => {
+  // :where() gives the shared rules no weight, so a rule of one element (e.g. Generate's position: fixed) wins over them.
+  const host = declarationsOf(':where(.chord, button:not(.section-toggle))');
+  assert.ok(host.includes('position: relative'));
+  assert.ok(host.includes('isolation: isolate'), 'the wash stays behind the label');
+  const wash = declarationsOf(':where(.chord, button:not(.section-toggle))::before');
+  assert.ok(wash.includes('var(--bloom)'));
+  assert.match(wash, /box-shadow: inset [^;]*var\(--pigment-edge\)/);
+  assert.ok(wash.includes('z-index: -1'));
+  assert.ok(wash.includes('border-radius: inherit'), 'the wash follows the shape of its element');
+  assert.ok(wash.includes('pointer-events: none'));
+  // No stylesheet paints a bloom or a rim of its own: the look is defined in this one place.
+  const elsewhere = ALL.replace(wash, '').match(/radial-gradient\([^)]*var\(--bloom\)|inset[^;]*var\(--pigment-edge\)/g) ?? [];
+  assert.deepEqual(elsewhere, []);
+  // A greyed-out button is not painted.
+  assert.ok(declarationsOf('button:disabled::before').includes('content: none'));
+});
+
+test('the bloom on the deep blue of the filled buttons is fainter than on the others', () => {
+  const filled = declarationsOf('.generate::before,\n.chip.is-on::before,\n.chip.count-toggle::before,\n' +
+    '.toolbar button[aria-pressed="true"]::before,\n.toolbar button[aria-expanded="true"]::before');
+  assert.ok(filled.includes('var(--bloom-ink)'));
+  for (const block of [themeBlock(':root'), themeBlock(':root\\[data-theme="dark"\\]')]) {
+    const alpha = (name) => Number(new RegExp(`${name}:\\s*rgba\\([^)]*,\\s*([\\d.]+)\\)`).exec(block)[1]);
+    assert.ok(alpha('--bloom-ink') < alpha('--bloom'));
+  }
+});
+
+test('the labels of the buttons are set in the book face, with uneven corners like the chords', () => {
+  const button = declarationsOf('button');
+  assert.ok(button.includes('font-family: var(--serif)'));
+  assert.match(button, /border-radius:[^;]*\//, 'uneven corners');
+  assert.ok(declarationsIn(ALL, '.option .section-toggle').includes('box-shadow: none'), 'the headings are not painted');
+});
+
+test('the panels are translucent enough to show the painting behind them', () => {
+  for (const block of [themeBlock(':root'), themeBlock(':root\\[data-theme="dark"\\]')]) {
+    const alpha = Number(/--panel:\s*rgba\([^)]*,\s*([\d.]+)\)/.exec(block)[1]);
+    assert.ok(alpha > 0.3 && alpha <= 0.6, `panel opacity ${alpha}`);
+  }
+});
+
+test('Generate floats fixed in its corner, as a pill, whatever the shared wash gives every button', () => {
+  assert.ok(declarationsOf('.generate').includes('position: fixed'));
+  // The only rule that sets the position of every button carries no weight.
+  const rules = CSS.replace(/\/\*[\s\S]*?\*\//g, '');
+  const positioned = [...rules.matchAll(/(^|\n)([^{}\n][^{}]*)\{[^}]*position: relative/g)].map((match) => match[2].trim());
+  for (const selector of positioned.filter((rule) => rule.includes('button'))) {
+    assert.ok(selector.startsWith(':where('), selector);
+  }
+});

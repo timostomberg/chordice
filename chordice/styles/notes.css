@@ -1,24 +1,24 @@
 /* The notes window: the chord box, the staff or the guitar diagram, and the caption. */
 
-/* The notes window is always a white sheet with black ink, in both themes. Its content is centred. */
+/* The notes window is always a sheet of light watercolour paper with dark ink, in both themes. Its content is centred. */
 .notes {
   width: min(92vw, 400px);
   max-width: none;
   padding: 0;
   border: 1px solid var(--line);
-  border-radius: 18px;
-  background: #fff;
+  border-radius: 20px 15px 22px 16px / 16px 21px 15px 20px;
+  background: #fbf8f1;
   box-shadow: var(--shadow-raised);
-  color: #1b1f24;
+  color: #2a2c36;
   /* A click steps through the views, so nothing in the window can be selected, also not by a double click or a long press. */
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
 }
 
-/* The page behind the window is dimmed and blurred. */
+/* The page behind the window is dimmed with a wash of indigo and blurred. */
 .notes::backdrop {
-  background: rgba(10, 12, 16, 0.4);
+  background: rgba(20, 24, 40, 0.4);
   -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
@@ -69,8 +69,10 @@
 /* The caption under the score names the shape shown, and the stand-in chord if there is one. It is empty, and hidden, for the piano. */
 .notes-caption {
   margin: 0.5rem 0 0;
-  font-size: 0.85rem;
-  color: #5b6470;
+  font-family: var(--serif);
+  font-size: 0.9rem;
+  font-style: italic;
+  color: #6a6c74;
 }
 
 .notes-caption:empty {

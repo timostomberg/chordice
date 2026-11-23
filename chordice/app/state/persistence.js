@@ -68,6 +68,7 @@ export function sanitizeState(raw, library, random = Math.random) {
     inversions: toBoolean(raw.inversions, fallback.inversions),
     foreignVariations: toBoolean(raw.foreignVariations, fallback.foreignVariations),
     circleOfFifths: toBoolean(raw.circleOfFifths, fallback.circleOfFifths),
+    painting: toBoolean(raw.painting, fallback.painting),
     exercise: exerciseById(raw.exercise)?.id ?? fallback.exercise,
     theme: THEMES.includes(raw.theme) ? raw.theme : fallback.theme,
     instrument: INSTRUMENTS.includes(raw.instrument) ? raw.instrument : fallback.instrument,

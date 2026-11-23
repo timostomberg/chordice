@@ -1,6 +1,6 @@
 /**
  * The header bar: the options, exercises and help buttons, the instrument tabs, the view switches (roman numerals, chord
- * tones and colours) and the dark mode switch. The melody button sits beside the Melody variations heading in the options.
+ * tones and colours), the painting switch and the dark mode switch. The melody button sits beside the Melody variations heading in the options.
  * The markup is in index.html; updateHeader shows the state on its buttons.
  */
 

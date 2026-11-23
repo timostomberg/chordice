@@ -80,6 +80,7 @@ async function loadApp({ cookie = '', yaml = YAML_TEXT, bass = BASS_TEXT, ok = t
     '#options': new FakeElement(),
     '#option-list': new FakeElement(),
     '#song-rows': new FakeElement(),
+    '#landscape': new FakeElement(),
     '#status': new FakeElement(),
     '.options-toggle': new FakeElement(),
     '.exercises-toggle': new FakeElement(),
@@ -90,6 +91,7 @@ async function loadApp({ cookie = '', yaml = YAML_TEXT, bass = BASS_TEXT, ok = t
     '[data-action="toggle-roman"]': new FakeElement({ flag: 'roman' }),
     '[data-action="toggle-tones"]': new FakeElement({ flag: 'tones' }),
     '[data-action="toggle-melody"]': new FakeElement({ flag: 'inversions' }),
+    '[data-action="toggle-painting"]': new FakeElement({ flag: 'painting' }),
     '#notes': new FakeDialog(),
   };
   const listeners = {};
@@ -193,12 +195,36 @@ test('app.js loads the YAML library and renders the circle, option sections, row
 test('app.js applies the theme to the page and marks the theme button', async () => {
   try {
     const app = await loadApp();
-    assert.equal(app.document.documentElement.dataset.theme, 'dark');
-    assert.equal(app.elements['[data-action="toggle-theme"]'].attributes['aria-pressed'], 'true');
-    app.dispatch({ action: 'toggle-theme' });
     assert.equal(app.document.documentElement.dataset.theme, 'light');
     assert.equal(app.elements['[data-action="toggle-theme"]'].attributes['aria-pressed'], 'false');
-    assert.ok(decodeURIComponent(app.document.cookie).includes('"theme":"light"'));
+    app.dispatch({ action: 'toggle-theme' });
+    assert.equal(app.document.documentElement.dataset.theme, 'dark');
+    assert.equal(app.elements['[data-action="toggle-theme"]'].attributes['aria-pressed'], 'true');
+    assert.ok(decodeURIComponent(app.document.cookie).includes('"theme":"dark"'));
+  } finally {
+    uninstall();
+  }
+});
+
+test('app.js paints the picture behind the app, anew with Generate and in the colours of the theme', async () => {
+  try {
+    const app = await loadApp();
+    const landscape = app.elements['#landscape'];
+    const first = landscape.innerHTML;
+    assert.ok(first.includes('class="landscape-scene"'), 'a painting is shown from the start');
+    app.dispatch({ action: 'cycle-count' });
+    assert.equal(landscape.innerHTML, first, 'another option leaves the painting as it is');
+    app.dispatch({ action: 'toggle-theme' });
+    const dark = landscape.innerHTML;
+    assert.notEqual(dark, first, 'the theme repaints it in its colours');
+    assert.equal(/data-kind="(\w+)"/.exec(dark)[1], /data-kind="(\w+)"/.exec(first)[1], 'the motif stays');
+    app.dispatch({ action: 'reroll' });
+    assert.notEqual(landscape.innerHTML, dark, 'Generate paints a new picture');
+    app.dispatch({ action: 'toggle-painting' });
+    assert.ok(landscape.innerHTML.includes('data-plain'), 'the painting switch off shows a plain background');
+    assert.ok(decodeURIComponent(app.document.cookie).includes('"painting":false'));
+    app.dispatch({ action: 'toggle-painting' });
+    assert.ok(!landscape.innerHTML.includes('data-plain'), 'and on again the painting');
   } finally {
     uninstall();
   }

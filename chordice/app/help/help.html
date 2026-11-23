@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -8,12 +8,12 @@
   <link rel="stylesheet" href="../../styles/header.css">
   <link rel="stylesheet" href="../../styles/help.css">
   <script>
-    // The help page follows the theme chosen in the app, which the app keeps in its cookie. Dark is the default.
+    // The help page follows the theme chosen in the app, which the app keeps in its cookie. Light is the default.
     const cookie = /(?:^|;\s*)chordice_state=([^;]*)/.exec(document.cookie);
-    let theme = 'dark';
+    let theme = 'light';
     try {
-      if (cookie && JSON.parse(decodeURIComponent(cookie[1])).theme === 'light') {
-        theme = 'light';
+      if (cookie && JSON.parse(decodeURIComponent(cookie[1])).theme === 'dark') {
+        theme = 'dark';
       }
     } catch {
       // A broken cookie leaves the default theme, as the app does.
@@ -84,7 +84,7 @@
     <h3 id="melody-variations">Melody variations</h3>
     <p><span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g transform="translate(3 0)"><ellipse cx="7" cy="17.5" rx="3" ry="2.3" transform="rotate(-20 7 17.5)" fill="currentColor"/><path d="M9.8 17V4c0 0 .4 3.2 4.2 5.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g></svg></span>
       The Melody button switches the inversions on. Then each chord is shown in one of its inversions, e.g. C/E, chosen by
-      its top note, which moves smoothly from chord to chord. <strong>Amount</strong> (0 to 5): how far the top notes may jump.
+      its top note, which moves smoothly from chord to chord. <strong>Strength</strong> (0 to 5): how far the top notes may jump.
       0 keeps them as close as possible, 5 makes every inversion equally likely. Greyed out on the guitar.</p>
 
     <h2 id="exercises">Exercises</h2>

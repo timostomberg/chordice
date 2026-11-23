@@ -243,7 +243,7 @@ test('the bass amount is enabled on the piano, and no section is greyed out', ()
   assert.ok(!/data-option="bassProbability"[^>]*\sdisabled/.test(html));
 });
 
-test('the melody variations section is titled, has the Amount slider from 0 to 5, and is greyed out on the guitar', () => {
+test('the melody variations section is titled, has the Strength slider from 0 to 5, and is greyed out on the guitar', () => {
   const piano = renderOptions({ ...defaultState(LIBRARY, () => 0.5), collapsed: [], melodyAmount: 3, inversions: true }, LIBRARY);
   assert.ok(piano.includes('Melody variations'));
   assert.ok(piano.includes('value="3" data-option="melodyAmount"'), 'the slider shows the stored amount');
@@ -252,7 +252,7 @@ test('the melody variations section is titled, has the Amount slider from 0 to 5
   const section = guitar.split('<section').find((part) => part.includes('Melody variations'));
   assert.ok(section.includes('is-unavailable'), 'the melody section is greyed out');
   assert.ok(!section.includes('data-option="melodyAmount"'), 'the amount is not drawn while the section cannot be opened');
-  assert.ok(section.includes('Amount</span>: <span class="summary-value">0</span>'), 'its amount shows 0 while the guitar is chosen');
+  assert.ok(section.includes('Strength</span>: <span class="summary-value">0</span>'), 'its strength shows 0 while the guitar is chosen');
 });
 
 test('with the melody button off the melody variations section is greyed out, and its amount shows 0', () => {
@@ -260,7 +260,7 @@ test('with the melody button off the melody variations section is greyed out, an
   const section = html.split('<section').find((part) => part.includes('Melody variations'));
   assert.ok(section.includes('is-unavailable'), 'the melody section is greyed out');
   assert.ok(!section.includes('data-option="melodyAmount"'), 'the amount is not drawn while the section cannot be opened');
-  assert.ok(section.includes('Amount</span>: <span class="summary-value">0</span>'), 'its amount shows 0');
+  assert.ok(section.includes('Strength</span>: <span class="summary-value">0</span>'), 'its strength shows 0');
   const on = renderOptions({ ...defaultState(LIBRARY, () => 0.5), collapsed: [], inversions: true, melodyAmount: 4 }, LIBRARY);
   const enabled = on.split('<section').find((part) => part.includes('Melody variations'));
   assert.ok(!enabled.includes('is-unavailable'));

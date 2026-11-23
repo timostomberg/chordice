@@ -56,9 +56,9 @@ test('sanitizeState keeps only a major key, and repairs a count that is not offe
   assert.equal(sanitizeState({ count: 8 }, LIBRARY, FIXED).count, 8);
 });
 
-test('sanitizeState repairs an unknown theme to the dark default', () => {
-  assert.equal(sanitizeState({ theme: 'blue' }, LIBRARY, FIXED).theme, 'dark');
-  assert.equal(sanitizeState({}, LIBRARY, FIXED).theme, 'dark');
+test('sanitizeState repairs an unknown theme to the light default', () => {
+  assert.equal(sanitizeState({ theme: 'blue' }, LIBRARY, FIXED).theme, 'light');
+  assert.equal(sanitizeState({}, LIBRARY, FIXED).theme, 'light');
 });
 
 test('sanitizeState keeps only known collapsed sections and at most one expanded section', () => {
@@ -190,4 +190,11 @@ test('the exercise is kept in the cookie, and an unknown exercise in the cookie 
   assert.equal(sanitizeState(parseCookie(serializeCookie(on)), LIBRARY, FIXED).exercise, 'circle-ii-v-i');
   assert.equal(sanitizeState({ exercise: 'unknown' }, LIBRARY, FIXED).exercise, null);
   assert.equal(sanitizeState({}, LIBRARY, FIXED).exercise, null);
+});
+
+test('the painting switch is kept in the cookie, and is on when the cookie does not say', () => {
+  const off = { ...defaultState(SMALL_LIBRARY, FIXED), painting: false };
+  assert.equal(sanitizeState(parseCookie(serializeCookie(off)), SMALL_LIBRARY, FIXED).painting, false);
+  assert.equal(sanitizeState({}, SMALL_LIBRARY, FIXED).painting, true);
+  assert.equal(sanitizeState({ painting: 'maybe' }, SMALL_LIBRARY, FIXED).painting, true);
 });

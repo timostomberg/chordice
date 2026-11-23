@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Chordice</title>
   <link rel="stylesheet" href="chordice/styles/main.css">
+  <link rel="stylesheet" href="chordice/styles/landscape.css">
   <link rel="stylesheet" href="chordice/styles/header.css">
   <link rel="stylesheet" href="chordice/styles/options.css">
   <link rel="stylesheet" href="chordice/styles/circle-of-fifths.css">
@@ -25,6 +26,9 @@
   <script type="module" src="chordice/app/main.js"></script>
 </head>
 <body>
+  <!-- The painting behind the app: a landscape or an abstract work in watercolour, painted anew at random whenever new
+       chords are rolled (see app/landscape/). -->
+  <svg id="landscape" class="landscape" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false"></svg>
   <header class="toolbar" data-action="toggle-panel">
     <!-- The panel tabs: the side panel shows the options, the exercises or the help; the pressed one again closes it. -->
     <div class="panel-tabs" role="group" aria-label="Side panel">
@@ -106,7 +110,14 @@
         </svg>
       </button>
     </div>
-    <button type="button" class="theme-toggle" data-action="toggle-theme" aria-label="Dark mode" aria-pressed="true">
+    <button type="button" class="painting-toggle" data-action="toggle-painting" aria-label="Painting" aria-pressed="true" data-flag="painting" title="Painting">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <!-- Two mountains, the larger one with snow on its peak. -->
+        <path d="M2 20 9 7l4.5 7.5L16 11l6 9z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M7.1 10.3 9 7l1.9 3.3-1 .9-.9-.8-.9.8z" fill="currentColor"/>
+      </svg>
+    </button>
+    <button type="button" class="theme-toggle" data-action="toggle-theme" aria-label="Dark mode" aria-pressed="false">
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
         <path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/>

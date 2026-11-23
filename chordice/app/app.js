@@ -18,6 +18,7 @@ import { keepFocus } from './options/focus.js';
 import { renderSong } from './song/song.js';
 import { bindZoom, blockZoom } from './song/zoom.js';
 import { createNotesDialog } from './notes/notes.js';
+import { renderLandscape } from './landscape/landscape.js';
 import { fingeringOf } from '../music/instruments/guitar.js';
 
 const PROGRESSIONS_URL = new URL('../music/data/chord_progressions.yaml', import.meta.url);
@@ -81,6 +82,7 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
   const options = document.querySelector('#options');
   const optionList = document.querySelector('#option-list');
   const songRows = document.querySelector('#song-rows');
+  const landscape = document.querySelector('#landscape');
   const notes = createNotesDialog(document.querySelector('#notes'));
   let currentSong = [];
   // Once a load of the help has ended, the help is shown if its panel is still chosen.
@@ -136,6 +138,9 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
     songRows.innerHTML = renderSong(currentSong, displaySwitches(state), { showKey: effective.circleOfFifths });
     song.scrollTop = songScroll;
     document.documentElement.dataset.theme = state.theme;
+    // The painting belongs to the song: it changes with Generate (new seeds) and with the theme, otherwise it stays. With
+    // the painting switch off, a plain background in its mean colour takes its place.
+    renderLandscape(landscape, state.seeds, state.theme, { plain: !state.painting });
     updateHeader(state);
     document.cookie = serializeCookie(state, cookiePath);
   }

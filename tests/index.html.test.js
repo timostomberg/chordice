@@ -63,6 +63,7 @@ const ACTION_PARAMS = {
   'toggle-foreign-variations': {},
   'toggle-circle-of-fifths': {},
   'toggle-colour': {},
+  'toggle-painting': {},
   'toggle-roman': {},
   'toggle-tones': {},
   'toggle-melody': {},
@@ -96,7 +97,7 @@ test('every action of the page and of the rendered markup changes the state when
 test('the toolbar starts with Options and the title, then the roman, tones, colour and theme buttons', () => {
   const html = readIndex();
   const toolbar = /<header class="toolbar"[\s\S]*?<\/header>/.exec(html)?.[0] ?? '';
-  const order = ['data-action="toggle-options"', '<h1>', 'data-action="toggle-roman"', 'data-action="toggle-tones"', 'data-action="toggle-colour"', 'data-action="toggle-theme"'];
+  const order = ['data-action="toggle-options"', '<h1>', 'data-action="toggle-roman"', 'data-action="toggle-tones"', 'data-action="toggle-colour"', 'data-action="toggle-painting"', 'data-action="toggle-theme"'];
   const positions = order.map((marker) => toolbar.indexOf(marker));
   assert.ok(positions.every((position) => position >= 0), positions.join());
   assert.deepEqual([...positions].sort((a, b) => a - b), positions);
@@ -258,4 +259,17 @@ test('index.html loads its base stylesheet from chordice/styles/ and its app mod
   assert.equal(script, 'chordice/app/main.js');
   assert.ok(existsSync(fileURLToPath(new URL(css, ROOT))));
   assert.ok(existsSync(fileURLToPath(new URL(script, ROOT))));
+});
+
+test('the painting switch with its mountains sits left of the dark mode switch, a flag that is on by default', () => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const button = /<button[^>]*data-action="toggle-painting"[^>]*>/.exec(html)?.[0] ?? '';
+  assert.ok(button.includes('class="painting-toggle"'));
+  assert.ok(button.includes('data-flag="painting"'));
+  assert.ok(button.includes('aria-pressed="true"'));
+  assert.ok(button.includes('aria-label="Painting"'));
+  const theme = html.indexOf('data-action="toggle-theme"');
+  assert.ok(html.indexOf('data-action="toggle-painting"') < theme);
+  // No other button stands between them: the only button opened in between is the theme button itself.
+  assert.equal(html.slice(html.indexOf('data-action="toggle-painting"'), theme).split('<button').length - 1, 1);
 });

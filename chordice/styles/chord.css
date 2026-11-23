@@ -11,16 +11,20 @@
 }
 
 /* Plain chords are not bold. With the extended information on, only the chord name (e.g. C, Cm) is bold, see .chord-name. */
+/* Each chord is a wash of watercolour on paper (see "The watercolour wash" in main.css), with uneven corners as if laid
+   with the brush. The function rules below change only the colour of the wash. */
 .chord {
   min-width: calc(var(--zoom) * 5.5rem);
   padding: calc(var(--zoom) * 0.6rem) calc(var(--zoom) * 0.8rem);
   border: calc(var(--zoom) * 1px) solid var(--line);
-  border-radius: calc(var(--zoom) * 14px);
-  background: var(--surface);
+  border-radius: calc(var(--zoom) * 17px) calc(var(--zoom) * 12px) calc(var(--zoom) * 19px) calc(var(--zoom) * 13px) /
+    calc(var(--zoom) * 13px) calc(var(--zoom) * 18px) calc(var(--zoom) * 12px) calc(var(--zoom) * 17px);
+  background-color: var(--surface);
   box-shadow: var(--shadow);
   color: var(--chord-text);
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
+  font-family: var(--serif);
   font-size: calc(var(--zoom) * 1.4rem);
   font-weight: 400;
   text-align: center;
@@ -63,29 +67,29 @@
   margin: 0 0.1em;
 }
 
-/* Major chords use the stronger colour of their harmonic function, minor chords the paler one. */
+/* Minor chords use the deeper colour of their harmonic function, major chords the lighter one. */
 .chord.fn-tonic.is-major {
-  background: var(--tonic-major);
+  background-color: var(--tonic-major);
 }
 
 .chord.fn-tonic.is-minor {
-  background: var(--tonic-minor);
+  background-color: var(--tonic-minor);
 }
 
 .chord.fn-subdominant.is-major {
-  background: var(--subdominant-major);
+  background-color: var(--subdominant-major);
 }
 
 .chord.fn-subdominant.is-minor {
-  background: var(--subdominant-minor);
+  background-color: var(--subdominant-minor);
 }
 
 .chord.fn-dominant.is-major {
-  background: var(--dominant-major);
+  background-color: var(--dominant-major);
 }
 
 .chord.fn-dominant.is-minor {
-  background: var(--dominant-minor);
+  background-color: var(--dominant-minor);
 }
 
 .chord .symbol {

@@ -30,7 +30,7 @@ const PROBABILITY_LABELS = {
   permutation: 'Permutations',
   variationProbability: 'Amount',
   bassProbability: 'Amount',
-  melodyAmount: 'Amount',
+  melodyAmount: 'Strength',
 };
 
 function toggleButton(label, attributes, pressed, disabled = false) {

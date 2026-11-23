@@ -53,3 +53,13 @@ test('a disabled header switch is not highlighted under the mouse', () => {
 test('a button under the mouse gets a medium blue, mixed from the accent blue and the surface', () => {
   assert.ok(/--hover-fill:\s*color-mix\(in srgb, var\(--icon-blue\) \d+%, var\(--surface\)\)/.test(ALL));
 });
+
+// The colour, painting and dark mode switches on the right of the header stand at the same distance from each other: the
+// gap of the toolbar, which the view switches share too.
+test('the three switches on the right of the header are evenly spaced', () => {
+  assert.ok(!/\.painting-toggle\s*\{[^}]*margin/.test(CSS), 'the painting switch has no margin of its own');
+  assert.ok(!/\.theme-toggle\s*\{[^}]*margin/.test(CSS), 'nor has the dark mode switch');
+  const toolbarGap = /\.toolbar\s*\{[^}]*gap:\s*([^;]+);/.exec(CSS)[1];
+  const viewGap = /\.view-toggles\s*\{[^}]*gap:\s*([^;]+);/.exec(CSS)[1];
+  assert.equal(viewGap, toolbarGap);
+});

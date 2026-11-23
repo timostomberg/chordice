@@ -22,7 +22,7 @@ test('applyAction dispatches UI actions and ignores unknown ones', () => {
   assert.deepEqual(['showOptions', 'panel'].map((key) => applyAction(exercises, 'toggle-options', {}, LIBRARY)[key]), [true, 'options']);
   assert.deepEqual(['showOptions', 'panel'].map((key) => applyAction(exercises, 'toggle-panel', {}, LIBRARY)[key]), [false, 'exercises']);
   assert.deepEqual(['showOptions', 'panel'].map((key) => applyAction(exercises, 'toggle-help', {}, LIBRARY)[key]), [true, 'help']);
-  assert.equal(applyAction(state, 'toggle-theme', {}, LIBRARY).theme, 'light');
+  assert.equal(applyAction(state, 'toggle-theme', {}, LIBRARY).theme, 'dark');
   assert.equal(applyAction(state, 'set-probability', { option: 'permutation', value: '2' }, LIBRARY).permutation, 2);
   assert.equal(applyAction(state, 'unknown', {}, LIBRARY), state);
 });
@@ -121,4 +121,12 @@ test('while an exercise is on, the options it fixes cannot be changed; the melod
   assert.equal(applyAction(state, 'set-probability', { option: 'melodyAmount', value: '4' }, APP_LIBRARY).melodyAmount, 4);
   assert.equal(applyAction(state, 'toggle-melody', {}, APP_LIBRARY).inversions, false);
   assert.notEqual(applyAction(state, 'toggle-section', { section: 'melody' }, APP_LIBRARY), state);
+});
+
+test('the painting switch is on by default and toggle-painting switches only it', () => {
+  const state = defaultState(SMALL_LIBRARY, FIXED);
+  assert.equal(state.painting, true);
+  const off = applyAction(state, 'toggle-painting', {}, SMALL_LIBRARY);
+  assert.deepEqual(off, { ...state, painting: false });
+  assert.equal(applyAction(off, 'toggle-painting', {}, SMALL_LIBRARY).painting, true);
 });
