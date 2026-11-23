@@ -10,12 +10,19 @@
   padding: calc(0.5rem + env(safe-area-inset-top)) 1rem 0.5rem;
   border-bottom: 1px solid var(--line);
   background: var(--surface);
+  box-shadow: var(--shadow);
+  /* Above the panel and the song, so its shadow falls on them. */
+  position: relative;
+  z-index: 5;
 }
 
+/* The name of the app: bold and tight, in the text colour. */
 .toolbar h1 {
   margin: 0 1rem;
-  font-size: 1.25rem;
-  color: var(--muted);
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
 }
 
 .view-toggles {
@@ -104,13 +111,13 @@
 
 .panel-tabs .panel-tab:first-child,
 .instrument-tabs .instrument-tab:first-child {
-  border-radius: 0.5rem 0 0 0.5rem;
+  border-radius: 10px 0 0 10px;
 }
 
 .panel-tabs .panel-tab:last-child,
 .instrument-tabs .instrument-tab:last-child {
   margin-left: -1px;
-  border-radius: 0 0.5rem 0.5rem 0;
+  border-radius: 0 10px 10px 0;
 }
 
 /* A tab between the first and the last one (the exercises) has square corners on both sides. */

@@ -154,3 +154,22 @@ test('the tone colours are defined once, for :root and the staff, which keeps th
     assert.notEqual(colour('page', property), value, `the page takes the dark ${property}`);
   }
 });
+
+test('the cards and the floating elements cast the soft shadows of the theme', () => {
+  for (const block of [themeBlock(':root'), themeBlock(':root\\[data-theme="dark"\\]')]) {
+    assert.match(block, /--shadow:/);
+    assert.match(block, /--shadow-raised:/);
+  }
+  assert.ok(declarationsOf('.generate').includes('box-shadow: var(--shadow-raised)'));
+  assert.ok(declarationsIn(ALL, '.option').includes('box-shadow: var(--shadow)'));
+  assert.ok(declarationsIn(ALL, '.notes').includes('box-shadow: var(--shadow-raised)'));
+});
+
+test('the Generate button is a pill', () => {
+  assert.ok(declarationsOf('.generate').includes('border-radius: 999px'));
+});
+
+test('buttons show a focus ring for the keyboard and give way when pressed', () => {
+  assert.ok(declarationsOf('button:focus-visible').includes('outline:'));
+  assert.ok(declarationsOf('button:not(:disabled):active').includes('transform:'));
+});

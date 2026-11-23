@@ -15,10 +15,12 @@
   min-width: calc(var(--zoom) * 5.5rem);
   padding: calc(var(--zoom) * 0.6rem) calc(var(--zoom) * 0.8rem);
   border: calc(var(--zoom) * 1px) solid var(--line);
-  border-radius: calc(var(--zoom) * 10px);
+  border-radius: calc(var(--zoom) * 14px);
   background: var(--surface);
+  box-shadow: var(--shadow);
   color: var(--chord-text);
   cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
   font-size: calc(var(--zoom) * 1.4rem);
   font-weight: 400;
   text-align: center;
@@ -165,5 +167,7 @@
   .chord[data-action="show-notes"]:hover {
     outline: 2px solid var(--icon-blue);
     outline-offset: 3px;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-raised);
   }
 }

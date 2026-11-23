@@ -67,20 +67,22 @@
 
 /* Heading above a group of option sections, e.g. "Variations" above the three variation sections. */
 .options-heading {
-  margin: 0.4rem 0.2rem 0.5rem;
-  font-size: 1rem;
-  font-weight: 400;
+  margin: 0.6rem 0.2rem 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
   color: var(--muted);
 }
 
-/* Each options section is framed like a progression group: thin line border, rounded corners. */
+/* Each options section is a card: thin line border, rounded corners, a soft shadow. */
 .option {
   margin-bottom: 1rem;
   padding: 0.8rem 1rem;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .option h2 {
@@ -121,8 +123,10 @@
 .section-title {
   grid-column: 1;
   grid-row: 1;
+  font-size: 0.95rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
 }
 
 /* Dezent: what is selected in a collapsed section, on its own line below the title. */
@@ -227,7 +231,7 @@
   margin: 0 0 0.6rem;
   padding: 0.4rem 0.6rem;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 12px;
 }
 
 .group legend {
@@ -257,38 +261,41 @@
 
 .slider input::-webkit-slider-runnable-track {
   height: 6px;
-  border-radius: 3px;
+  border-radius: 999px;
   background: linear-gradient(to right, var(--slider-fill) var(--fill), var(--muted) var(--fill));
 }
 
+/* The thumb is a white knob with a blue ring and a soft shadow. */
 .slider input::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
-  margin-top: -5px;
-  border: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -7px;
+  border: 3px solid var(--icon-blue);
   border-radius: 50%;
-  background: var(--icon-blue);
+  background: #fff;
+  box-shadow: var(--shadow);
 }
 
 .slider input::-moz-range-track {
   height: 6px;
-  border-radius: 3px;
+  border-radius: 999px;
   background: var(--muted);
 }
 
 .slider input::-moz-range-progress {
   height: 6px;
-  border-radius: 3px;
+  border-radius: 999px;
   background: var(--slider-fill);
 }
 
 .slider input::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  border: none;
+  width: 14px;
+  height: 14px;
+  border: 3px solid var(--icon-blue);
   border-radius: 50%;
-  background: var(--icon-blue);
+  background: #fff;
+  box-shadow: var(--shadow);
 }
 
 /* The help in the side panel: the panel has its own padding, so the help text needs none, and it starts at the top. */

@@ -6,8 +6,9 @@
   max-width: none;
   padding: 0;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 18px;
   background: #fff;
+  box-shadow: var(--shadow-raised);
   color: #1b1f24;
   /* A click steps through the views, so nothing in the window can be selected, also not by a double click or a long press. */
   user-select: none;
@@ -15,12 +16,15 @@
   -webkit-touch-callout: none;
 }
 
+/* The page behind the window is dimmed and blurred. */
 .notes::backdrop {
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(10, 12, 16, 0.4);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
 }
 
 .notes-body {
-  padding: 0.75rem;
+  padding: 1rem;
   text-align: center;
 }
 
@@ -35,7 +39,7 @@
   margin: 0 auto;
   padding: 0.4rem 0.6rem;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 12px;
   cursor: pointer;
   touch-action: manipulation;
 }

@@ -4,21 +4,24 @@
 /* Light theme (default). Major chords get stronger colours than minor chords. */
 :root {
   color-scheme: light;
-  --bg: #fafafa;
-  --surface: #fff;
-  --text: #1b1f24;
-  --text-soft: #3b4149;
-  --muted: #5a616b;
-  --accent: #2f5fb3;
-  --icon-blue: #3f6fc4;
-  --line: #c9cdd4;
-  --tonic-major: #8ab4f8;
-  --tonic-minor: #d6e6ff;
-  --subdominant-major: #7fd49a;
-  --subdominant-minor: #d9f5e2;
-  --dominant-major: #ffa66b;
-  --dominant-minor: #ffe2d1;
-  --slider-fill: #2a4f94;
+  --bg: #f4f5f8;
+  --surface: #ffffff;
+  --text: #14171c;
+  --text-soft: #3a404a;
+  --muted: #5d6573;
+  --accent: #3461e0;
+  --icon-blue: #3d6bf0;
+  --line: #e1e4ea;
+  --tonic-major: #a9c4ff;
+  --tonic-minor: #e3ecff;
+  --subdominant-major: #9fe0b5;
+  --subdominant-minor: #e1f7e8;
+  --dominant-major: #ffbf8f;
+  --dominant-minor: #ffeadb;
+  --slider-fill: #3d6bf0;
+  /* The soft shadows of the cards (options, chords) and of the floating elements (Generate, the notes window). */
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
+  --shadow-raised: 0 12px 32px rgba(16, 24, 40, 0.16), 0 4px 8px rgba(16, 24, 40, 0.08);
   /* Labels of the selected and harmonic keys on the circle of fifths: black on the light colours. */
   --key-on-text: #000;
   --chord-text: var(--text);
@@ -47,22 +50,24 @@
 /* Dark theme, selected by the theme button. */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #121417;
-  --surface: #1c2025;
+  --bg: #0e1014;
+  --surface: #171a20;
   --text: #e6e8eb;
   /* The grey labels and secondary texts are white-grey rather than dull grey. */
   --text-soft: #e0e4ea;
   --muted: #c4cad2;
-  --accent: #3f6fc4;
-  --icon-blue: #3f6fc4;
-  --line: #3a4048;
-  --tonic-major: #2f5d9e;
-  --tonic-minor: #22344f;
-  --subdominant-major: #2d7a4b;
-  --subdominant-minor: #1f3a2b;
-  --dominant-major: #b8612f;
-  --dominant-minor: #4a3024;
-  --slider-fill: #2a4f94;
+  --accent: #6b93ff;
+  --icon-blue: #5b85f5;
+  --line: #2a2f38;
+  --tonic-major: #2f56a8;
+  --tonic-minor: #1d2a45;
+  --subdominant-major: #24814f;
+  --subdominant-minor: #17332a;
+  --dominant-major: #b5622c;
+  --dominant-minor: #3d2a20;
+  --slider-fill: #5b85f5;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-raised: 0 16px 40px rgba(0, 0, 0, 0.55), 0 4px 10px rgba(0, 0, 0, 0.35);
   /* Light grey rather than pure white: the same text colours the dark theme had before, without the glare. */
   --key-on-text: var(--text);
   /* The chord symbols on the right are a whiter white than the other texts. */
@@ -94,9 +99,18 @@ body {
   margin: 0;
   padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   overflow: hidden;
-  font-family: system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", system-ui, Roboto, sans-serif;
   color: var(--text);
   background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Thin, quiet scroll bars in the panel and the song area. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
 }
 
 button {
@@ -104,12 +118,24 @@ button {
   min-width: var(--touch);
   padding: 0.4rem 0.9rem;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--surface);
   color: var(--text);
   font: inherit;
   cursor: pointer;
   touch-action: manipulation;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+/* A pressed button gives way a little under the finger. */
+button:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+/* Keyboard focus: a soft ring in the accent colour. */
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 button[aria-expanded="true"] {
@@ -177,12 +203,14 @@ button[aria-expanded="true"] {
   right: calc(1rem + env(safe-area-inset-right));
   bottom: calc(1rem + env(safe-area-inset-bottom));
   z-index: 10;
-  padding: 0.6rem 1.2rem;
+  padding: 0.7rem 1.5rem;
   border-color: var(--icon-blue);
+  border-radius: 999px;
   background: var(--icon-blue);
   color: var(--surface);
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  letter-spacing: 0.01em;
+  box-shadow: var(--shadow-raised);
 }
 
 .chips {
@@ -202,6 +230,7 @@ button[aria-expanded="true"] {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
+  box-shadow: var(--shadow);
 }
 
 .tag {
