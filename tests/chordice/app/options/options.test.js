@@ -80,7 +80,7 @@ test('a collapsed section shows only a muted summary of what is selected', () =>
     collapsed: ['keys', 'progressionVariations', 'variations', 'bass'],
   };
   const html = renderOptions(state, LIBRARY);
-  assert.ok(html.includes('<span class="section-summary">G (Em)</span>'));
+  assert.ok(html.includes('<span class="section-summary">G (E<span class="minor-sign">m</span>)</span>'));
   assert.ok(html.includes('<span class="section-summary"><span class="summary-label">Rotations</span>: <span class="summary-value">2</span><br><span class="summary-label">Permutations</span>: <span class="summary-value">2</span></span>'));
   assert.ok(html.includes('<span class="section-summary"><span class="summary-label">Amount</span>: <span class="summary-value">2</span></span>'));
   // The circle itself is not drawn while Keys is collapsed; only the circle of fifths button beside its heading is.
@@ -124,17 +124,17 @@ test('the progressions section wraps its groups in a list that scrolls on its ow
   assert.ok(list.includes('<fieldset class="group">'));
 });
 
-test('the keys section shows the key signature of the selected key under the circle', () => {
+test('the keys section shows the key signature of the selected key under the circle, as tones in lower case', () => {
   const state = { ...defaultState(LIBRARY, () => 0.5), key: 'Bb', collapsed: [] };
   const html = renderOptions(state, LIBRARY);
-  assert.ok(html.includes('<p class="key-signature"><span class="tag">B♭</span><span class="tag">E♭</span></p>'));
+  assert.ok(html.includes('<p class="key-signature"><span class="tag">b<span class="accidental">♭</span></span><span class="tag">e<span class="accidental">♭</span></span></p>'));
 });
 
 test('a key without accidentals says so, and a single sharp is singular', () => {
   const c = renderOptions({ ...defaultState(LIBRARY, () => 0.5), key: 'C', collapsed: [] }, LIBRARY);
   assert.ok(!c.includes('class="key-signature"'));
   const g = renderOptions({ ...defaultState(LIBRARY, () => 0.5), key: 'G', collapsed: [] }, LIBRARY);
-  assert.ok(g.includes('<p class="key-signature"><span class="tag">F♯</span></p>'));
+  assert.ok(g.includes('<p class="key-signature"><span class="tag">f<span class="accidental">♯</span></span></p>'));
 });
 
 test('the count button sits beside the Progressions heading, outside the toggle, so it is clickable when collapsed', () => {
@@ -184,7 +184,7 @@ test('with the circle of fifths switch on, the count button shows 12 and is grey
   const off = renderOptions({ ...state, circleOfFifths: false }, LIBRARY);
   assert.ok(/count-toggle"[^>]*>4<\/button>/.test(off));
   assert.ok(!/count-toggle"[^>]*disabled/.test(off));
-  assert.ok(off.includes('<span class="section-summary">C (Am)</span>'));
+  assert.ok(off.includes('<span class="section-summary">C (A<span class="minor-sign">m</span>)</span>'));
 });
 
 test('the Progressions heading carries the expanded state, so its arrow can sit after the count button', () => {
@@ -418,4 +418,11 @@ test('the summaries of collapsed sections show the values of the exercise', () =
   assert.ok(html.includes('<span class="section-summary"><span class="summary-label">Jazz</span>: Jazz Cadence</span>'));
   assert.ok(html.includes('<span class="summary-label">Rotations</span>: <span class="summary-value">0</span>'));
   assert.ok(html.includes('<span class="summary-label">Amount</span>: <span class="summary-value">5</span><br><span class="summary-label">Variations</span>: 7, maj7'));
+});
+
+test('the summary of the collapsed keys section raises the accidentals of the key and its relative minor', () => {
+  const html = renderOptions({ ...defaultState(LIBRARY, () => 0.5), key: 'Eb', collapsed: ['keys'] }, LIBRARY);
+  const flat = '<span class="accidental">♭</span>';
+  assert.ok(html.includes(`E${flat} (C<span class="minor-sign">m</span>)`));
+  assert.ok(!html.includes('Eb (Cm)'));
 });

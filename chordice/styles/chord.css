@@ -31,12 +31,36 @@
 }
 
 .chord .variation {
+  position: relative;
+  top: -0.5em;
+  font-size: 0.7em;
+  font-weight: 400;
+  line-height: 0;
+}
+
+/* The sus of a suspended chord stays on the line, a little smaller than the root like the minor sign; only the numbers
+   around it are raised (see variationHtml). */
+.chord .sus {
+  font-size: 0.8em;
   font-weight: 400;
 }
 
-/* The bass after the slash, e.g. /E in G/E, is not bold. */
+/* The variation is already raised, so an accidental in it (7♭9) stays on its line, in its size. */
+.chord .variation .accidental {
+  top: 0;
+  font-size: 1em;
+}
+
+/* The bass after the slash, e.g. /E in G/E, is not bold and, with its slash, a little smaller than the root, like the
+   minor sign. */
 .chord .bass {
+  font-size: 0.8em;
   font-weight: 400;
+}
+
+/* A little space before and after the slash of the bass. */
+.chord .slash {
+  margin: 0 0.1em;
 }
 
 /* Major chords use the stronger colour of their harmonic function, minor chords the paler one. */

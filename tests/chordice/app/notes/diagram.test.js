@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { buildChord } from '../../../../chordice/music/theory/chords.js';
 import { fingeringOf } from '../../../../chordice/music/instruments/guitar.js';
-import { captionOf, diagramOf } from '../../../../chordice/app/notes/diagram.js';
+import { captionHtml, captionOf, diagramOf } from '../../../../chordice/app/notes/diagram.js';
 
 // The chord database as the app loads it from the CDN, here from the copy installed with the dependencies.
 const DB = JSON.parse(readFileSync(new URL('../../../../node_modules/@tombatossals/chords-db/lib/guitar.json', import.meta.url), 'utf8'));
@@ -66,4 +66,12 @@ test('the caption names the shape and, for a stand-in, the chord it stands in fo
   const standIn = fingeringOf(chordOf('C', 'minor', '13'), DB);
   assert.equal(captionOf(standIn, 0), 'Cm13 is not in the chord database; showing Cm9. 1 / 4');
   assert.equal(captionOf(null), 'No shape for this chord in the chord database.');
+});
+
+test('captionHtml sets the accidentals and minor signs of the chord names and escapes the rest', () => {
+  const flat = '<span class="accidental">♭</span>';
+  const standIn = { name: 'Ebm9', requested: 'Ebm13', exact: false, shapes: [{}, {}] };
+  assert.equal(captionHtml(standIn, 1), `E${flat}<span class="minor-sign">m</span>13 is not in the chord database; showing E${flat}<span class="minor-sign">m</span>9. 2 / 2`);
+  assert.equal(captionHtml({ exact: true, shapes: [{}] }), '1 / 1');
+  assert.equal(captionHtml(null), 'No shape for this chord in the chord database.');
 });

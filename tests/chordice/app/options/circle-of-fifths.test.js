@@ -1,13 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { renderCircleSvg } from '../../../../chordice/app/options/circle-of-fifths.js';
+import { labelContent, renderCircleSvg, wedgePath } from '../../../../chordice/app/options/circle-of-fifths.js';
 
 test('renderCircleSvg returns an accessible svg group', () => {
   const svg = renderCircleSvg(null);
   assert.ok(svg.startsWith('<svg class="circle"'));
   assert.ok(svg.includes('role="group" aria-label="Circle of fifths"'));
   assert.ok(svg.endsWith('</svg>'));
-  assert.ok(svg.includes('<circle class="ring"'));
 });
 
 test('renderCircleSvg highlights the selected key', () => {
@@ -22,31 +21,54 @@ test('renderCircleSvg marks no key as selected when none is given', () => {
   assert.equal(svg.split('aria-pressed="false"').length - 1, 13);
 });
 
-test('renderCircleSvg has one button per major key, labelled with the relative minor', () => {
+test('renderCircleSvg has one wedge per major key, the major key outside and the relative minor inside', () => {
   const svg = renderCircleSvg(null);
   assert.equal(svg.split('data-action="set-key"').length - 1, 13);
-  assert.ok(svg.includes('>C</text>'));
-  assert.ok(svg.includes('>Am</text>'));
-  assert.ok(svg.includes('>F#</text>'));
-  assert.ok(svg.includes('>D#m</text>'));
-  assert.ok(svg.includes('>Gb</text>'));
-  assert.ok(svg.includes('>Ebm</text>'));
+  assert.equal(svg.split('<path class="major"').length - 1, 13);
+  assert.equal(svg.split('<path class="minor"').length - 1, 13);
+  assert.ok(svg.includes('font-size="15" text-anchor="middle">C</text>'));
+  assert.ok(svg.includes('text-anchor="middle">A<tspan class="minor-sign" font-size="8.4">m</tspan></text>'));
+  assert.ok(svg.includes('aria-label="F# / D#m"'));
+  assert.ok(svg.includes('aria-label="Gb / Ebm"'));
   assert.ok(!svg.includes('F#/Gb'));
   assert.ok(!svg.includes('data-key="Am"'));
 });
 
-test('renderCircleSvg stacks F# and Gb vertically in the same slot, each as its own button', () => {
+test('labelContent raises the accidental and writes it as a music sign', () => {
+  assert.equal(labelContent('C', 10), 'C');
+  assert.equal(labelContent('Am', 10), 'A<tspan class="minor-sign" font-size="8">m</tspan>');
+  assert.equal(labelContent('Ebm', 10),
+    'E<tspan class="accidental" font-size="6.8" dy="-3.8">♭</tspan><tspan class="minor-sign" font-size="8" dy="3.8">m</tspan>');
+  assert.equal(labelContent('Bb', 10), 'B<tspan class="accidental" font-size="6.8" dy="-3.8">♭</tspan>');
+  assert.equal(labelContent('F#m', 10),
+    'F<tspan class="accidental" font-size="6.8" dy="-3.8">♯</tspan><tspan class="minor-sign" font-size="8" dy="3.8">m</tspan>');
+});
+
+/** The centre of the major label of a key. */
+const labelCentre = (svg, key) => {
+  const group = svg.split(`data-key="${key}"`)[1];
+  const text = group.match(/<text class="major" x="([\d.]+)" y="([\d.]+)"/);
+  return { x: Number(text[1]), y: Number(text[2]) };
+};
+
+test('renderCircleSvg splits the enharmonic slot: F# on the side of B, Gb on the side of Db, each its own button', () => {
   const svg = renderCircleSvg(null);
-  const centre = (key) => {
-    const group = svg.split(`data-key="${key}"`)[1];
-    const circle = group.match(/<circle cx="([\d.]+)" cy="([\d.]+)"/);
-    return { x: Number(circle[1]), y: Number(circle[2]) };
-  };
-  const sharp = centre('F#');
-  const flat = centre('Gb');
-  assert.equal(sharp.x, flat.x);
-  assert.ok(flat.y > sharp.y);
-  assert.ok(flat.y - sharp.y >= 32);
+  const sharp = labelCentre(svg, 'F#');
+  const flat = labelCentre(svg, 'Gb');
+  assert.ok(sharp.x > 120 && flat.x < 120);
+  assert.equal(sharp.y, flat.y);
+  assert.ok(labelCentre(svg, 'B').x > sharp.x);
+  assert.ok(labelCentre(svg, 'Db').x < flat.x);
+  assert.ok(svg.includes('font-size="12.5" text-anchor="middle">F<tspan'));
+});
+
+test('renderCircleSvg places C at the top and goes clockwise in fifths', () => {
+  const svg = renderCircleSvg(null);
+  const c = labelCentre(svg, 'C');
+  assert.equal(c.x, 120);
+  assert.ok(c.y < 40);
+  assert.ok(labelCentre(svg, 'G').x > 120);
+  assert.ok(labelCentre(svg, 'F').x < 120);
 });
 
 test('renderCircleSvg highlights only the selected key, not its enharmonic twin', () => {
@@ -111,13 +133,34 @@ test('renderCircleSvg keeps the selected key blue rather than a neighbour colour
   assert.ok(keyGroup(svg, 'C').includes('is-subdominant'));
 });
 
-test('all key buttons on the circle have the same size, including the stacked F#/Gb pair, and fit inside the view', () => {
+/** The outer radius of a path, as the largest distance of its points from the centre. */
+const outerRadius = (d) => {
+  const numbers = d.replace(/A[\d.]+ [\d.]+ 0 0 [01]/g, '').match(/-?[\d.]+/g).map(Number);
+  let max = 0;
+  for (let i = 0; i < numbers.length; i += 2) {
+    max = Math.max(max, Math.hypot(numbers[i] - 120, numbers[i + 1] - 120));
+  }
+  return max;
+};
+
+test('the selected key sticks out of the ring, the other wedges end at the same radius, and all fit inside the view', () => {
   const svg = renderCircleSvg('C');
-  const keys = [...svg.matchAll(/<g class="key[^"]*"[^>]*><circle cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"/g)]
-    .map(([, cx, cy, r]) => ({ cy: Number(cy), r: Number(r) }));
-  assert.equal(keys.length, 13);
-  assert.deepEqual([...new Set(keys.map((key) => key.r))], [20]);
-  const height = Number(/viewBox="0 0 \d+ (\d+)"/.exec(svg)[1]);
-  assert.ok(Math.min(...keys.map((key) => key.cy - key.r)) >= 0);
-  assert.ok(Math.max(...keys.map((key) => key.cy + key.r)) <= height);
+  const majors = [...svg.matchAll(/<g class="key([^"]*)"[^>]*><path class="major" d="([^"]+)"/g)]
+    .map(([, state, d]) => ({ selected: state === ' is-on', radius: outerRadius(d) }));
+  assert.equal(majors.length, 13);
+  const others = [...new Set(majors.filter((key) => !key.selected).map((key) => Math.round(key.radius)))];
+  assert.equal(others.length, 1);
+  const lifted = majors.find((key) => key.selected).radius;
+  assert.ok(lifted > others[0]);
+  assert.ok(lifted <= 120);
+  assert.ok(/viewBox="0 0 240 240"/.test(svg));
+});
+
+test('wedgePath keeps a gap between neighbouring wedges', () => {
+  const left = wedgePath(80, 110, 0, 30);
+  const right = wedgePath(80, 110, 30, 60);
+  const xs = (d) => d.match(/-?[\d.]+/g).map(Number).filter((_, i) => i % 2 === 0);
+  assert.ok(left.startsWith('M') && left.endsWith('Z'));
+  assert.notEqual(left, right);
+  assert.ok(Math.max(...xs(left).filter((x) => x > 120)) < 120 + 110);
 });

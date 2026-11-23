@@ -13,6 +13,7 @@ import { EXERCISES } from '../state/exercises.js';
 import { PROBABILITY_MAX } from '../../music/constants.js';
 import { escapeHtml } from '../escape.js';
 import { renderCircleSvg } from './circle-of-fifths.js';
+import { nameHtml } from '../names.js';
 
 const SECTION_TITLES = {
   keys: 'Keys',
@@ -74,10 +75,11 @@ function progressionGroups(state, library) {
   }).join('');
 }
 
-/** The accidentals of a key, each in the same oval tag as the row tags, e.g. "F♯"; empty for C. */
+/** The accidentals of a key as tones, in lower case like the tones beside the chords, each in the same oval tag as the row
+ * tags, e.g. "f♯" with a raised sign; empty for C. */
 function keySignatureTags(major) {
   return keySignatureOf(major)
-    .map((accidental) => `<span class="tag">${escapeHtml(accidental.replace('#', '♯').replace('b', '♭'))}</span>`)
+    .map((accidental) => `<span class="tag">${nameHtml(accidental.toLowerCase())}</span>`)
     .join('');
 }
 
@@ -130,7 +132,7 @@ function sectionSummary(name, state, library) {
       if (shown.circleOfFifths) {
         return ['all'];
       }
-      return [escapeHtml(`${state.key} (${minorNameOf(state.key)})`)];
+      return [`${nameHtml(state.key)} (${nameHtml(minorNameOf(state.key))})`];
     case 'progressions':
       if (library.every((progression) => shown.selection.includes(progression.id))) {
         return ['all'];

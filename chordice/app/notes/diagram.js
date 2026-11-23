@@ -5,6 +5,8 @@
 
 import { SVGuitarChord } from 'svguitar';
 import { STANDARD_TUNING } from '../../music/instruments/guitar.js';
+import { nameHtml } from '../names.js';
+import { escapeHtml } from '../escape.js';
 
 /**
  * Replaces the content of the container with the diagram. svguitar sets a viewBox, so the diagram scales in proportion.
@@ -70,15 +72,23 @@ export function diagramOf(fingering, index = 0) {
   };
 }
 
-/** The line under the notes window: which shape is shown, and for a stand-in chord, which chord it stands in for. */
-export function captionOf(fingering, index = 0) {
+/**
+ * The line under the notes window: which shape is shown, and for a stand-in chord, which chord it stands in for.
+ * `name` and `text` turn the chord names and the rest into the output: plain text by default.
+ */
+export function captionOf(fingering, index = 0, { name = (value) => value, text = (value) => value } = {}) {
   if (!fingering) {
-    return 'No shape for this chord in the chord database.';
+    return text('No shape for this chord in the chord database.');
   }
   const count = fingering.shapes.length;
-  const shape = `${(index % count) + 1} / ${count}`;
+  const shape = text(`${(index % count) + 1} / ${count}`);
   if (fingering.exact) {
     return shape;
   }
-  return `${fingering.requested} is not in the chord database; showing ${fingering.name}. ${shape}`;
+  return `${name(fingering.requested)}${text(' is not in the chord database; showing ')}${name(fingering.name)}${text('. ')}${shape}`;
+}
+
+/** The caption as HTML, with the accidentals of the chord names raised (see names.js). */
+export function captionHtml(fingering, index = 0) {
+  return captionOf(fingering, index, { name: nameHtml, text: escapeHtml });
 }

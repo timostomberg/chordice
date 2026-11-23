@@ -109,3 +109,7 @@ test('a chord under the mouse is framed like the chord whose notes are open, onl
 test('hovering a chord does not change the instrument tabs', () => {
   assert.ok(!/body:has\(/.test(CSS));
 });
+
+test('the slash of the bass has a little space on both sides', () => {
+  assert.match(declarationsOf('.chord .slash'), /margin: 0 [\d.]+em/);
+});

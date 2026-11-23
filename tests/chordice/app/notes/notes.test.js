@@ -237,7 +237,7 @@ test('the chord box is the chord as the rows show it, with its top melody note w
   const { dialog, notes } = setup();
   notes.open(E_OVER_C, null, null, { colour: false, roman: false, tones: false, melody: true });
   const box = dialog.parts['#notes-chord'].innerHTML;
-  assert.ok(box.includes('<span class="bass">/E</span>'), 'the chord symbol with its bass is in the box');
+  assert.ok(box.includes('<span class="bass"><span class="slash">/</span>E</span>'), 'the chord symbol with its bass is in the box');
   assert.ok(box.includes('<span class="tone tone-top">c</span>'), 'the top melody note is in the box, circled');
   assert.ok(box.includes('>c</span>'), 'the top melody note of the first inversion is C');
   assert.ok(!box.includes('onclick') && !box.includes('data-action'), 'the box has no click action of its own');
@@ -306,16 +306,25 @@ test('each click on the diagram shows the next shape, and wraps back to the firs
 test('the caption under the guitar diagram names the shape, and changes with each click', () => {
   const { dialog, notes } = guitarSetup();
   notes.open(E_OVER_C, null, null, {}, { instrument: 'guitar', fingering: C_SHAPES });
-  assert.equal(dialog.parts['#notes-caption'].textContent, '1 / 2');
+  assert.equal(dialog.parts['#notes-caption'].innerHTML, '1 / 2');
   click(dialog, FORWARD);
-  assert.equal(dialog.parts['#notes-caption'].textContent, '2 / 2');
+  assert.equal(dialog.parts['#notes-caption'].innerHTML, '2 / 2');
 });
 
 test('a chord shown as a stand-in names the chord it stands in for in the caption', () => {
   const { dialog, notes } = guitarSetup();
   const standIn = { name: 'Cm9', requested: 'Cm13', exact: false, shapes: [OPEN_C] };
   notes.open({ ...E_OVER_C, displaySymbol: 'Cm13', tones: ['C', 'Eb', 'G'] }, null, null, {}, { instrument: 'guitar', fingering: standIn });
-  assert.equal(dialog.parts['#notes-caption'].textContent, 'Cm13 is not in the chord database; showing Cm9. 1 / 1');
+  assert.equal(dialog.parts['#notes-caption'].innerHTML, 'C<span class="minor-sign">m</span>13 is not in the chord database; showing C<span class="minor-sign">m</span>9. 1 / 1');
+});
+
+test('the caption raises the accidentals of the chord names, but not the b of a word', () => {
+  const { dialog, notes } = guitarSetup();
+  const standIn = { name: 'Bbm9', requested: 'Bbm13', exact: false, shapes: [OPEN_C] };
+  notes.open({ ...E_OVER_C, displaySymbol: 'Bbm13' }, null, null, {}, { instrument: 'guitar', fingering: standIn });
+  const flat = '<span class="accidental">♭</span>';
+  assert.equal(dialog.parts['#notes-caption'].innerHTML,
+    `B${flat}<span class="minor-sign">m</span>13 is not in the chord database; showing B${flat}<span class="minor-sign">m</span>9. 1 / 1`);
 });
 
 test('a chord without any shape in the database opens with a caption that says so, and no diagram', () => {
@@ -323,7 +332,7 @@ test('a chord without any shape in the database opens with a caption that says s
   notes.open(E_OVER_C, null, null, {}, { instrument: 'guitar', fingering: null });
   assert.equal(dialog.isOpen, true);
   assert.deepEqual(diagrams, []);
-  assert.equal(dialog.parts['#notes-caption'].textContent, 'No shape for this chord in the chord database.');
+  assert.equal(dialog.parts['#notes-caption'].innerHTML, 'No shape for this chord in the chord database.');
 });
 
 test('opening a chord for the piano draws the staff again, with its inversion numbered in the caption instead of the guitar shape', () => {
@@ -364,7 +373,7 @@ test('a click in the left half of the window shows the previous shape of the gui
   notes.open(E_OVER_C, null, null, {}, { instrument: 'guitar', fingering: C_SHAPES });
   click(dialog, BACK);
   assert.deepEqual(diagrams.map((diagram) => diagram.position), [1, 3]);
-  assert.equal(dialog.parts['#notes-caption'].textContent, '2 / 2');
+  assert.equal(dialog.parts['#notes-caption'].innerHTML, '2 / 2');
 });
 
 test('the staff box is marked for the guitar only while it shows a diagram, so the piano keeps its own size', () => {

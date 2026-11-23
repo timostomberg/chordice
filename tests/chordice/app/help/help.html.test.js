@@ -120,9 +120,24 @@ test('the help page follows the stored theme and defaults to dark, as the app do
   assert.ok(html.includes("theme === 'light'"));
 });
 
+/**
+ * The progression examples of the help page as [name, progression, genre, romans, chords], each cell as plain text, with the raised
+ * accidentals written as # and b again, as the library and tonal spell them.
+ */
+const exampleRows = () => [...help().matchAll(/<tr data-progression="([^"]+)">([\s\S]*?)<\/tr>/g)].map(([, name, cells]) => [
+  name,
+  ...[...cells.matchAll(/<td>([\s\S]*?)<\/td>/g)].map(([, cell]) => cell.replace(/<[^>]+>/g, '').replaceAll('♯', '#').replaceAll('♭', 'b')),
+]);
+
+test('the accidentals in the progression examples are raised signs, as in the app', () => {
+  const html = help();
+  assert.ok(html.includes('<td>I – <span class="accidental">♭</span>VII – IV</td>'));
+  assert.ok(html.includes('<td>C – B<span class="accidental">♭</span> – F</td>'));
+});
+
 test('every progression example on the help page is a progression of the library, with the same roman numerals', () => {
   const library = PROGRESSIONS_DATA;
-  const rows = [...help().matchAll(/<tr data-progression="([^"]+)"><td>[^<]*<\/td><td>[^<]*<\/td><td>([^<]*)<\/td>/g)];
+  const rows = exampleRows().map(([name, , , romans]) => [null, name, romans]);
   assert.ok(rows.length >= 5);
   for (const [, name, romans] of rows) {
     const group = Object.values(library).find((entry) => Object.hasOwn(entry.progressions ?? {}, name));
@@ -133,7 +148,7 @@ test('every progression example on the help page is a progression of the library
 
 test('the chord symbols in the progression examples are the chords of the key of C, as tonal spells them', async () => {
   const { Progression } = await import('tonal');
-  const rows = [...help().matchAll(/<tr data-progression="([^"]+)"><td>[^<]*<\/td><td>[^<]*<\/td><td>([^<]*)<\/td><td>([^<]*)<\/td>/g)];
+  const rows = exampleRows().map(([name, , , romans, chords]) => [null, name, romans, chords]);
   assert.ok(rows.length >= 5);
   for (const [, name, romans, chords] of rows) {
     const numerals = romans.split(' – ');

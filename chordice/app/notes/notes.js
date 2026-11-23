@@ -8,7 +8,7 @@
 import { inversionOrders, voicing } from '../../music/instruments/piano.js';
 import { renderScore } from './staff.js';
 import { chordBoxHtml } from '../chord.js';
-import { captionOf, diagramOf, renderFingering } from './diagram.js';
+import { captionHtml, diagramOf, renderFingering } from './diagram.js';
 import { toneKind } from '../../music/theory/tones.js';
 
 /** The class that frames the chord whose notes are open. */
@@ -48,7 +48,7 @@ export function createNotesDialog(dialog, drawStaff = renderScore, drawChord = c
     if (instrument === 'guitar') {
       // The chord box stays as the row shows it: a click changes the shape, not the inversion.
       chordBox.innerHTML = drawChord(chord, display, tonic);
-      caption.textContent = captionOf(fingering, index);
+      caption.innerHTML = captionHtml(fingering, index);
       const diagram = diagramOf(fingering, index);
       staff.textContent = '';
       if (diagram) {

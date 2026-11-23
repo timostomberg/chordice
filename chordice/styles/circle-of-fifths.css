@@ -1,4 +1,4 @@
-/* The circle of fifths in the Keys section. */
+/* The circle of fifths in the Keys section: a ring of wedges, the major key outside, its relative minor inside. */
 
 /* The circle reaches into the padding of its frame, so it is a little larger than the frame's content width. */
 .circle-wrap {
@@ -13,49 +13,67 @@
   margin: 0 auto;
 }
 
-.circle .ring {
-  fill: none;
-  stroke: var(--line);
+/* The wedges take the pointer, so they can be hovered; the gaps between them do not. */
+.circle .key path {
+  pointer-events: all;
+  transition: fill 0.15s ease;
 }
 
-/* Unselected keys have a blue outline and blue label. Their disc is the panel colour, so it has no visible background
-   of its own, but it hides the grey ring behind the key. The disc takes the pointer, so it can be hovered.
-   The outline is 1px on screen like the borders of the other buttons, however much the SVG is scaled. */
-.circle .key circle {
-  fill: var(--surface);
-  stroke: var(--icon-blue);
-  stroke-width: 1px;
-  vector-effect: non-scaling-stroke;
-  pointer-events: all;
+.circle .key path.major {
+  fill: var(--wedge-major);
+}
+
+.circle .key path.minor {
+  fill: var(--wedge-minor);
 }
 
 .circle .key text {
-  fill: var(--icon-blue);
+  fill: var(--muted);
   pointer-events: none;
 }
 
 .circle .key text.major {
-  font-size: 13px;
-  font-weight: 400;
+  font-weight: 700;
 }
 
-/* The relative minor sits a little further below the major key. */
 .circle .key text.relative {
-  font-size: 9px;
+  font-weight: 500;
 }
 
-/* Subdominant (left) and dominant (right) of the selected key take the colours of the major chords of that function. */
-.circle .key.is-subdominant circle {
+/* The raised accidental ("F♯m") is a sign, not a letter, so it is drawn lighter than the key letter. */
+.circle .key .accidental {
+  font-weight: 500;
+}
+
+/* The minor sign ("Am") is smaller than the root (see labelContent) and as light as the accidental. */
+.circle .key .minor-sign {
+  font-weight: 500;
+}
+
+/* The selected key is the tonic; it and its subdominant (left) and dominant (right) take the colours of the chords of
+   that function, the major chord outside and the minor chord inside. */
+.circle .key.is-on path.major {
+  fill: var(--tonic-major);
+}
+
+.circle .key.is-on path.minor {
+  fill: var(--tonic-minor);
+}
+
+.circle .key.is-subdominant path.major {
   fill: var(--subdominant-major);
 }
 
-.circle .key.is-dominant circle {
+.circle .key.is-subdominant path.minor {
+  fill: var(--subdominant-minor);
+}
+
+.circle .key.is-dominant path.major {
   fill: var(--dominant-major);
 }
 
-/* The selected key is the tonic, so it takes the tonic colour of the chords in both themes. */
-.circle .key.is-on circle {
-  fill: var(--tonic-major);
+.circle .key.is-dominant path.minor {
+  fill: var(--dominant-minor);
 }
 
 .circle .key.is-on text,
@@ -66,6 +84,14 @@
 
 .circle .key {
   cursor: pointer;
+  outline: none;
+}
+
+/* The keyboard focus shows as an outline around the wedge, in the accent colour. */
+.circle .key:focus-visible path {
+  stroke: var(--accent);
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
 }
 
 /* With the circle of fifths switch on, every key is used, so the keys are greyed out and cannot be clicked. */
@@ -75,7 +101,7 @@
 
 /* Disabled keys take no pointer events, so a click or tap neither focuses them (no frame) nor highlights them. */
 .circle.is-disabled .key,
-.circle.is-disabled .key circle {
+.circle.is-disabled .key path {
   cursor: default;
   pointer-events: none;
   outline: none;
@@ -84,13 +110,38 @@
 
 /* Under the mouse. */
 @media (hover: hover) {
-  /* The keys of the circle of fifths: an unselected key turns medium blue. The selected and harmonic keys keep their colour. */
-  .circle .key:not(.is-on, .is-subdominant, .is-dominant):hover circle {
+  /* An unselected key turns medium blue. The selected and harmonic keys keep their colour. */
+  .circle .key:not(.is-on, .is-subdominant, .is-dominant):hover path {
     fill: var(--hover-fill);
   }
 
-  /* Disabled keys do not react to the mouse. */
-  .circle.is-disabled .key:hover circle {
-    fill: var(--surface);
+  .circle .key:not(.is-on, .is-subdominant, .is-dominant):hover text {
+    fill: var(--key-on-text);
+  }
+
+  /* The selected key and its subdominant and dominant react too: their colour turns stronger, towards the text colour, so
+     it darkens in the light theme and lightens in the dark theme. */
+  .circle .key.is-on:hover path.major {
+    fill: color-mix(in srgb, var(--tonic-major) 78%, var(--text));
+  }
+
+  .circle .key.is-on:hover path.minor {
+    fill: color-mix(in srgb, var(--tonic-minor) 78%, var(--text));
+  }
+
+  .circle .key.is-subdominant:hover path.major {
+    fill: color-mix(in srgb, var(--subdominant-major) 78%, var(--text));
+  }
+
+  .circle .key.is-subdominant:hover path.minor {
+    fill: color-mix(in srgb, var(--subdominant-minor) 78%, var(--text));
+  }
+
+  .circle .key.is-dominant:hover path.major {
+    fill: color-mix(in srgb, var(--dominant-major) 78%, var(--text));
+  }
+
+  .circle .key.is-dominant:hover path.minor {
+    fill: color-mix(in srgb, var(--dominant-minor) 78%, var(--text));
   }
 }

@@ -21,6 +21,10 @@ const MELODY = { ...PLAIN, melody: true };
 
 /** A tone below a chord, as renderSong writes it; kind is '' or the class of a circled tone. */
 const tone = (name, kind = '') => `<span class="tone${kind}">${name}</span>`;
+/** A raised flat and sharp, as accidentals.js sets them in tones and chord symbols. */
+const FLAT = '<span class="accidental">♭</span>';
+const SHARP = '<span class="accidental">♯</span>';
+const MINOR = '<span class="minor-sign">m</span>';
 /** The top tone of a chord's column, which is circled; kind is the kind classes of the tone, as for tone(). */
 const top = (name, kind = '') => tone(name, ` tone-top${kind}`);
 /**
@@ -33,8 +37,8 @@ const tones = (upper, bass = null) =>
 test('renderSong names each row after its progression', () => {
   const html = renderSong(ROWS, PLAIN);
   assert.ok(html.includes('<h2><span class="row-title">Pop Progression'));
-  assert.ok(html.includes('<li class="chord" role="button" tabindex="0" data-action="show-notes" data-row="0" data-chord="0">C/E</li>'));
-  assert.ok(html.includes('<li class="chord" role="button" tabindex="0" data-action="show-notes" data-row="0" data-chord="1">G7</li>'));
+  assert.ok(html.includes('<li class="chord" role="button" tabindex="0" data-action="show-notes" data-row="0" data-chord="0">C<span class="bass"><span class="slash">/</span>E</span></li>'));
+  assert.ok(html.includes('<li class="chord" role="button" tabindex="0" data-action="show-notes" data-row="0" data-chord="1">G<span class="variation">7</span></li>'));
 });
 
 test('renderSong shows the chord tones in the order of the inversion, lowest first, and the bass below them', () => {
@@ -54,7 +58,7 @@ test('renderSong with the melody switch alone shows the top melody note alone be
   const html = renderSong([{ ...ROWS[0], chords: [first, { ...second, inversion: 2 }] }], MELODY);
   // Root position C/E: the highest chord tone G. G7 in its second inversion (D F G B) has B on top.
   assert.ok(html.includes(
-    '<span class="chord-main"><span class="symbol"><span class="chord-name">C</span><span class="bass">/E</span></span></span>' +
+    '<span class="chord-main"><span class="symbol"><span class="chord-name">C</span><span class="bass"><span class="slash">/</span>E</span></span></span>' +
     '<span class="tones"><span class="tone tone-top">g</span></span></li>',
   ));
   assert.ok(html.includes(
@@ -70,17 +74,17 @@ test('renderSong with the tones shown hides the melody note, circles the top ton
   assert.ok(!html.includes('symbol-row'));
   assert.ok(html.includes(
     '<li class="chord fn-tonic is-major has-tones" role="button" tabindex="0" data-action="show-notes" data-row="0" data-chord="0">' +
-    '<span class="chord-main"><span class="roman">I</span><span class="symbol"><span class="chord-name">C</span><span class="bass">/E</span></span></span>' +
+    '<span class="chord-main"><span class="roman">I</span><span class="symbol"><span class="chord-name">C</span><span class="bass"><span class="slash">/</span>E</span></span></span>' +
     tones([tone('e'), tone('g'), top('c')], tone('e')) + '</li>',
   ));
 });
 
-test('renderSong keeps accidentals of the melody note, in lower case', () => {
-  // Ab7 in its third inversion is Gb Ab C Eb: the top note is Eb, shown as eb.
+test('renderSong keeps accidentals of the melody note, in lower case with a raised sign', () => {
+  // Ab7 in its third inversion is Gb Ab C Eb: the top note is Eb, shown as e♭.
   const flat = { ...ROWS[0].chords[1], symbol: 'Ab7', displaySymbol: 'Ab7', tones: ['Ab', 'C', 'Eb', 'Gb'], inversion: 3 };
   const html = renderSong([{ ...ROWS[0], chords: [flat] }], { ...PLAIN, melody: true });
   // Eb is foreign to C, but the melody note standing alone is not coloured.
-  assert.ok(html.includes('<span class="tone tone-top">eb</span>'));
+  assert.ok(html.includes(`<span class="tone tone-top">e${FLAT}</span>`));
   assert.ok(!html.includes('tone-foreign'));
 });
 
@@ -94,22 +98,22 @@ test('renderSong without the melody switch shows no melody note in either view',
 test('renderSong in extended view shows the roman numeral above the chord symbol, then the tones in lower case', () => {
   const html = renderSong(ROWS, EXTENDED);
   assert.ok(html.includes('chord fn-tonic is-major'));
-  assert.ok(html.includes('<span class="chord-main"><span class="roman">I</span><span class="symbol"><span class="chord-name">C</span><span class="bass">/E</span></span></span>' + tones([tone('c'), tone('e'), tone('g')], tone('e')) + ''));
+  assert.ok(html.includes('<span class="chord-main"><span class="roman">I</span><span class="symbol"><span class="chord-name">C</span><span class="bass"><span class="slash">/</span>E</span></span></span>' + tones([tone('c'), tone('e'), tone('g')], tone('e')) + ''));
   assert.ok(html.includes('<span class="chord-main"><span class="roman">V</span><span class="symbol"><span class="chord-name">G</span><span class="variation">7</span></span></span>' + tones([tone('g'), tone('h'), tone('d'), tone('f', ' tone-variation')], tone('g')) + ''));
 });
 
 test('renderSong in extended view wraps only the chord name in its own span, the variation follows it unbolded', () => {
   const minor = { ...ROWS[0], chords: [{ ...ROWS[0].chords[0], symbol: 'F#m7', variation: '7', quality: 'minor', roman: 'vi', bass: null }] };
   const html = renderSong([minor], EXTENDED);
-  assert.ok(html.includes('<span class="symbol"><span class="chord-name">F#m</span><span class="variation">7</span></span>'));
+  assert.ok(html.includes(`<span class="symbol"><span class="chord-name">F${SHARP}${MINOR}</span><span class="variation">7</span></span>`));
 });
 
 test('renderSong in extended view shows the bass after the variation, e.g. G7/B, and no bass when there is none', () => {
   const withBass = { ...ROWS[0], chords: [{ ...ROWS[0].chords[0], symbol: 'G7', variation: '7', bass: 'B', roman: 'V' }] };
   const html = renderSong([withBass], EXTENDED);
-  assert.ok(html.includes('<span class="symbol"><span class="chord-name">G</span><span class="variation">7</span><span class="bass">/B</span></span>'));
+  assert.ok(html.includes('<span class="symbol"><span class="chord-name">G</span><span class="variation">7</span><span class="bass"><span class="slash">/</span>B</span></span>'));
   const withoutBass = renderSong(ROWS, EXTENDED);
-  assert.ok(!withoutBass.includes('<span class="bass">/G</span>'));
+  assert.ok(!withoutBass.includes('<span class="bass"><span class="slash">/</span>G</span>'));
 });
 
 test('renderSong marks minor chords so that they get the paler colour', () => {
@@ -152,7 +156,7 @@ test('renderSong separates the progression name from its category with a middle 
 
 test('the colour switch alone colours the chords by harmonic function and keeps the plain symbols', () => {
   const html = renderSong(ROWS, { colour: true, roman: false, tones: false });
-  assert.ok(html.includes('<li class="chord fn-tonic is-major" role="button" tabindex="0" data-action="show-notes" data-row="0" data-chord="0">C/E</li>'));
+  assert.ok(html.includes('<li class="chord fn-tonic is-major" role="button" tabindex="0" data-action="show-notes" data-row="0" data-chord="0">C<span class="bass"><span class="slash">/</span>E</span></li>'));
   assert.ok(!html.includes('class="roman"'));
   assert.ok(!html.includes('class="tones"'));
 });
@@ -173,11 +177,11 @@ test('the roman switch alone adds the roman numeral and no tones, the tones swit
   assert.ok(!tonesOnly.includes('class="roman"'));
   assert.ok(tonesOnly.includes(tones([tone('c'), tone('e'), tone('g')], tone('e'))));
   // The symbol is split into name and bass with either switch on, and kept whole with both off.
-  assert.ok(tonesOnly.includes('<span class="chord-name">C</span><span class="bass">/E</span>'));
-  assert.ok(renderSong(ROWS, PLAIN).includes('<li class="chord" role="button" tabindex="0" data-action="show-notes" data-row="0" data-chord="0">C/E</li>'));
+  assert.ok(tonesOnly.includes('<span class="chord-name">C</span><span class="bass"><span class="slash">/</span>E</span>'));
+  assert.ok(renderSong(ROWS, PLAIN).includes('<li class="chord" role="button" tabindex="0" data-action="show-notes" data-row="0" data-chord="0">C<span class="bass"><span class="slash">/</span>E</span></li>'));
 });
 
-test('a natural B is written h in the tones and in the melody note, but B flat stays bb, and chord symbols keep their names', () => {
+test('a natural B is written h in the tones and in the melody note, but B flat stays b♭, and chord symbols keep their names', () => {
   const cmaj7 = { roman: 'I', function: 'tonic', root: 'C', quality: 'major', symbol: 'Cmaj7', displaySymbol: 'Cmaj7', tones: ['C', 'E', 'G', 'B'], inversion: 0, bass: null, variation: 'maj7' };
   const html = renderSong([{ ...ROWS[0], chords: [cmaj7] }], { colour: false, roman: true, tones: true, melody: true });
   assert.ok(!html.includes('Top melody note'));
@@ -186,9 +190,9 @@ test('a natural B is written h in the tones and in the melody note, but B flat s
 
   const bflat = { roman: 'IV', function: 'subdominant', root: 'Bb', quality: 'major', symbol: 'Bb', displaySymbol: 'Bb', tones: ['Bb', 'D', 'F'], inversion: 0, bass: null, variation: null };
   const flatHtml = renderSong([{ ...ROWS[0], tonic: 'Bb', chords: [bflat] }], { colour: false, roman: true, tones: true, melody: true });
-  assert.ok(flatHtml.includes('<span class="chord-name">Bb</span>'));
+  assert.ok(flatHtml.includes(`<span class="chord-name">B${FLAT}</span>`));
   assert.ok(!flatHtml.includes('Top melody note'));
-  assert.ok(flatHtml.includes(tones([tone('bb'), tone('d'), top('f')], tone('bb'))));
+  assert.ok(flatHtml.includes(tones([tone(`b${FLAT}`), tone('d'), top('f')], tone(`b${FLAT}`))));
 });
 
 test('with the tones shown and the melody switch off, the top tone is not circled, while red and blue tones still are', () => {
@@ -196,7 +200,7 @@ test('with the tones shown and the melody switch off, the top tone is not circle
   assert.ok(!html.includes('tone-top'));
   assert.ok(html.includes(tones([tone('e'), tone('g'), tone('c')], tone('e'))));
   const bflat = { roman: 'bVI', function: 'subdominant', root: 'Ab', quality: 'major', symbol: 'Ab', displaySymbol: 'Ab', tones: ['Ab', 'C', 'Eb'], inversion: 0, bass: null, variation: null };
-  assert.ok(renderSong([{ ...ROWS[0], tonic: 'C', chords: [bflat] }], EXTENDED).includes(tones([tone('ab', ' tone-foreign'), tone('c'), tone('eb', ' tone-foreign')], tone('ab', ' tone-foreign'))));
+  assert.ok(renderSong([{ ...ROWS[0], tonic: 'C', chords: [bflat] }], EXTENDED).includes(tones([tone(`a${FLAT}`, ' tone-foreign'), tone('c'), tone(`e${FLAT}`, ' tone-foreign')], tone(`a${FLAT}`, ' tone-foreign'))));
 });
 
 test('a tone the chord variation adds is circled in blue, and the chord tones of the base triad are not', () => {
@@ -208,7 +212,7 @@ test('a tone foreign to the key is circled in red, judged by the key of the row'
   const bflat = { roman: 'bVI', function: 'subdominant', root: 'Ab', quality: 'major', symbol: 'Ab', displaySymbol: 'Ab', tones: ['Ab', 'C', 'Eb'], inversion: 0, bass: null, variation: null };
   // Ab and Eb are foreign to C, so they are red; C is in the key.
   const inC = renderSong([{ ...ROWS[0], tonic: 'C', chords: [bflat] }], EXTENDED);
-  assert.ok(inC.includes(tones([tone('ab', ' tone-foreign'), tone('c'), tone('eb', ' tone-foreign')], tone('ab', ' tone-foreign'))));
+  assert.ok(inC.includes(tones([tone(`a${FLAT}`, ' tone-foreign'), tone('c'), tone(`e${FLAT}`, ' tone-foreign')], tone(`a${FLAT}`, ' tone-foreign'))));
   // In the key of Ab the same chord has no foreign tone.
   const inAb = renderSong([{ ...ROWS[0], tonic: 'Ab', chords: [bflat] }], EXTENDED);
   assert.ok(!inAb.includes('tone-foreign'));
@@ -218,14 +222,14 @@ test('a foreign tone that the variation adds is red, not blue', () => {
   // Bb7 in C: the Ab is the seventh, added by the variation and foreign to C; red takes precedence.
   const bb7 = { roman: 'V', function: 'dominant', root: 'Bb', quality: 'major', symbol: 'Bb7', displaySymbol: 'Bb7', tones: ['Bb', 'D', 'F', 'Ab'], inversion: 0, bass: null, variation: '7' };
   const html = renderSong([{ ...ROWS[0], tonic: 'C', chords: [bb7] }], EXTENDED);
-  assert.ok(html.includes(tone('ab', ' tone-foreign')));
-  assert.ok(!html.includes(tone('ab', ' tone-variation')));
+  assert.ok(html.includes(tone(`a${FLAT}`, ' tone-foreign')));
+  assert.ok(!html.includes(tone(`a${FLAT}`, ' tone-variation')));
 });
 
 test('the slash bass is shown below the tones after a line, and stays in the symbol too', () => {
   const g7OverF = { roman: 'V', function: 'dominant', root: 'G', quality: 'major', symbol: 'G7', displaySymbol: 'G7/F', tones: ['G', 'B', 'D', 'F'], inversion: 0, bass: 'F', variation: '7' };
   const html = renderSong([{ ...ROWS[0], tonic: 'C', chords: [g7OverF] }], EXTENDED);
-  assert.ok(html.includes('<span class="bass">/F</span>'));
+  assert.ok(html.includes('<span class="bass"><span class="slash">/</span>F</span>'));
   assert.ok(html.includes(tones([tone('g'), tone('h'), tone('d'), tone('f', ' tone-variation')], tone('f', ' tone-variation'))));
   assert.ok(!html.includes('|'));
 });
@@ -233,7 +237,7 @@ test('the slash bass is shown below the tones after a line, and stays in the sym
 test('a foreign chord tone over a slash bass is red in the tones column', () => {
   const c7OverBb = { roman: 'I', function: 'tonic', root: 'C', quality: 'major', symbol: 'C7', displaySymbol: 'C7/Bb', tones: ['C', 'E', 'G', 'Bb'], inversion: 0, bass: 'Bb', variation: '7' };
   const html = renderSong([{ ...ROWS[0], tonic: 'C', chords: [c7OverBb] }], EXTENDED);
-  assert.ok(html.includes(tone('bb', ' tone-foreign')));
+  assert.ok(html.includes(tone(`b${FLAT}`, ' tone-foreign')));
 });
 
 test('the tones column lists the chord tones, then the bass after a line, without other separators', () => {
@@ -245,7 +249,12 @@ test('the tones column lists the chord tones, then the bass after a line, withou
 test('renderSong starts each row with its key and relative minor, in the font of the name and set off by a middle dot, only when showKey is on', () => {
   const rows = [{ ...ROWS[0], tonic: 'F' }];
   assert.ok(renderSong(rows, PLAIN, { showKey: true })
-    .includes('<span class="row-title">F (Dm) · Pop Progression <span class="meta">· Pop</span></span>'));
+    .includes('<span class="row-title">F (D<span class="minor-sign">m</span>) · Pop Progression <span class="meta">· Pop</span></span>'));
   assert.ok(!renderSong(rows, PLAIN).includes('F (Dm)'));
   assert.ok(!renderSong(rows, PLAIN, { showKey: false }).includes('F (Dm)'));
+});
+
+test('renderSong raises the accidentals of the key at the start of a row', () => {
+  const html = renderSong([{ ...ROWS[0], tonic: 'F#' }], PLAIN, { showKey: true });
+  assert.ok(html.includes(`<span class="row-title">F${SHARP} (D${SHARP}${MINOR}) · `));
 });

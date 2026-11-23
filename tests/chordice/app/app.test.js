@@ -575,13 +575,13 @@ test('app.js shows 12 rows, one per key with its key in the heading, while the c
     app.dispatch({ action: 'toggle-circle-of-fifths' });
     const html = app.elements['#song-rows'].innerHTML;
     assert.equal(rowCount(html), 12);
-    assert.ok(html.includes('<span class="row-title">C (Am) · '));
-    assert.ok(html.includes('<span class="row-title">F (Dm) · '));
-    assert.ok(html.indexOf('C (Am)') < html.indexOf('F (Dm)'));
+    assert.ok(html.includes('<span class="row-title">C (A<span class="minor-sign">m</span>) · '));
+    assert.ok(html.includes('<span class="row-title">F (D<span class="minor-sign">m</span>) · '));
+    assert.ok(html.indexOf('C (A<span') < html.indexOf('F (D<span'));
     assert.match(app.elements['#option-list'].innerHTML, /class="chip count-toggle"[^>]*disabled>12<\/button>/);
     app.dispatch({ action: 'toggle-circle-of-fifths' });
     assert.equal(rowCount(app.elements['#song-rows'].innerHTML), 2, 'the stored count comes back');
-    assert.ok(!app.elements['#song-rows'].innerHTML.includes('C (Am)'));
+    assert.ok(!app.elements['#song-rows'].innerHTML.includes('C (A<span'));
   } finally {
     uninstall();
   }

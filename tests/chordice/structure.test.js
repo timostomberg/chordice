@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 // - app/ is the whole logic and markup of the web page. state/ holds the page's state (the options, the switches, the
 //   cookie, which options are available) as pure functions; each window (the header, the options on the left, the song
 //   on the right, the notes dialog, the help page) turns it into HTML and SVG and handles the window's elements, each
-//   standing on its own and sharing only escape.js and chord.js; app.js loads the data and wires the events to the
+//   standing on its own and sharing only escape.js, names.js and chord.js; app.js loads the data and wires the events to the
 //   state and the windows; main.js starts it. A part of one file is a file directly in app/ (e.g. header.js); only a
 //   part of several files that belong together has a folder of its own (e.g. options/, notes/, help/).
 // - styles/ is the look of the page: every stylesheet and nothing else, side by side without folders. main.css is the base
@@ -22,7 +22,7 @@ const MUSIC_FOLDERS = ['theory', 'data', 'generator', 'instruments'];
 // The windows of the app: a window of one file is that file in app/, a window of several files a folder.
 const WINDOWS = { header: 'header.js', options: 'options', song: 'song', notes: 'notes', help: 'help' };
 // The files that several windows share: the escaping, and the chord box that the rows and the notes window both show.
-const SHARED = ['app/escape.js', 'app/chord.js'];
+const SHARED = ['app/escape.js', 'app/names.js', 'app/chord.js'];
 const APP_ENTRIES = ['app.js', 'main.js', 'state', ...Object.values(WINDOWS), ...SHARED.map((path) => path.slice('app/'.length))];
 
 function sourceFiles(dir = JS) {

@@ -4,6 +4,7 @@
  */
 
 import { escapeHtml } from '../escape.js';
+import { nameHtml } from '../names.js';
 import { chordAttributes, chordCell } from '../chord.js';
 import { minorNameOf } from '../../music/theory/keys.js';
 
@@ -28,7 +29,7 @@ function activeTags(row) {
 export function renderSong(rows, display, { showKey = false } = {}) {
   return rows.map((row, rowIndex) => {
     const tags = activeTags(row);
-    const key = showKey ? `${escapeHtml(`${row.tonic} (${minorNameOf(row.tonic)})`)} · ` : '';
+    const key = showKey ? `${nameHtml(row.tonic)} (${nameHtml(minorNameOf(row.tonic))}) · ` : '';
     return `<section class="row">` +
       `<h2><span class="row-title">${key}${escapeHtml(row.name)} <span class="meta">· ${escapeHtml(row.group)}</span></span>` +
       (tags ? `<span class="tags">${tags}</span>` : '') + '</h2>' +

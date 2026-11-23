@@ -36,6 +36,10 @@
   --disabled-text: #7d848e;
   /* A button or key under the mouse: a medium blue. */
   --hover-fill: color-mix(in srgb, var(--icon-blue) 45%, var(--surface));
+  /* The wedges of the keys on the circle of fifths that have no harmonic role: a quiet tint of the panel, the minor band
+     (inside) a little lighter than the major band (outside). */
+  --wedge-major: color-mix(in srgb, var(--text) 8%, var(--surface));
+  --wedge-minor: color-mix(in srgb, var(--text) 4%, var(--surface));
 }
 
 /* Tones below a chord: blue when the chord variation adds them, red when they are foreign to the key. The staff of the
@@ -80,6 +84,8 @@
   /* A button or key under the mouse: a medium blue. */
   --disabled-text: #7d848e;
   --hover-fill: color-mix(in srgb, var(--icon-blue) 45%, var(--surface));
+  --wedge-major: color-mix(in srgb, var(--text) 8%, var(--surface));
+  --wedge-minor: color-mix(in srgb, var(--text) 4%, var(--surface));
 }
 
 * {
@@ -231,6 +237,20 @@ button[aria-expanded="true"] {
   border-color: var(--accent);
   color: #fff;
   box-shadow: var(--shadow);
+}
+
+/* An accidental in a musical name (key, chord, tone, roman numeral), e.g. the ♯ in F♯m: raised and a little smaller than the
+   letters, as on the circle of fifths. It is moved with position, so the line keeps its height. */
+span.accidental {
+  position: relative;
+  top: -0.5em;
+  font-size: 0.7em;
+  line-height: 0;
+}
+
+/* The minor sign after the root of a chord or key, e.g. the m in Am: a little smaller than the root. */
+span.minor-sign {
+  font-size: 0.8em;
 }
 
 .tag {

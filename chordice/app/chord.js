@@ -6,7 +6,7 @@
 import { bassOf } from '../music/theory/bass.js';
 import { toneKind } from '../music/theory/tones.js';
 import { invertedTones } from '../music/theory/melody.js';
-import { escapeHtml } from './escape.js';
+import { nameHtml } from './names.js';
 
 /** Attributes that make a chord open its notes window when clicked. */
 export function chordAttributes(rowIndex, chordIndex) {
@@ -28,7 +28,7 @@ function toneHtml(tone, chord, tonic, { top = false, judged = true } = {}) {
   // Without a key the tones are not judged, so they are not coloured.
   const kind = tonic === null || !judged ? '' : toneKind(tone, chord, tonic);
   const classes = [top ? 'tone-top' : '', kind ? `tone-${kind}` : ''].filter(Boolean).map((name) => ` ${name}`).join('');
-  return `<span class="tone${classes}">${escapeHtml(noteName(tone))}</span>`;
+  return `<span class="tone${classes}">${nameHtml(noteName(tone))}</span>`;
 }
 
 /**
@@ -54,15 +54,32 @@ function tonesHtml(chord, tonic, { all, melody }) {
 }
 
 /**
- * The chord symbol split into the chord name (root and minor sign, e.g. "C" or "Cm"), the variation after it (e.g. "7")
- * and the bass after a slash (e.g. "/E" for G/E). Only the name is bold.
+ * The variation of a chord, raised like an accidental. The "sus" of a suspended chord stays on the line and only its
+ * numbers are raised: 7sus4 gives a raised 7, sus on the line and a raised 4.
  */
-function symbolHtml(chord) {
+function variationHtml(variation) {
+  return variation.split(/(sus)/).filter(Boolean).map((part) => (part === 'sus'
+    ? '<span class="sus">sus</span>'
+    : `<span class="variation">${nameHtml(part)}</span>`)).join('');
+}
+
+/**
+ * The chord symbol split into the chord name (root and minor sign, e.g. "C" or "Cm"), the variation after it (e.g. "7"),
+ * raised like an accidental, and the bass after a slash (e.g. "/E" for G/E). Split (`plain` off), the name is bold and the
+ * symbol is a block of its own; plain, the parts follow each other as text, and only the variation and the bass have spans.
+ */
+function symbolHtml(chord, { plain = false } = {}) {
+  // A chord given only by its display symbol (see notes.js) is shown as that, as text.
+  if (plain && chord.symbol === undefined) {
+    return nameHtml(chord.displaySymbol);
+  }
   const variation = chord.variation && chord.symbol.endsWith(chord.variation) ? chord.variation : '';
   const name = chord.symbol.slice(0, chord.symbol.length - variation.length);
-  return `<span class="symbol"><span class="chord-name">${escapeHtml(name)}</span>` +
-    (variation ? `<span class="variation">${escapeHtml(variation)}</span>` : '') +
-    (chord.bass ? `<span class="bass">/${escapeHtml(chord.bass)}</span>` : '') + '</span>';
+  const bass = chord.bass ? `<span class="bass"><span class="slash">/</span>${nameHtml(chord.bass)}</span>` : '';
+  if (plain) {
+    return nameHtml(name) + variationHtml(variation) + bass;
+  }
+  return `<span class="symbol"><span class="chord-name">${nameHtml(name)}</span>` + variationHtml(variation) + bass + '</span>';
 }
 
 /**
@@ -82,8 +99,8 @@ export function chordCell(chord, attributes, { colour, roman, tones, melody }, t
     classes.push('has-tones');
   }
   // Without roman numerals and a column the symbol is plain text; otherwise it is split into name, variation and bass.
-  const symbol = !roman && !column ? escapeHtml(chord.displaySymbol) : symbolHtml(chord);
-  const numeral = roman ? `<span class="roman">${escapeHtml(chord.roman)}</span>` : '';
+  const symbol = symbolHtml(chord, { plain: !roman && !column });
+  const numeral = roman ? `<span class="roman">${nameHtml(chord.roman)}</span>` : '';
   // With a column, the numeral and the symbol are wrapped together, so that their distance stays fixed whatever the height
   // of the column beside them is.
   if (column) {
