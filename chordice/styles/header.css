@@ -1,0 +1,144 @@
+/* The header bar: the options, exercises and help buttons, the instrument tabs, the view switches and the dark mode switch. */
+
+.toolbar {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  /* The top inset keeps the toolbar below the status bar (clock, signal) on iPhones. */
+  padding: calc(0.5rem + env(safe-area-inset-top)) 1rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.toolbar h1 {
+  margin: 0 1rem;
+  font-size: 1.25rem;
+  color: var(--muted);
+}
+
+.view-toggles {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.options-toggle,
+.exercises-toggle,
+.help-toggle,
+.roman-toggle,
+.tones-toggle,
+.colour-toggle,
+.theme-toggle {
+  color: var(--text);
+}
+
+/* A gap separates the colour button from the music switches (progressions, roman numerals, tones, melody). */
+.view-toggles .colour-toggle {
+  margin-left: 0.6rem;
+}
+
+/* The spiral dots are filled in the icon colour. */
+.colour-toggle svg circle {
+  fill: currentColor;
+}
+
+/* The toolbar icons share one blue in both themes, for symbol and outline. */
+.toolbar .options-toggle,
+.toolbar .exercises-toggle,
+.toolbar .help-toggle,
+.toolbar .roman-toggle,
+.toolbar .tones-toggle,
+.toolbar .colour-toggle,
+.toolbar .theme-toggle,
+.toolbar .instrument-tab {
+  border-color: var(--icon-blue);
+  color: var(--icon-blue);
+}
+
+/* An active options, exercises, help, roman, tones or colour toggle is filled with the icon blue, and its symbol takes the
+   background colour. */
+.toolbar .options-toggle[aria-expanded="true"],
+.toolbar .exercises-toggle[aria-expanded="true"],
+.toolbar .help-toggle[aria-expanded="true"],
+.toolbar .roman-toggle[aria-pressed="true"],
+.toolbar .tones-toggle[aria-pressed="true"],
+.toolbar .colour-toggle[aria-pressed="true"],
+.toolbar .instrument-tab[aria-pressed="true"] {
+  background: var(--icon-blue);
+  color: var(--surface);
+}
+
+/* A header switch the chosen instrument does not use is greyed out and cannot be pressed, even while its value is on. It
+   comes after the pressed rule, so it wins over the filled look. It has no background, its text is grey and it is faded
+   like the greyed-out options. */
+.toolbar .instrument-tab:disabled {
+  background: none;
+  border-color: var(--muted);
+  color: var(--disabled-text);
+  opacity: var(--faded);
+  cursor: default;
+}
+
+/* The instrument tabs turn medium blue under the mouse, the chosen one too (it is filled otherwise). */
+@media (hover: hover) {
+  .toolbar .instrument-tab:not(:disabled):hover {
+    background: var(--hover-fill);
+    color: var(--text);
+  }
+}
+
+/* The panel tabs and the instrument tabs are segmented switches: options, exercises or help, piano or guitar, the chosen
+   one filled. */
+.panel-tabs,
+.instrument-tabs {
+  display: flex;
+  flex: none;
+}
+
+.panel-tab,
+.instrument-tab {
+  padding: 0.4rem 0.6rem;
+}
+
+.panel-tabs .panel-tab:first-child,
+.instrument-tabs .instrument-tab:first-child {
+  border-radius: 0.5rem 0 0 0.5rem;
+}
+
+.panel-tabs .panel-tab:last-child,
+.instrument-tabs .instrument-tab:last-child {
+  margin-left: -1px;
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+
+/* A tab between the first and the last one (the exercises) has square corners on both sides. */
+.panel-tabs .panel-tab:not(:first-child, :last-child) {
+  margin-left: -1px;
+  border-radius: 0;
+}
+
+.options-toggle svg,
+.exercises-toggle svg,
+.help-toggle svg,
+.roman-toggle svg,
+.tones-toggle svg,
+.colour-toggle svg,
+.instrument-tab svg,
+.theme-toggle svg {
+  display: block;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+/* Phones in portrait: a narrower title and narrower buttons. */
+@media (max-width: 600px) {
+  .toolbar h1 {
+    margin: 0 0.5rem;
+  }
+
+  .toolbar button {
+    padding: 0.4rem;
+  }
+}

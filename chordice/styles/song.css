@@ -1,0 +1,36 @@
+/* The song on the right, row by row: the headings of the rows with the name, the genre and the tags. The chords are
+   styled in chord.css. */
+
+.meta {
+  font-size: calc(var(--zoom) * 0.85rem);
+  font-weight: 400;
+  color: var(--muted);
+}
+
+/* The chord area is sized by --zoom (see zoom.js): every length in it is multiplied by it, so text and boxes scale together. */
+.row {
+  margin-bottom: calc(var(--zoom) * 1.25rem);
+}
+
+/* Headings share the colour of the option section titles. The title and the tags sit on one centre line. */
+.row h2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 0 0 calc(var(--zoom) * 0.4rem);
+  font-size: calc(var(--zoom) * 0.9rem);
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.row-title {
+  min-width: 0;
+}
+
+.tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--zoom) * 0.3rem);
+  margin-left: calc(var(--zoom) * 1rem);
+}

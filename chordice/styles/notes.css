@@ -1,0 +1,74 @@
+/* The notes window: the chord box, the staff or the guitar diagram, and the caption. */
+
+/* The notes window is always a white sheet with black ink, in both themes. Its content is centred. */
+.notes {
+  width: min(92vw, 400px);
+  max-width: none;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: #1b1f24;
+  /* A click steps through the views, so nothing in the window can be selected, also not by a double click or a long press. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.notes::backdrop {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.notes-body {
+  padding: 0.75rem;
+  text-align: center;
+}
+
+/* The chord box of the open chord sits centred above the score, as it does in the rows. */
+.notes-chord {
+  justify-content: center;
+  margin: 0 auto 0.6rem;
+}
+
+/* The score sits in a thin grey frame, like the option sections. */
+.notes-staff {
+  margin: 0 auto;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.notes-staff svg {
+  display: block;
+  margin: 0 auto;
+  width: 100%;
+  height: auto;
+}
+
+/* The guitar diagram sits in a box of a fixed height, so the window keeps its size when a click shows another shape: the
+   frets of a shape make the diagram taller or shorter inside the box, not the window. The box is small enough for a small screen. */
+.notes-staff.is-guitar {
+  height: min(240px, 40vh);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notes-staff.is-guitar svg {
+  width: auto;
+  height: 100%;
+  max-width: 100%;
+}
+
+/* The caption under the score names the shape shown, and the stand-in chord if there is one. It is empty, and hidden, for the piano. */
+.notes-caption {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: #5b6470;
+}
+
+.notes-caption:empty {
+  display: none;
+}

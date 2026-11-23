@@ -1,0 +1,169 @@
+/* One chord as the rows and the notes window show it (see chord.js): its box, the colours of its function, the
+   roman numeral, the symbol, the tones beside it and its frames. */
+
+.chords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--zoom) * 0.5rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Plain chords are not bold. With the extended information on, only the chord name (e.g. C, Cm) is bold, see .chord-name. */
+.chord {
+  min-width: calc(var(--zoom) * 5.5rem);
+  padding: calc(var(--zoom) * 0.6rem) calc(var(--zoom) * 0.8rem);
+  border: calc(var(--zoom) * 1px) solid var(--line);
+  border-radius: calc(var(--zoom) * 10px);
+  background: var(--surface);
+  color: var(--chord-text);
+  cursor: pointer;
+  font-size: calc(var(--zoom) * 1.4rem);
+  font-weight: 400;
+  text-align: center;
+}
+
+.chord .chord-name {
+  font-weight: 600;
+}
+
+.chord .variation {
+  font-weight: 400;
+}
+
+/* The bass after the slash, e.g. /E in G/E, is not bold. */
+.chord .bass {
+  font-weight: 400;
+}
+
+/* Major chords use the stronger colour of their harmonic function, minor chords the paler one. */
+.chord.fn-tonic.is-major {
+  background: var(--tonic-major);
+}
+
+.chord.fn-tonic.is-minor {
+  background: var(--tonic-minor);
+}
+
+.chord.fn-subdominant.is-major {
+  background: var(--subdominant-major);
+}
+
+.chord.fn-subdominant.is-minor {
+  background: var(--subdominant-minor);
+}
+
+.chord.fn-dominant.is-major {
+  background: var(--dominant-major);
+}
+
+.chord.fn-dominant.is-minor {
+  background: var(--dominant-minor);
+}
+
+.chord .symbol {
+  display: block;
+}
+
+.chord .roman,
+.chord .tones {
+  display: block;
+  font-size: calc(var(--zoom) * 0.8rem);
+  font-weight: 400;
+  color: var(--chord-soft);
+}
+
+/*
+ * The roman numeral and the chord symbol form one group, centred over each other, and move together. Without the tones
+ * switch the group is centred in the box; with it, the group (wrapped in .chord-main) and the tones column on its right
+ * are centred as one. The distance between the numeral and the symbol is fixed, whatever the height of the tones.
+ * The column is stacked upwards: the lowest tone is at the bottom.
+ */
+.chord {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.chord.has-tones {
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: center;
+  align-items: center;
+  column-gap: calc(var(--zoom) * 0.8rem);
+}
+
+.chord .chord-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--zoom) * 0.2rem);
+}
+
+/* The column beside the chord: the tones, or the top melody note alone. */
+.chord.has-tones > .tones {
+  justify-self: start;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 2px;
+}
+
+/* The bass below the other tones: set apart by space, without a box, in the colour of the tones. */
+.chord .bass-line {
+  align-self: stretch;
+  text-align: center;
+  /* The column is stacked upwards, so this margin sits between the bass and the tone above it. */
+  margin-top: calc(var(--zoom) * 0.6rem);
+}
+
+.chord .bass-line .tone {
+  display: inline-block;
+}
+
+/* A tone beside the chord is circled: blue when the chord variation adds it, red when it is foreign to the key, and the top
+   tone when the melody switch is on. */
+.chord .tone-variation,
+.chord .tone-foreign,
+.chord .tone-top {
+  display: inline-block;
+  padding: 0 0.3em;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  line-height: 1.5;
+}
+
+/* The top tone, when it is the melody note, is circled in the colour of the chord symbol. A tone foreign to the key or added
+   by the variation keeps its own colour below. */
+.chord .tone-top {
+  color: var(--chord-text);
+}
+
+.chord .tone-variation {
+  color: var(--variation-tone);
+}
+
+.chord .tone-foreign {
+  color: var(--foreign-tone);
+}
+
+.chord:focus-visible {
+  outline: 2px solid var(--icon-blue);
+  outline-offset: 2px;
+}
+
+/* The chord whose notes are open is framed in the background, until the notes window closes. */
+.chord.is-open {
+  outline: 2px solid var(--icon-blue);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) {
+  /* A chord under the mouse is framed like the chord whose notes are open. Only the clickable chords of the rows, not the
+     chord box in the notes window, and only for real pointers, so a tap does not leave a frame behind. */
+  .chord[data-action="show-notes"]:hover {
+    outline: 2px solid var(--icon-blue);
+    outline-offset: 3px;
+  }
+}

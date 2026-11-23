@@ -1,0 +1,301 @@
+/* The options panel: the sections with their headings, summaries and side buttons, the chips, the sliders, the
+   progression groups and the Help link at the bottom. The circle of fifths has its own stylesheet. */
+
+/* The circle of fifths, count, #b and melody chips sit beside a section heading. They keep the touch height of the heading row. */
+.section-header > .chip {
+  flex: none;
+  align-self: flex-start;
+  margin-left: 0.5rem;
+}
+
+/* The count shows a number, so its digits use tabular figures. */
+.count-toggle {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The section heading, the count button and the arrow share one row; the arrow sits right of the count button. */
+.option .section-header {
+  display: flex;
+  align-items: flex-start;
+}
+
+.option .section-header .section-toggle::after {
+  content: none;
+}
+
+.option .section-header::after {
+  content: "\25B8";
+  flex: none;
+  display: flex;
+  align-items: center;
+  min-height: var(--touch);
+  margin-left: 0.5rem;
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+
+.option .section-header.is-expanded::after {
+  transform: rotate(90deg);
+}
+
+/* A disabled option header has no background either, and grey text. */
+.option .section-toggle:disabled {
+  background: none;
+  color: var(--disabled-text);
+}
+
+/* The key signature of the selected key, below the circle. */
+.key-signature {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.3rem;
+  margin: 0.4rem 0 0;
+}
+
+/* No outer frame: each options section has its own frame. */
+/* The section frames reach the edges of the panel. */
+.options {
+  margin-bottom: 1rem;
+  padding: 0;
+  background: var(--surface);
+}
+
+.options[hidden] {
+  display: none;
+}
+
+/* Heading above a group of option sections, e.g. "Variations" above the three variation sections. */
+.options-heading {
+  margin: 0.4rem 0.2rem 0.5rem;
+  font-size: 1rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+/* Each options section is framed like a progression group: thin line border, rounded corners. */
+.option {
+  margin-bottom: 1rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.option h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 400;
+}
+
+/* Title on the first line, the summary of a collapsed section below it, the arrow on the right. */
+.option .section-toggle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  min-height: var(--touch);
+  padding: 0.4rem 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+}
+
+.option .section-toggle::after {
+  content: "\25B8";
+  grid-column: 2;
+  grid-row: 1;
+  transition: transform 0.15s;
+}
+
+.option .section-toggle[aria-expanded="true"]::after {
+  transform: rotate(90deg);
+}
+
+.section-title {
+  grid-column: 1;
+  grid-row: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Dezent: what is selected in a collapsed section, on its own line below the title. */
+.section-summary {
+  grid-column: 1;
+  grid-row: 2;
+  min-width: 0;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  opacity: 0.8;
+}
+
+/* Names in the collapsed summary: categories and probability labels in blue, percentages in plain grey. */
+.section-summary .summary-label {
+  color: var(--accent);
+  opacity: 1;
+}
+
+.section-summary .summary-value {
+  color: var(--muted);
+}
+
+.option.is-collapsed {
+  margin-bottom: 0.6rem;
+}
+
+/* An unavailable option is greyed out: its heading and its content. The button beside the heading is not, as it may still
+   be pressed (e.g. the circle of fifths button beside Keys); it is only faded while it is disabled itself and not filled.
+   A filled disabled button (the count of 12, a pressed switch) is already grey, and faded its label would vanish. */
+.option.is-unavailable .section-toggle,
+.option.is-unavailable > :not(h2),
+.option.is-unavailable .chip:disabled:not(.is-on, .count-toggle) {
+  opacity: var(--faded);
+}
+
+.option.is-unavailable .slider input,
+.option.is-unavailable .section-toggle {
+  cursor: default;
+}
+
+.option:not(.is-collapsed) .section-toggle {
+  margin-bottom: 0.5rem;
+}
+
+/* The progression list has its own scroll bar, so a long list does not push the other sections down. */
+.progression-list {
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+/* Option chips use the toolbar logic: blue outline and text when off, filled blue with a background-coloured label when on. Section headers that open a submenu keep their own look. */
+.options .chip {
+  border-color: var(--icon-blue);
+  color: var(--icon-blue);
+}
+
+.options .chip.is-on {
+  background: var(--icon-blue);
+  border-color: var(--icon-blue);
+  color: var(--surface);
+}
+
+/* The count button is not a switch, so it always has the filled look of an active chip. */
+.chip.count-toggle {
+  background: var(--icon-blue);
+  border-color: var(--icon-blue);
+  color: var(--surface);
+}
+
+/* A pressed or filled chip that is disabled (e.g. the count of 12 with the circle of fifths) is filled grey, not blue. */
+.options .chip.is-on:disabled,
+.options .chip.count-toggle:disabled {
+  background: var(--disabled-text);
+  border-color: var(--disabled-text);
+  color: var(--surface);
+  cursor: default;
+}
+
+/* The melody button shows the note symbol, sized like the chip text. */
+.melody-toggle svg {
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* The circle of fifths button shows its arrow at the size of the melody note. */
+.circle-toggle svg {
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* Progression buttons (groups and the progressions inside them) are narrower than the other option buttons. */
+.group .chip {
+  min-width: 0;
+  min-height: 2rem;
+  padding: 0.2rem 0.5rem;
+}
+
+.group {
+  margin: 0 0 0.6rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.group legend {
+  padding: 0 0.3rem;
+  font-weight: 600;
+}
+
+.slider {
+  display: block;
+  margin-bottom: 0.6rem;
+  color: var(--icon-blue);
+}
+
+.slider span {
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Custom slider: grey track, darker blue up to the value, blue thumb. --fill is set on each input from its value. */
+.slider input {
+  width: 100%;
+  min-height: var(--touch);
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+
+.slider input::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, var(--slider-fill) var(--fill), var(--muted) var(--fill));
+}
+
+.slider input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -5px;
+  border: none;
+  border-radius: 50%;
+  background: var(--icon-blue);
+}
+
+.slider input::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--muted);
+}
+
+.slider input::-moz-range-progress {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--slider-fill);
+}
+
+.slider input::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: var(--icon-blue);
+}
+
+/* The help in the side panel: the panel has its own padding, so the help text needs none, and it starts at the top. */
+.side-panel .help {
+  padding: 0;
+}
+
+.side-panel .help > :first-child {
+  margin-top: 0;
+}
