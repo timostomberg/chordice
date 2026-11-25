@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- The icon of Chordice: a die (dice) whose three pips are eighth notes (a chord), painted in watercolour like the
+       background of the app. A wash of the icon blue covers the paper, mottled where the pigment settled unevenly, lighter
+       where the water pooled, and granulated; the face of the die is left as bare paper, and where the wash met it, the
+       pigment dried in a darker rim.
+       The notes are painted on the paper in a deeper blue. The grain of the paper lies over all.
+       Each eighth note has its head at the origin of its group: a tilted head, a stem up on its right side, and a flag. -->
+  <defs>
+    <!-- The rounded square of the icon. -->
+    <clipPath id="tile"><rect width="512" height="512" rx="112"/></clipPath>
+    <!-- The pigment of the wash: denser in some places than in others, and granulated in the pits of the paper. -->
+    <filter id="mottle" color-interpolation-filters="sRGB" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.006" numOctaves="3" seed="7" result="clouds"/>
+      <feColorMatrix in="clouds" values="0 0 0 0 0.16  0 0 0 0 0.26  0 0 0 0 0.42  1.3 0 0 0 -0.5" result="dense"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="2" seed="13" result="pools"/>
+      <feColorMatrix in="pools" values="0 0 0 0 0.75  0 0 0 0 0.84  0 0 0 0 0.95  1.4 0 0 0 -0.62" result="light"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="2" seed="3" result="pits"/>
+      <feColorMatrix in="pits" values="0 0 0 0 0.12  0 0 0 0 0.2  0 0 0 0 0.34  0 0 0 1.8 -0.95" result="granules"/>
+      <feMerge><feMergeNode in="dense"/><feMergeNode in="light"/><feMergeNode in="granules"/></feMerge>
+    </filter>
+    <!-- The edge of the bare paper and of the rim: uneven, as a brush leaves it. -->
+    <filter id="brush" color-interpolation-filters="sRGB" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="11" result="wobble"/>
+      <feDisplacementMap in="SourceGraphic" in2="wobble" scale="14" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <!-- The rim of pigment around the paper: uneven and soft towards the wash. -->
+    <filter id="rim" color-interpolation-filters="sRGB" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="11" result="wobble"/>
+      <feDisplacementMap in="SourceGraphic" in2="wobble" scale="14" xChannelSelector="R" yChannelSelector="G" result="moved"/>
+      <feGaussianBlur in="moved" stdDeviation="5"/>
+    </filter>
+    <!-- The notes: a slightly trembling line of ink, darker where it dried at its edge. -->
+    <filter id="ink" color-interpolation-filters="sRGB" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="2" seed="5" result="wobble"/>
+      <feDisplacementMap in="SourceGraphic" in2="wobble" scale="5" xChannelSelector="R" yChannelSelector="G" result="moved"/>
+      <feGaussianBlur in="moved" stdDeviation="2.5" result="soft"/>
+      <feComposite in="moved" in2="soft" operator="out" result="edge"/>
+      <feFlood flood-color="#1f3456" flood-opacity="0.6"/>
+      <feComposite in2="edge" operator="in" result="rim"/>
+      <feMerge><feMergeNode in="moved"/><feMergeNode in="rim"/></feMerge>
+    </filter>
+    <!-- The grain of the paper, as in the background of the app. -->
+    <filter id="grain" color-interpolation-filters="sRGB" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" seed="2"/>
+      <feColorMatrix values="0 0 0 0 0.45  0 0 0 0 0.4  0 0 0 0 0.33  0 0 0 0.55 -0.18"/>
+    </filter>
+    <!-- Where the water pooled, the wash is lighter. -->
+    <radialGradient id="bloom" cx="0.32" cy="0.28" r="0.75">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect class="wash" width="512" height="512" rx="112" fill="#4a6a96"/>
+  <rect width="512" height="512" rx="112" fill="url(#bloom)"/>
+  <rect width="512" height="512" filter="url(#mottle)" clip-path="url(#tile)"/>
+  <rect class="rim" x="108" y="108" width="296" height="296" rx="62" fill="#22385c" opacity="0.75" filter="url(#rim)"/>
+  <rect class="face" x="116" y="116" width="280" height="280" rx="56" fill="#fbf8f1" filter="url(#brush)"/>
+  <g class="notes" filter="url(#ink)" fill="#3d5d8c">
+    <g class="eighth-note" transform="translate(160 236)">
+      <ellipse class="head" rx="28" ry="20" transform="rotate(-20)"/>
+      <rect class="stem" x="21" y="-100" width="7" height="98"/>
+      <path class="flag" d="M28,-100 c0,22 36,30 32,66 c-4,-18 -14,-26 -32,-30 z"/>
+    </g>
+    <g class="eighth-note" transform="translate(240 296)">
+      <ellipse class="head" rx="28" ry="20" transform="rotate(-20)"/>
+      <rect class="stem" x="21" y="-100" width="7" height="98"/>
+      <path class="flag" d="M28,-100 c0,22 36,30 32,66 c-4,-18 -14,-26 -32,-30 z"/>
+    </g>
+    <g class="eighth-note" transform="translate(320 356)">
+      <ellipse class="head" rx="28" ry="20" transform="rotate(-20)"/>
+      <rect class="stem" x="21" y="-100" width="7" height="98"/>
+      <path class="flag" d="M28,-100 c0,22 36,30 32,66 c-4,-18 -14,-26 -32,-30 z"/>
+    </g>
+  </g>
+  <rect width="512" height="512" filter="url(#grain)" clip-path="url(#tile)" opacity="0.6"/>
+</svg>

@@ -96,11 +96,32 @@ test('a pinch on the options and on the chords zooms that area, not the page', (
   assert.ok(/\.song\s*\{[^}]*touch-action: pan-x pan-y/.test(CSS));
 });
 
-test('phones in portrait stack the options above the chords', () => {
-  const media = /@media \(max-width: 600px\) \{([\s\S]*)\}\s*$/.exec(CSS)?.[1] ?? '';
+test('narrow windows keep the side panel on the left, at full width, and hide the song while it is open', () => {
+  const media = /@media \(max-width: \d+px\) \{([\s\S]*)\}\s*$/.exec(CSS)?.[1] ?? '';
   assert.ok(media.includes('.layout'), 'media query styles the layout');
   assert.ok(/grid-template-columns: minmax\(0, 1fr\)/.test(media));
-  assert.ok(/grid-template-rows: minmax\(0, 40%\) minmax\(0, 1fr\)/.test(media));
+  assert.ok(!media.includes('grid-template-rows'), 'the options are not stacked above the chords');
+  assert.ok(/\.layout:has\(> \.side-panel:not\(\[hidden\]\)\) > \.song\s*\{[^}]*display: none/.test(media));
+});
+
+test('in the narrow layout the song shows again once the side panel is closed', () => {
+  const width = Number(/@media \(max-width: (\d+)px\)/.exec(CSS)[1]);
+  const dom = new JSDOM(`<!DOCTYPE html><html><head><style>${CSS}</style></head><body><main class="layout">` +
+    '<aside class="side-panel" id="panel"></aside><section class="song" id="song"></section></main></body></html>');
+  assert.ok(width > 0);
+  const { document } = dom.window;
+  // jsdom does not evaluate media queries, so the rule inside is checked by its selector, in the order the page has it.
+  const rule = [...document.styleSheets[0].cssRules].find((r) => r.media?.mediaText.includes('max-width'));
+  const hide = [...rule.cssRules].find((r) => r.selectorText?.includes('.song'));
+  const song = document.getElementById('song');
+  assert.equal(song.matches(hide.selectorText), true);
+  document.getElementById('panel').hidden = true;
+  assert.equal(song.matches(hide.selectorText), false);
+});
+
+test('the side panel has a maximum width and never takes more than half of the layout', () => {
+  const columns = /grid-template-columns:\s*([^;]+);/.exec(declarationsOf('.layout'))?.[1] ?? '';
+  assert.match(columns, /^min\(\d+px, 50%\) minmax\(0, 1fr\)$/);
 });
 
 test('hiding the options hides the whole side panel', () => {
@@ -215,6 +236,35 @@ test('the chords and every button share one watercolour wash, defined once: a bl
   assert.ok(declarationsOf('button:disabled::before').includes('content: none'));
 });
 
+test('the pigment of every wash settles in soft clouds: a tile of noise in both themes, laid over the chords and all buttons', () => {
+  for (const block of [themeBlock(':root'), themeBlock(':root\\[data-theme="dark"\\]')]) {
+    for (const name of ['--mottle', '--mottle-ink']) {
+      const tile = new RegExp(`${name}:\\s*url\\("data:image\\/svg\\+xml,([^"]*)"\\)`).exec(block);
+      assert.ok(tile, `${name} in each theme`);
+      const svg = decodeURIComponent(tile[1]);
+      assert.ok(svg.includes('feTurbulence'), 'drawn as noise by the browser');
+      assert.ok(svg.includes("stitchTiles='stitch'"), 'repeated without seams');
+      assert.equal(svg.split('<feTurbulence').length - 1, 1, 'only soft clouds, no fine grain');
+      assert.match(svg, /baseFrequency='0(\.|%2E)0\d+'/, 'a low frequency: clouds, not specks');
+      // Filters work in linear RGB by default, which would lighten the colour of the clouds until they vanish on blue.
+      assert.equal(svg.split('<filter').length - 1, svg.split("color-interpolation-filters='sRGB'").length - 1, 'colours as written');
+    }
+  }
+  const wash = declarationsOf(':where(.chord, button:not(.section-toggle))::before');
+  assert.ok(wash.includes('var(--mottle)'));
+  const filled = declarationsOf('.generate::before,\n.chip.is-on::before,\n.chip.count-toggle::before,\n' +
+    '.toolbar button[aria-pressed="true"]::before,\n.toolbar button[aria-expanded="true"]::before');
+  assert.ok(filled.includes('var(--mottle-ink)'), 'the filled buttons have darker clouds, which show on the blue');
+});
+
+test('the rim of a wash is uneven: the pigment gathers more at the bottom, where the water ran to', () => {
+  const wash = declarationsOf(':where(.chord, button:not(.section-toggle))::before');
+  const shadow = /box-shadow:([^;]*)/.exec(wash)[1];
+  const rims = shadow.split(/,(?![^(]*\))/).map((part) => part.trim());
+  assert.ok(rims.length >= 2 && rims.every((rim) => rim.startsWith('inset') && rim.includes('var(--pigment-edge)')));
+  assert.ok(rims.some((rim) => /^inset -?[\d.]+em -[\d.]+em/.test(rim)), 'one rim is moved up, so it lies thicker at the bottom');
+});
+
 test('the bloom on the deep blue of the filled buttons is fainter than on the others', () => {
   const filled = declarationsOf('.generate::before,\n.chip.is-on::before,\n.chip.count-toggle::before,\n' +
     '.toolbar button[aria-pressed="true"]::before,\n.toolbar button[aria-expanded="true"]::before');
@@ -247,4 +297,10 @@ test('Generate floats fixed in its corner, as a pill, whatever the shared wash g
   for (const selector of positioned.filter((rule) => rule.includes('button'))) {
     assert.ok(selector.startsWith(':where('), selector);
   }
+});
+
+test('the body is as high as the visible window, also while the bars of Safari slide in and out', () => {
+  assert.ok(declarationsOf('body').includes('height: 100dvh'));
+  // A browser without dvh keeps the height of the window from the shared rule of html and body.
+  assert.ok(/html,\s*body\s*\{[^}]*height: 100%/.test(CSS));
 });

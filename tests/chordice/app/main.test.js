@@ -27,3 +27,11 @@ test('main.js only imports startApp from app.js and calls it', () => {
   assert.ok(entry.includes("import { startApp } from './app.js';"));
   assert.ok(/^startApp\(\);$/m.test(entry), 'main.js calls startApp');
 });
+
+test('main.js keeps the screen on and registers the service worker, after starting the app', () => {
+  const entry = readFileSync(new URL('../../../chordice/app/main.js', import.meta.url), 'utf8');
+  assert.ok(entry.includes("import { keepScreenAwake, registerServiceWorker } from './device.js';"));
+  const calls = ['startApp();', 'keepScreenAwake();', 'registerServiceWorker();'].map((call) => entry.indexOf(`\n${call}`));
+  assert.ok(calls.every((index) => index > 0), 'main.js makes every call');
+  assert.deepEqual([...calls].sort((a, b) => a - b), calls, 'in this order');
+});

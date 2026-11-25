@@ -8,15 +8,17 @@
   <link rel="stylesheet" href="../../styles/header.css">
   <link rel="stylesheet" href="../../styles/help.css">
   <script>
-    // The help page follows the theme chosen in the app, which the app keeps in its cookie. Light is the default.
+    // The help page follows the theme chosen in the app, which the app keeps in its cookie, and in a copy in the local
+    // storage that outlasts the cookie in Safari. Light is the default.
     const cookie = /(?:^|;\s*)chordice_state=([^;]*)/.exec(document.cookie);
     let theme = 'light';
     try {
-      if (cookie && JSON.parse(decodeURIComponent(cookie[1])).theme === 'dark') {
+      const stored = cookie ? decodeURIComponent(cookie[1]) : localStorage.getItem('chordice_state');
+      if (stored && JSON.parse(stored).theme === 'dark') {
         theme = 'dark';
       }
     } catch {
-      // A broken cookie leaves the default theme, as the app does.
+      // A broken cookie or copy, or a refused storage, leaves the default theme, as the app does.
     }
     document.documentElement.dataset.theme = theme;
   </script>
@@ -35,7 +37,7 @@
     <ul class="help-controls">
       <li><span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 6h16M4 12h11M4 18h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><strong>Options button</strong>: shows the options panel, or hides it when it is shown.</li>
       <li><span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 12h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><rect x="5" y="6" width="3" height="12" rx="1" fill="currentColor"/><rect x="16" y="6" width="3" height="12" rx="1" fill="currentColor"/><rect x="2" y="9" width="2.5" height="6" rx="1" fill="currentColor"/><rect x="19.5" y="9" width="2.5" height="6" rx="1" fill="currentColor"/></svg></span><strong>Exercises button</strong>: shows the <a href="#exercises">exercises</a> in place of the options, or hides them when they are shown. </li>
-      <li><span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="7.5" r="1.3" fill="currentColor"/></svg></span><strong>Help button</strong>: shows this help in place of the options, or hides it when it is shown. Like the instrument tabs, only one of the Options, Exercises and Help buttons is pressed at a time. A click on the toolbar outside its buttons hides or shows the panel.</li>
+      <li><span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="7.5" r="1.3" fill="currentColor"/></svg></span><strong>Help button</strong>: shows this help in place of the options, or hides it when it is shown. Like the instrument tabs, only one of the Options, Exercises and Help buttons is pressed at a time. A click on the toolbar outside its buttons hides or shows the panel. On a touch screen, a swipe to the right from the left edge shows the panel, a swipe to the left on it hides it, and the back button hides it too.</li>
       <li><span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="2" y="5" width="20" height="14" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4.86 5v14M7.71 5v14M10.57 5v14M13.43 5v14M16.29 5v14M19.14 5v14" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="4.01" y="5" width="1.7" height="8.5" fill="currentColor"/><rect x="6.86" y="5" width="1.7" height="8.5" fill="currentColor"/><rect x="12.58" y="5" width="1.7" height="8.5" fill="currentColor"/><rect x="15.44" y="5" width="1.7" height="8.5" fill="currentColor"/><rect x="18.29" y="5" width="1.7" height="8.5" fill="currentColor"/></svg></span><span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="9.8" y="0.8" width="4.4" height="2.6" rx="0.6" fill="currentColor"/><rect x="10.8" y="3" width="2.4" height="9" fill="currentColor"/><path d="M12 11.5c-2.6 0-4.4 1.6-4.4 3.8 0 1.2.6 2 .6 3.1 0 1.3-1.4 2-1.4 3.5 0 2.1 2.2 3.1 5.2 3.1s5.2-1 5.2-3.1c0-1.5-1.4-2.2-1.4-3.5 0-1.1.6-1.9.6-3.1 0-2.2-1.8-3.8-4.4-3.8z" fill="currentColor"/></svg></span><strong>Instrument tabs</strong>: the piano (left, default) shows the notes of a clicked chord; the guitar (right) shows a guitar diagram. See <a href="#notes-window">The notes window</a>.</li>
       <li><span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><text x="12" y="17" text-anchor="middle" font-size="14" font-weight="600" fill="currentColor">IV</text></svg></span><strong>Roman numerals button</strong>: shows or hides the roman numerals.</li>
       <li><span class="help-icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g transform="translate(3.8 0)"><path d="M10.2 18V1" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><ellipse cx="8.2" cy="6" rx="3" ry="2.3" transform="rotate(-20 8.2 6)" fill="currentColor"/><ellipse cx="8.2" cy="12" rx="3" ry="2.3" transform="rotate(-20 8.2 12)" fill="currentColor"/><ellipse cx="8.2" cy="18" rx="3" ry="2.3" transform="rotate(-20 8.2 18)" fill="currentColor"/></g></svg></span><strong>Chord tones button</strong>: shows the notes of each chord. See <a href="#viewing-chords">Viewing the chords</a>.</li>
@@ -105,7 +107,8 @@
 
     <h2 id="notes-window">The notes window</h2>
     <p>Click a chord (or press Enter or Space on it) to open its notes. Click the left half of the window for the previous
-      inversion or shape, the right half for the next one. The arrow keys do the same. Escape closes the window.</p>
+      inversion or shape, the right half for the next one, or swipe: to the left for the next one, to the right for the
+      previous one. The arrow keys do the same. Escape closes the window.</p>
     <ul>
       <li><strong>Piano:</strong> the notes on a staff, with the bass as slash bass or root.</li>
       <li><strong>Guitar:</strong> a diagram of the chord in standard tuning. If the chord has no exact shape, the most
@@ -113,8 +116,19 @@
     </ul>
 
     <h2>Saved settings</h2>
-    <p>Your settings are saved in a cookie in this browser for one year, so the page opens as you left it. The progression
-      selection is the exception: all progressions are selected each time the page opens.</p>
+    <p>Your settings are saved in a cookie in this browser for one year, and in a copy in its local storage, so the page
+      opens as you left it. The progression selection is the exception: all progressions are selected each time the page
+      opens. Safari on iPhones and iPads forgets them after seven days without a visit; added to the home screen, Chordice
+      keeps them.</p>
+
+    <h2>On a phone or tablet</h2>
+    <ul>
+      <li><strong>Home screen:</strong> add Chordice to the home screen (in Safari: Share, then Add to Home Screen) and it
+        opens as an app of its own, without the bars of the browser.</li>
+      <li><strong>Without a network:</strong> once opened online, Chordice also works offline, e.g. in a rehearsal room.</li>
+      <li><strong>Screen:</strong> while Chordice is shown, the screen stays on, so it does not go dark while you play.</li>
+      <li><strong>Zoom:</strong> pinch the chords to make them larger or smaller.</li>
+    </ul>
 
     <p class="help-footer"><a href="../../../index.html">Back to Chordice</a></p>
   </main>

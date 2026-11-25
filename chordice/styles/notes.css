@@ -14,6 +14,9 @@
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+  /* A swipe steps through the views too (see notes.js), so the browser leaves the sideways moves of a finger to the
+     window; up and down still scroll a window that is higher than the screen. */
+  touch-action: pan-y;
 }
 
 /* The page behind the window is dimmed with a wash of indigo and blurred. */
@@ -77,4 +80,24 @@
 
 .notes-caption:empty {
   display: none;
+}
+
+/* Low windows (phones held sideways): the window is tighter around its content, and the score and the diagram are lower, so
+   the whole window fits on the screen. The score keeps its proportions inside its lower box. */
+@media (max-height: 500px) {
+  .notes-body {
+    padding: 0.5rem 1rem;
+  }
+
+  .notes-chord {
+    margin-bottom: 0.3rem;
+  }
+
+  .notes-staff svg {
+    max-height: 50dvh;
+  }
+
+  .notes-staff.is-guitar {
+    height: min(240px, 50dvh);
+  }
 }

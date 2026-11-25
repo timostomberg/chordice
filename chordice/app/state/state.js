@@ -28,9 +28,10 @@ export const EXERCISE_SECTIONS = ['exercises'];
 export const ALL_SECTIONS = [...SECTIONS, ...EXERCISE_SECTIONS];
 const SECTION_GROUPS = [SECTIONS, EXERCISE_SECTIONS];
 // The option each section belongs to; a section whose option is unavailable is greyed out and cannot be opened. Keys is
-// unavailable while the circle of fifths switch is on; the progressions and the variation sections while an exercise fixes them.
+// unavailable while an exercise fixes the circle of fifths switch; with the switch on by hand it can still be opened, and
+// its circle shows no key. The progressions and the variation sections are unavailable while an exercise fixes them.
 export const SECTION_OPTIONS = {
-  keys: 'key',
+  keys: 'circleOfFifths',
   progressions: 'selection',
   progressionVariations: 'rotation',
   variations: 'variations',
@@ -64,7 +65,7 @@ export function defaultState(library, random = Math.random) {
     circleOfFifths: false,
     // The id of the exercise that is on (see exercises.js), or null.
     exercise: null,
-    // On: the painting behind the app shows its landscape. Off: a plain background in the mean colour of the painting.
+    // On: the painting behind the app shows its landscape. Off: a plain background in the colour of the painting.
     painting: true,
     theme: 'light',
     instrument: 'piano',
@@ -135,6 +136,11 @@ export function toggleVariation(state, name) {
   // An empty list is allowed: no chord variations are added, while the variation probability stays as it is.
   const variations = VARIATION_NAMES.filter((variation) => next.includes(variation));
   return { ...state, variations };
+}
+
+/** Switches every chord variation off at once; the variation probability stays as it is. */
+export function clearVariations(state) {
+  return { ...state, variations: [] };
 }
 
 export function setProbability(state, option, value) {
@@ -210,6 +216,11 @@ export function toggleExercise(state, id) {
     return state;
   }
   return { ...state, exercise: state.exercise === id ? null : id };
+}
+
+/** Switches the exercise that is on off, if any. */
+export function clearExercise(state) {
+  return { ...state, exercise: null };
 }
 
 /**

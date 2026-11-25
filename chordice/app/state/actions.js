@@ -7,6 +7,8 @@
 
 import {
   choosePanel,
+  clearExercise,
+  clearVariations,
   cycleCount,
   openKeys,
   reroll,
@@ -42,11 +44,12 @@ const ACTION_OPTIONS = {
   'toggle-melody': 'inversions',
   'cycle-count': 'count',
   'set-key': 'key',
-  // Keys cannot be opened while the circle of fifths switch is on, so a click on the song does nothing then.
+  // A click on the song opens Keys to choose a key, so it does nothing while the circle of fifths switch fixes the key.
   'open-keys': 'key',
   'toggle-group': 'selection',
   'toggle-progression': 'selection',
   'toggle-variation': 'variations',
+  'clear-variations': 'variations',
   'toggle-foreign-variations': 'foreignVariations',
   'toggle-circle-of-fifths': 'circleOfFifths',
 };
@@ -78,8 +81,10 @@ export function applyAction(state, action, params, library, random = Math.random
     'toggle-progression': () => toggleProgression(state, params.id, library),
     'cycle-count': () => cycleCount(state),
     'toggle-variation': () => toggleVariation(state, params.variation),
+    'clear-variations': () => clearVariations(state),
     'set-probability': () => setProbability(state, params.option, params.value),
     'toggle-exercise': () => toggleExercise(state, params.exercise),
+    'clear-exercise': () => clearExercise(state),
     // The Options, Exercises and Help buttons: one switch of three, like the instrument tabs (see choosePanel).
     'toggle-options': () => choosePanel(state, 'options'),
     'toggle-exercises': () => choosePanel(state, 'exercises'),

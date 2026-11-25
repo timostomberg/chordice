@@ -174,3 +174,7 @@ test('renderCircleSvg defines the watercolour filter of the wedges once, with th
     assert.ok(svg.indexOf('<defs>') < svg.indexOf('<g class="key'), 'the filter comes before the wedges');
   }
 });
+
+test('the watercolour filter of the wedges has no grain of specks, like the washes of the buttons', () => {
+  assert.ok(!renderCircleSvg('C', {}).includes('<feTurbulence'));
+});

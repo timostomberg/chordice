@@ -39,3 +39,15 @@ test('the notes staff does not override the colours VexFlow gives its notes', ()
   const forcing = rules.filter(([, selector, body]) => /notes-staff/.test(selector) && /\b(fill|stroke)\s*:/.test(body));
   assert.deepEqual(forcing.map(([, selector]) => selector.trim()), []);
 });
+
+test('the browser leaves the sideways moves of a finger in the notes window to the window, which takes them as swipes', () => {
+  // Only up and down are left to the browser, so a window higher than the screen can still be scrolled.
+  assert.ok(declarationsOf('.notes').includes('touch-action: pan-y'));
+});
+
+test('in a low window (a phone held sideways) the score and the guitar diagram are lower, so the window fits the screen', () => {
+  const media = /@media \(max-height: (\d+)px\) \{([\s\S]*?)\n\}/.exec(CSS);
+  assert.ok(media, 'a media query for low windows');
+  assert.ok(/\.notes-staff svg\s*\{[^}]*max-height: \d+dvh/.test(media[2]));
+  assert.ok(/\.notes-staff\.is-guitar\s*\{[^}]*height: min\(240px, \d+dvh\)/.test(media[2]));
+});

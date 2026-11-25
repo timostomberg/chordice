@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { startApp } from '../../../chordice/app/app.js';
+import { THEME_COLOURS, startApp } from '../../../chordice/app/app.js';
 import { BASS_TEXT, LIBRARY, PROGRESSIONS_TEXT as YAML_TEXT } from '../../helpers/fixtures.js';
 import { defaultState } from '../../../chordice/app/state/state.js';
-import { serializeCookie } from '../../../chordice/app/state/persistence.js';
+import { STORAGE_KEY, serializeCookie, serializeStored } from '../../../chordice/app/state/persistence.js';
 
 // app.js has no side effects on import; startApp runs against the minimal fake DOM installed by loadApp below.
 // The guitar shapes as the CDN serves them; app.js fetches them from the URL of the installed version.
@@ -24,6 +24,14 @@ class FakeClassList {
     }
   }
 
+  add(name) {
+    this.names.add(name);
+  }
+
+  remove(name) {
+    this.names.delete(name);
+  }
+
   contains(name) {
     return this.names.has(name);
   }
@@ -37,6 +45,8 @@ class FakeElement {
     this.attributes = {};
     this.dataset = dataset;
     this.classList = new FakeClassList();
+    // Custom properties, e.g. the --zoom the chords are fitted to after every render.
+    this.style = { setProperty(name, value) { this[name] = value; } };
     // No element of the fake page has the focus.
     this.ownerDocument = { activeElement: null };
   }
@@ -64,6 +74,46 @@ class FakeDialog extends FakeElement {
   close() {}
 }
 
+// The browser paints its next frame at once. It stays for the whole file, as the background of a test may still be
+// drawing its painting when the next test starts.
+globalThis.requestAnimationFrame = (callback) => setTimeout(callback, 0);
+
+// The canvas the background paints its painting on (on the page, as there is no worker here): its 2D context takes
+// every call.
+class FakeCanvas extends FakeElement {
+  constructor() {
+    super();
+    this.nodeName = 'CANVAS';
+  }
+
+  getContext() {
+    const gradient = { addColorStop() {} };
+    return new Proxy({}, { get: (_, name) => (name.startsWith('create') ? () => gradient : () => {}), set: () => true });
+  }
+}
+
+// The background behind the app: its colour, and the painting it adds once drawn.
+class FakeBackground extends FakeElement {
+  constructor() {
+    super();
+    this.style = {};
+    this.children = [];
+    this.ownerDocument = {
+      activeElement: null,
+      createElement: () => new FakeCanvas(),
+      defaultView: { innerWidth: 800, innerHeight: 600, devicePixelRatio: 2, addEventListener() {} },
+    };
+  }
+
+  replaceChildren() {
+    this.children = [];
+  }
+
+  append(child) {
+    this.children.push(child);
+  }
+}
+
 // Stands in for HTMLInputElement, which app.js checks with instanceof.
 class FakeInput {
   constructor(type, option, value) {
@@ -74,13 +124,13 @@ class FakeInput {
 }
 
 /** Installs the globals app.js uses, loads it and waits until its start-up promise has settled. */
-async function loadApp({ cookie = '', yaml = YAML_TEXT, bass = BASS_TEXT, ok = true, guitarOk = true, helpOk = true, pathname = '/chordice/index.html' } = {}) {
+async function loadApp({ cookie = '', stored = null, storage = fakeStorage(stored), yaml = YAML_TEXT, bass = BASS_TEXT, ok = true, guitarOk = true, helpOk = true, pathname = '/chordice/index.html' } = {}) {
   const elements = {
     '#side-panel': new FakeElement(),
     '#options': new FakeElement(),
     '#option-list': new FakeElement(),
     '#song-rows': new FakeElement(),
-    '#landscape': new FakeElement(),
+    '#background': new FakeBackground(),
     '#status': new FakeElement(),
     '.options-toggle': new FakeElement(),
     '.exercises-toggle': new FakeElement(),
@@ -93,6 +143,7 @@ async function loadApp({ cookie = '', yaml = YAML_TEXT, bass = BASS_TEXT, ok = t
     '[data-action="toggle-melody"]': new FakeElement({ flag: 'inversions' }),
     '[data-action="toggle-painting"]': new FakeElement({ flag: 'painting' }),
     '#notes': new FakeDialog(),
+    'meta[name="theme-color"]': new FakeElement(),
   };
   const listeners = {};
   const fetched = [];
@@ -125,7 +176,7 @@ async function loadApp({ cookie = '', yaml = YAML_TEXT, bass = BASS_TEXT, ok = t
       if (selector !== '[data-flag]') {
         throw new Error(`unexpected selector ${selector}`);
       }
-      return Object.values(elements).filter((element) => element.dataset.flag !== undefined);
+      return Object.values(elements).filter((element) => element?.dataset.flag !== undefined);
     },
     addEventListener(type, listener) {
       (listeners[type] ??= []).push(listener);
@@ -134,6 +185,7 @@ async function loadApp({ cookie = '', yaml = YAML_TEXT, bass = BASS_TEXT, ok = t
 
   globalThis.document = document;
   globalThis.HTMLInputElement = FakeInput;
+  Object.defineProperty(globalThis, 'localStorage', { value: storage, configurable: true, writable: true });
   globalThis.fetch = async (url) => {
     fetched.push(String(url));
     const isGuitar = String(url).endsWith('/guitar.json');
@@ -160,10 +212,30 @@ async function loadApp({ cookie = '', yaml = YAML_TEXT, bass = BASS_TEXT, ok = t
       listener({ target });
     }
   };
-  return { document, elements, fetched, dispatch, click, change, instrumentTabs, written };
+  return { document, elements, fetched, dispatch, click, change, instrumentTabs, written, storage, listeners };
 }
 
+/** Stands in for the browser's local storage, holding the stored copy of the state, if any. */
+function fakeStorage(stored = null) {
+  const items = new Map(stored === null ? [] : [[STORAGE_KEY, stored]]);
+  return {
+    getItem: (key) => items.get(key) ?? null,
+    setItem: (key, value) => items.set(key, String(value)),
+  };
+}
+
+/** A local storage that the browser refuses, as Safari may in a private window. */
+const REFUSED_STORAGE = {
+  getItem() {
+    throw new Error('SecurityError');
+  },
+  setItem() {
+    throw new Error('QuotaExceededError');
+  },
+};
+
 function uninstall() {
+  delete globalThis.localStorage;
   delete globalThis.document;
   delete globalThis.HTMLInputElement;
   delete globalThis.fetch;
@@ -206,25 +278,55 @@ test('app.js applies the theme to the page and marks the theme button', async ()
   }
 });
 
-test('app.js paints the picture behind the app, anew with Generate and in the colours of the theme', async () => {
+/** Waits a few frames, long enough for the background to draw its painting on an idle machine. */
+const frames = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+/**
+ * Waits until `predicate` holds, frame by frame, at most about two seconds. Unlike frames() it does not depend on how fast
+ * the machine runs the tests, so it is used where the painting is expected to appear.
+ */
+async function until(predicate) {
+  for (let tries = 0; tries < 400 && !predicate(); tries += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
+
+test('app.js shows the colour of the painting at once and the painting once painted, anew with Generate and the theme', async () => {
   try {
     const app = await loadApp();
-    const landscape = app.elements['#landscape'];
-    const first = landscape.innerHTML;
-    assert.ok(first.includes('class="landscape-scene"'), 'a painting is shown from the start');
+    const background = app.elements['#background'];
+    const first = background.style.backgroundColor;
+    assert.match(first, /^#[0-9a-f]{6}$/, 'the colour is shown from the start');
+    assert.equal(background.children.length, 0, 'the painting is not there yet');
+    await until(() => background.children[0]?.classList.contains('shown'));
+    assert.equal(background.children.length, 1, 'then the painting is painted');
+    const painting = background.children[0];
+    assert.equal(painting.nodeName, 'CANVAS');
+    assert.ok(painting.classList.contains('shown'), 'and fades in');
     app.dispatch({ action: 'cycle-count' });
-    assert.equal(landscape.innerHTML, first, 'another option leaves the painting as it is');
+    assert.equal(background.children[0], painting, 'another option leaves the painting as it is');
     app.dispatch({ action: 'toggle-theme' });
-    const dark = landscape.innerHTML;
-    assert.notEqual(dark, first, 'the theme repaints it in its colours');
-    assert.equal(/data-kind="(\w+)"/.exec(dark)[1], /data-kind="(\w+)"/.exec(first)[1], 'the motif stays');
+    const dark = background.style.backgroundColor;
+    assert.notEqual(dark, first, 'the theme shows the colour of the dusk');
+    assert.equal(background.children.length, 0, 'at once, and paints the picture again');
+    await until(() => background.children.length > 0);
+    assert.notEqual(background.children[0], painting);
     app.dispatch({ action: 'reroll' });
-    assert.notEqual(landscape.innerHTML, dark, 'Generate paints a new picture');
+    assert.notEqual(background.style.backgroundColor, dark, 'Generate shows a new colour at once');
+    assert.equal(background.children.length, 0);
+    // Generate again before the painting is painted: only the last song's painting is shown.
+    app.dispatch({ action: 'reroll' });
+    await until(() => background.children.length > 0);
+    await frames();
+    assert.equal(background.children.length, 1);
     app.dispatch({ action: 'toggle-painting' });
-    assert.ok(landscape.innerHTML.includes('data-plain'), 'the painting switch off shows a plain background');
+    assert.equal(background.children.length, 0, 'the painting switch off shows a plain background');
+    await frames();
+    assert.equal(background.children.length, 0);
     assert.ok(decodeURIComponent(app.document.cookie).includes('"painting":false'));
     app.dispatch({ action: 'toggle-painting' });
-    assert.ok(!landscape.innerHTML.includes('data-plain'), 'and on again the painting');
+    await until(() => background.children.length > 0);
+    assert.equal(background.children.length, 1, 'and on again the painting');
   } finally {
     uninstall();
   }
@@ -288,6 +390,48 @@ test('the exercises button shows the exercises in the side panel instead of the 
     assert.equal(app.elements['.exercises-toggle'].attributes['aria-expanded'], 'false');
     assert.equal(app.elements['.options-toggle'].attributes['aria-expanded'], 'true');
   } finally {
+    uninstall();
+  }
+});
+
+test('the back button closes the side panel, and a swipe from the left edge opens it again', async () => {
+  // The browser's history: the app adds an entry while the panel is open; back() removes it and sends popstate.
+  const entries = [null];
+  const popListeners = [];
+  globalThis.history = {
+    get state() {
+      return entries.at(-1);
+    },
+    pushState(state) {
+      entries.push(state);
+    },
+    back() {
+      entries.pop();
+      queueMicrotask(() => popListeners.forEach((listener) => listener({})));
+    },
+  };
+  globalThis.addEventListener = (type, listener) => {
+    if (type === 'popstate') {
+      popListeners.push(listener);
+    }
+  };
+  try {
+    const app = await loadApp();
+    assert.equal(app.elements['#side-panel'].hidden, false);
+    assert.equal(entries.length, 2, 'the open panel has its entry');
+    globalThis.history.back();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(app.elements['#side-panel'].hidden, true);
+    assert.equal(entries.length, 1);
+
+    const target = { closest: () => null };
+    app.listeners.touchstart[0]({ touches: [{ clientX: 4, clientY: 300 }], target });
+    app.listeners.touchend[0]({ touches: [], changedTouches: [{ clientX: 200, clientY: 310 }], target });
+    assert.equal(app.elements['#side-panel'].hidden, false);
+    assert.equal(entries.length, 2, 'the reopened panel has its entry again');
+  } finally {
+    delete globalThis.history;
+    delete globalThis.addEventListener;
     uninstall();
   }
 });
@@ -640,4 +784,79 @@ test('app.js has no start-up code of its own: it exports startApp, which main.js
   const app = readFileSync(new URL('../../../chordice/app/app.js', import.meta.url), 'utf8');
   assert.ok(app.includes('export function startApp()'));
   assert.ok(!/^(loadData|startApp)\(/m.test(app), 'app.js calls nothing at the top level');
+});
+
+test('app.js keeps a copy of the state in the local storage, next to the cookie', async () => {
+  try {
+    const app = await loadApp();
+    await app.dispatch({ action: 'cycle-count' });
+    const stored = JSON.parse(app.storage.getItem(STORAGE_KEY));
+    assert.equal(stored.count, 4, 'the count after the default of 2');
+    assert.equal(stored.selection, undefined, 'like the cookie, the copy leaves out the selection');
+  } finally {
+    uninstall();
+  }
+});
+
+test('app.js restores the state from the local storage once Safari has dropped the cookie', async () => {
+  try {
+    const stored = serializeStored({ ...defaultState(LIBRARY, () => 0.5), count: 8 });
+    const app = await loadApp({ stored });
+    assert.equal(rowCount(app.elements['#song-rows'].innerHTML), 8);
+  } finally {
+    uninstall();
+  }
+});
+
+test('the cookie wins over the stored copy when both are there', async () => {
+  try {
+    const cookie = serializeCookie({ ...defaultState(LIBRARY, () => 0.5), count: 1 });
+    const stored = serializeStored({ ...defaultState(LIBRARY, () => 0.5), count: 8 });
+    const app = await loadApp({ cookie, stored });
+    assert.equal(rowCount(app.elements['#song-rows'].innerHTML), 1);
+  } finally {
+    uninstall();
+  }
+});
+
+test('app.js starts and keeps the cookie when the browser refuses the local storage', async () => {
+  try {
+    const cookie = serializeCookie({ ...defaultState(LIBRARY, () => 0.5), count: 4 });
+    const app = await loadApp({ cookie, storage: REFUSED_STORAGE });
+    assert.equal(rowCount(app.elements['#song-rows'].innerHTML), 4);
+    await app.dispatch({ action: 'cycle-count' });
+    assert.ok(decodeURIComponent(app.document.cookie).includes('"count":8'));
+  } finally {
+    uninstall();
+  }
+});
+
+test('the browser bars take the paper of the theme, and follow the theme switch', async () => {
+  try {
+    const app = await loadApp();
+    const meta = app.elements['meta[name="theme-color"]'];
+    assert.equal(meta.attributes.content, THEME_COLOURS.light);
+    await app.dispatch({ action: 'toggle-theme' });
+    assert.equal(meta.attributes.content, THEME_COLOURS.dark);
+  } finally {
+    uninstall();
+  }
+});
+
+test('a page without the theme-color tag still renders and switches the theme', async () => {
+  try {
+    const app = await loadApp();
+    app.elements['meta[name="theme-color"]'] = null;
+    await app.dispatch({ action: 'toggle-theme' });
+    assert.equal(app.document.documentElement.dataset.theme, 'dark');
+  } finally {
+    uninstall();
+  }
+});
+
+test('the paper of each theme for the browser bars is the --bg of that theme in main.css', () => {
+  const css = readFileSync(new URL('../../../chordice/styles/main.css', import.meta.url), 'utf8');
+  const backgrounds = [...css.matchAll(/--bg:\s*(#[0-9a-f]{6})/g)].map((match) => match[1]);
+  assert.ok(backgrounds.includes(THEME_COLOURS.light));
+  assert.ok(backgrounds.includes(THEME_COLOURS.dark));
 });

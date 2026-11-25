@@ -87,8 +87,9 @@ test('with the circle of fifths switch on, the count and the key cannot be chang
   const state = { ...defaultState(LIBRARY, FIXED), count: 4, circleOfFifths: true };
   assert.equal(applyAction(state, 'cycle-count', {}, LIBRARY), state);
   assert.equal(applyAction(state, 'set-key', { key: 'D' }, LIBRARY), state);
-  assert.equal(applyAction(state, 'toggle-section', { section: 'keys' }, LIBRARY), state);
   assert.equal(applyAction(state, 'open-keys', {}, LIBRARY), state);
+  // The Keys section can still be opened and closed, to look at the circle.
+  assert.ok(applyAction(state, 'toggle-section', { section: 'keys' }, LIBRARY).collapsed.includes('keys'));
   const off = applyAction(state, 'toggle-circle-of-fifths', {}, LIBRARY);
   assert.equal(applyAction(off, 'cycle-count', {}, LIBRARY).count, 8);
   assert.equal(applyAction(off, 'set-key', { key: 'D' }, LIBRARY).key, 'D');
@@ -103,6 +104,7 @@ test('while an exercise is on, the options it fixes cannot be changed; the melod
     ['set-key', { key: 'D' }],
     ['cycle-count', {}],
     ['toggle-variation', { variation: '9' }],
+    ['clear-variations', {}],
     ['toggle-foreign-variations', {}],
     ['set-probability', { option: 'variationProbability', value: '1' }],
     ['set-probability', { option: 'rotation', value: '1' }],
@@ -129,4 +131,19 @@ test('the painting switch is on by default and toggle-painting switches only it'
   const off = applyAction(state, 'toggle-painting', {}, SMALL_LIBRARY);
   assert.deepEqual(off, { ...state, painting: false });
   assert.equal(applyAction(off, 'toggle-painting', {}, SMALL_LIBRARY).painting, true);
+});
+
+test('clear-variations switches every chord variation off, and keeps the variation probability', () => {
+  const state = { ...defaultState(LIBRARY, FIXED), variationProbability: 3 };
+  const cleared = applyAction(state, 'clear-variations', {}, LIBRARY);
+  assert.deepEqual(cleared.variations, []);
+  assert.equal(cleared.variationProbability, 3);
+  assert.deepEqual(applyAction(cleared, 'clear-variations', {}, LIBRARY).variations, []);
+});
+
+test('clear-exercise switches the exercise that is on off, and changes nothing when none is on', () => {
+  const state = { ...defaultState(APP_LIBRARY, FIXED), exercise: 'circle-ii-v-i' };
+  assert.equal(applyAction(state, 'clear-exercise', {}, APP_LIBRARY).exercise, null);
+  const none = defaultState(APP_LIBRARY, FIXED);
+  assert.equal(applyAction(none, 'clear-exercise', {}, APP_LIBRARY).exercise, null);
 });

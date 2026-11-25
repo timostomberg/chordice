@@ -1,5 +1,6 @@
 /**
- * Keeps the state in a cookie: writes it, reads it back, and turns the untrusted value that comes back into a valid state.
+ * Keeps the state in a cookie, and a copy of it in the browser's local storage: writes it, reads it back, and turns the
+ * untrusted value that comes back into a valid state.
  * A value the page does not know, also one an older version of the page wrote, falls back to its default.
  */
 
@@ -115,4 +116,33 @@ export function parseCookie(cookieHeader) {
     }
   }
   return null;
+}
+
+/**
+ * The key of the copy of the state in the browser's local storage. Safari keeps a cookie that a script writes for at most
+ * seven days, but the local storage until the page has gone unused for seven days, so the copy outlasts the cookie on
+ * iPhones and iPads. A page added to the home screen keeps both.
+ */
+export const STORAGE_KEY = 'chordice_state';
+
+/** The stored copy of the state, as text. Like the cookie, it leaves out the selection. */
+export function serializeStored(state) {
+  return JSON.stringify({ ...state, selection: undefined });
+}
+
+/** Reads the raw state object from its stored copy. Returns null if absent or broken. */
+export function parseStored(text) {
+  if (typeof text !== 'string') {
+    return null;
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+/** The raw state the page starts from: the cookie's, or, once Safari has dropped the cookie, the stored copy. */
+export function readState(cookieHeader, storedText) {
+  return parseCookie(cookieHeader) ?? parseStored(storedText);
 }

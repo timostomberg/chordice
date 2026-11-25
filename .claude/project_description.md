@@ -2,87 +2,38 @@
 
 ## Goal
 
-An HTML website that generates practice material based on the chord progressions in `chord_progressions.yaml` and the bass notes in `bass_patterns.yaml`. It is hosted on GitHub Pages.
+A static HTML website, hosted on GitHub Pages, that generates practice material from the chord progressions in `chord_progressions.yaml` and the bass notes in `bass_patterns.yaml`. The YAML files are part of the repository and loaded by the site; the user never uploads them. The site is mainly intended for the iPad.
 
-### Data
+## Options
 
-The YAML files live in the Git repository and are loaded by the site as part of the repository. The end user never loads or uploads them.
+The user chooses options in a side panel, and the site produces concrete chord progressions. Changing one option changes only that option; everything else (including random choices) stays the same.
 
-### Options
+- **Key:** one major key from the circle of fifths, shown with its relative minor, e.g. C (Am). A circle of fifths button instead gives 12 rows, one per key, counterclockwise from C (F# or Gb at random); the number of progressions and key selection are then greyed out.
+- **Chord progressions:** groups or single progressions from `chord_progressions.yaml` (all selected on start-up), the number of progressions (1, 2, 4, 8; default 2), and probabilities (0–5) for rotating and for permuting them.
+- **Chord variations:** extensions such as 7, maj7, 6, add9, sus2, sus4, 9, … with a probability (0–5); their commonness per genre in the YAML weights the choice. An `off` button disables all variations; a `#b` button (on by default) allows variations with tones foreign to the key.
+- **Bass notes** (e.g. C/E): a probability (0–5); the commonness in `bass_patterns.yaml` weights the choice.
+- **Melody / inversions:** the Melody button switches inversions on. Each chord is then shown in an inversion chosen by its melody note (top tone). A Strength (0–5) controls how far consecutive melody notes may jump: 0 always picks the nearest, 5 picks any inversion equally.
+- **Exercises:** at most one exercise is active; it fixes certain options (greyed out) while the stored values are kept. Example: *Circle around ii7-V7-Imaj7* (Jazz Cadence in all keys with 7/maj7 only).
+- **View:** plain or extended view, background colours on/off, light or dark theme.
 
-The user selects from several options, and the site produces concrete chord progressions. The options are:
+## Display
 
-- **Key:**
-  - A single key from the circle of fifths, which contains the keys C, G, D, A, E, B, F#, F, Bb, Eb, Ab, Db, Gb. Each key is shown with its relative minor in brackets, e.g. C (Am). Only the major keys can be selected. All progressions are written in major.
-  - A circle of fifths button (a counterclockwise arrow) beside the Keys heading, off by default. Off: everything as described above. On: the number of chord progressions is set to 12, one per key, counterclockwise on the circle of fifths from C: C, F, Bb, Eb, Ab, Db, F# or Gb (chosen at random, 50/50, so both occur), B, E, A, D, G. Every other setting and random choice stays the same; the only difference is that each row is in another key. Each row heading starts with its key in the font of the progression name, set off by a middle dot, e.g. C (Am) · Pop Progression. Meanwhile the number button shows 12 and is greyed out (filled grey instead of blue), and the Keys section is greyed out and cannot be opened (the circle of fifths button beside it stays clickable); the stored number and key come back when the switch is off. A disabled button that is on is always filled grey, not blue. The state is kept in cookies.
-- **Chord progressions:**
-  - One or more chord progression groups or chord progressions from the predefined ones listed in `chord_progressions.yaml`. On start-up every progression is selected, whatever the stored state says.
-  - The number of chord progressions in the sequence (1, 2, 4, 8; default 2).
-  - The probability of rotating the predefined chord progressions (scale from 0 to 5; 5 means 100%; non-rotation is included as one of the possible outcomes with equal probability).
-  - The probability of permuting the predefined chord progressions (scale from 0 to 5; 5 means 100%; non-permutation is included as one of the possible outcomes with equal probability).
-- **Chord variations:**
-  - One or more chord variations that are listed in `chord_progressions.yaml`. All chord extensions available in that file are listed all the time in the following order: 7, maj7, 6, add9, sus2, sus4, 9, maj9, 11, maj11, 13, maj13, 6/9, 5, ... (`base` variation is not shown here). 
-  - The probability of choosing a chord variation (scale from 0 to 5; 5 means 100%). `chord_progressions.yaml` lists the chord variations for each genre with their commonness on a scale from 1 to 5. The commonness defines the probability with which a variation is chosen (including `base` variation).
-  - A `#b` button beside the Chord variations heading, on by default. On: all chord variations are used. Off: only chord variations whose chord (base triad and added tones) has no tone foreign to the key of the row are used, e.g. I7 is left out in C because Bb is foreign, while I add9 stays. The state is kept in cookies.
-- **Bass notes** (written e.g. as C/E):
-  - The probability of choosing a bass note (scale from 0 to 5; 5 means 100%). `bass_patterns.yaml` lists the bass notes for each chord degree and chord varation whith their commonness on a scale from 1 to 5. The commonness defines the probability with which a bass note is chosen (including `1` bass note).
-- **Melody variations** (only with the inversions switch on):
-  - The melody note of a chord is its top tone in the chosen inversion, e.g. G for C in root position and C for C in first inversion. The melody note is chosen from the inversions of the chord, so each inversion is one melody note.
-  - The melody note of a chord is chosen with regard to the melody note of the chord before it in the same row. The first chord of a row has no chord before it and is equally likely in every inversion.
-  - A distance between two melody notes is the shorter way round the twelve pitch classes, from 0 to 6 semitones; the octave is ignored. A fifth counts as a fourth.
-  - The Strength (scale from 0 to 5) decides how far the melody notes may lie apart. At 0 the nearest melody note is always chosen, and two equally near notes are chosen 50/50. Higher amounts make notes further away more likely, and at 5 every inversion is equally likely. Each inversion has the weight (Strength / 5) to the power of its distance minus the distance of the nearest one, so far notes are less likely but still possible below 5.
-  - The section is greyed out, and its Strength shows 0, on the guitar, as the guitar has no melody note, and on the piano while the Melody button (the inversions switch) is off. Its stored Strength comes back when it is available again.
-- **Exercises** (under their own heading "Exercises", below the variation sections, in a collapsible section "Exercises"):
-  - An exercise fixes some options for one kind of practice. At most one exercise is on; clicking it again switches it off. While it is on, the options it fixes take its values, are shown with them, and are greyed out and cannot be changed (the Keys section, through the circle of fifths button, and the Progressions, Progression variations, Chord variations and Bass variations sections are greyed out and cannot be opened; the number button shows a greyed-out 12). The stored values stay and come back when the exercise is off. The exercise is kept in cookies.
-  - **Circle around ii7-V7-Imaj7:** only the Jazz Cadence is selected; the circle of fifths button is on, so every key occurs; only the chord variations 7 and maj7 are selected, with Amount 5; the `#b` button is on; Rotations, Permutations and the Amount of the bass variations are 0. Only the melody variations stay free.
-- **View:**
-  - Plain view of chords (e.g. C, F, G, C) or extended view.
-  - Background colors on/off.
-  - Light theme (default) or dark theme, switched by the theme button.
-- Inversions on/off, switched by the Melody button beside the Melody variations heading (not in the header). When on, every chord is shown in one of its inversions. The inversion is chosen through its melody note (see Melody variations). An extended chord has as many positions as it has tones, and the root position is one of them. An inversion puts another chord tone at the bottom, e.g. C/E for the first inversion of C. Inversions are not a probability. Because the positions depend on the tones of the chord and on the chord before, adding or removing a chord extension, or changing the melody variations, can change the inversion of a chord.
+- **Extended view:** roman numeral, chord symbol, chord tones in a column beside it (melody note in square brackets), the bass below, and a background colour by harmonic function (tonic, subdominant, dominant; minor chords darker).
+- **Notes window:** clicking a chord opens its notes. Clicking the left/right half (or swiping) steps through inversions.
+- **Instrument:** a piano/guitar tab in the header. Piano shows a staff; guitar shows chord diagrams from `@tombatossals/chords-db` and disables bass variations and melody.
+- **Layout:** the side panel is on the left (up to 480px, at most half the width; full width on narrow screens). The back button closes it (it has its own history entry); a swipe right from the left edge opens it, a swipe left on it closes it. The chords can be zoomed and shrink automatically to fit.
+- **Background:** a randomly generated watercolour painting behind the app (seeded by the song), painted on a canvas in a web worker at a limited resolution, with the paper grain laid over it by CSS; can be switched off.
 
-Changing one option changes only that option. All other settings remain as they are. Example: If the user changes the bass note probability, the exact same chord progression and extensions remain.
+## Persistence and devices
 
-### View
-
-The website is mainly intended to work well on an iPad.
-
-The extended view includes:
-
-- Roman numeral.
-- Chord
-- Chord tones in lower case, stacked in a column beside the chord symbol, on its right. The lowest tone is at the bottom and the highest at the top, in the order of the chord's inversion (e.g. C in first inversion: e at the bottom, then g, then c at the top). With the melody switch on, the top tone is set in square brackets, as it takes the place of the melody note. Below them, set apart by some space and without a box, the bass (the slash bass, or the root) is listed at the bottom, as in the notes window's bass staff. The roman numeral and the chord symbol form one group, so they move together; the chord and the column are centred as one.
-- Background matching the harmonic function (tonic, dominant, subdominant).
-
-When inversions are on, the top melody note of each chord is shown beside the chord, in the same column and style as the chord tones, lower case and in square brackets, in the colour of the chord symbol. Alone (melody switch on, tones switch off) the column holds only this note, which is not coloured red or blue even when it is foreign to the key or added by the variation. With the tones switch on as well, the melody note is not shown separately: its top tone is in square brackets in the column instead. This applies to both the plain and the extended view. A chord in root position shows its highest chord tone there.
-
-Clicking a chord opens its notes, starting with the inversion the chord has. The bass in the notes is the slash bass or the root, in every inversion; only the upper tones are inverted. The notes window shows the chord box above the staff, as the row shows it, and the staff has no chord symbol of its own. A click in the left half of the window shows the previous inversion, one in the right half the next, and the chord box follows it. The window shows the number of the inversion, as "1 / 3", where 1 is the root position. Nothing in the window can be selected.
-
-### Painting
-
-Behind the app lies a painting in watercolour: a calm landscape (hills, mountains, the sea) or an abstract work (bands or blooms of colour), composed at random. Its seed is made from the seeds of the song, so the same song always shows the same picture and Generate shows a new one. The theme changes only its colours (day or dusk). The sun or the moon shows only in a few paintings. The header and the side panel are translucent, so the painting shows through them.
-
-A painting button with a mountain symbol, left of the theme button in the header, is on by default. On: the painting is shown. Off: a plain background in the mean colour of the painting is shown in its place. The state is kept in cookies.
-
-In both themes a minor chord is coloured darker than the major chord of its harmonic function.
-
-### Instrument
-
-An instrument tab in the header, right of the Options button, chooses what a click on a chord shows. It has a piano on the left and a guitar on the right; the piano is the default.
-
-- Piano: the notes window described above.
-- Guitar: the notes window shows a guitar diagram of the chord in standard tuning, from the chord database `@tombatossals/chords-db`, in place of the staff. A click in the left half of the window shows the previous shape of the chord, one in the right half the next, with the number of the shape as "1 / 4"; the shapes that sound the bass of the chord come first. A chord the database has no shape for is shown as the most similar chord it contains, and the caption under the diagram names both chords. Without any shape, the caption says so.
-- While the guitar is chosen, the Amount of the bass variations and the inversions switch in the header are greyed out and take no effect: the chords have no bass variations and no melody note. The Bass variations section cannot be opened then, and its Amount shows 0. The stored values are kept and come back when the piano is chosen.
-
-### Cookies
-
-Cookies ensure that the website can be revisited in the same state as before. This includes the instrument.
+- The state (including instrument, exercise, switches) is kept in cookies, with a copy in local storage because Safari expires script cookies after seven days.
+- Installable as a home-screen web app (manifest, icons); a service worker (`sw.js`) enables offline use with network-first updates; the screen stays on via Screen Wake Lock.
 
 ## Dependencies
 
-Dependencies can be imported via CDN.
+Imported via CDN where possible:
 
-- tonal (JavaScript)
-- svguitar (JavaScript), draws the guitar diagrams
-- The chord database `@tombatossals/chords-db` is installed with npm for its data. The page fetches its `lib/guitar.json` from the CDN, since the package has no module entry point.
+- tonal
+- svguitar (guitar diagrams)
+- `@tombatossals/chords-db` (installed with npm; the page fetches `lib/guitar.json` from the CDN)
 - Additional dependencies may be used where needed.

@@ -279,17 +279,21 @@ test('the melody button sits beside the Melody variations heading, pressed with 
   assert.ok(/data-flag="inversions"[^>]*\sdisabled/.test(greyed), 'the melody button is disabled on the guitar');
 });
 
-test('with the circle of fifths switch on, Keys is greyed out and closed, and the circle button beside it stays clickable', () => {
-  // Keys was the open section; it stays stored as open and opens again when the switch is off.
+test('with the circle of fifths switch on, Keys can still be opened, and its circle shows no key and is greyed out', () => {
   const state = { ...defaultState(LIBRARY, () => 0.5), key: 'G', circleOfFifths: true };
   const html = renderOptions(state, LIBRARY);
   const keys = html.split('</section>')[0];
-  assert.ok(keys.startsWith('<section class="option is-collapsed is-unavailable">'));
-  assert.ok(keys.includes('data-section="keys" aria-expanded="false" disabled>'));
-  assert.ok(keys.includes('<span class="section-summary">all</span>'));
-  assert.ok(!html.includes('<svg class="circle'));
+  assert.ok(keys.startsWith('<section class="option">'));
+  assert.ok(keys.includes('data-section="keys" aria-expanded="true">'));
+  assert.ok(keys.includes('<svg class="circle is-disabled"'));
+  assert.ok(!keys.includes('class="key is-'), 'no key is selected or highlighted');
+  assert.ok(!keys.includes('aria-pressed="true" aria-label="G'));
+  assert.ok(keys.includes('aria-disabled="true"'));
   assert.ok(!html.includes('class="key-signature"'));
   assert.ok(/class="chip circle-toggle is-on" aria-pressed="true"[^>]*title="[^"]*">/.test(keys), 'the circle button is not disabled');
+  const collapsed = renderOptions({ ...state, collapsed: ['keys'] }, LIBRARY).split('</section>')[0];
+  assert.ok(collapsed.includes('data-section="keys" aria-expanded="false">'));
+  assert.ok(collapsed.includes('<span class="section-summary">all</span>'));
   const off = renderOptions({ ...state, circleOfFifths: false }, LIBRARY);
   assert.ok(off.includes('<svg class="circle"'));
   assert.ok(!off.includes('aria-disabled'));
@@ -425,4 +429,36 @@ test('the summary of the collapsed keys section raises the accidentals of the ke
   const flat = '<span class="accidental">♭</span>';
   assert.ok(html.includes(`E${flat} (C<span class="minor-sign">m</span>)`));
   assert.ok(!html.includes('Eb (Cm)'));
+});
+
+test('an "unselect all" chip at the end of the Chord variations section switches every chord variation off', () => {
+  const html = renderOptions({ ...defaultState(LIBRARY, () => 0.5), collapsed: [] }, LIBRARY);
+  const header = [...html.matchAll(/<h2 class="section-header[^"]*">[\s\S]*?<\/h2>/g)]
+    .map((match) => match[0]).find((part) => part.includes('Chord variations')) ?? '';
+  assert.ok(!header.includes('clear-toggle'));
+  const chips = /<div class="chips">((?:(?!<\/div>)[\s\S])*data-action="toggle-variation"[\s\S]*?)<\/div>/.exec(html)?.[1] ?? '';
+  assert.ok(chips.endsWith('<button type="button" class="chip clear-toggle" data-action="clear-variations" ' +
+    'aria-label="Switch off all chord variations" title="Switch off all chord variations">unselect all</button>'));
+  assert.equal(html.split('clear-toggle').length - 1, 1);
+});
+
+test('the "unselect all" chip of the chord variations is not shown while the section is collapsed', () => {
+  const html = renderOptions({ ...defaultState(LIBRARY, () => 0.5), collapsed: ['variations'] }, LIBRARY);
+  assert.ok(!html.includes('clear-variations'));
+});
+
+test('the "unselect all" chip of the chord variations is not shown while an exercise fixes them', () => {
+  // The section is unavailable then, so it stays collapsed.
+  const html = renderOptions(withExercise(storedState()), APP_LIBRARY);
+  assert.ok(!html.includes('clear-variations'));
+});
+
+test('an "unselect all" chip at the end of the Exercises section switches the exercise off', () => {
+  for (const exercise of [null, CIRCLE]) {
+    const html = renderExercises({ ...defaultState(APP_LIBRARY, () => 0.5), exercise }, APP_LIBRARY);
+    assert.ok(html.includes('<h2><button type="button" class="section-toggle" data-action="toggle-section" data-section="exercises"'));
+    const chips = /<div class="chips">([\s\S]*?)<\/div>/.exec(html)?.[1] ?? '';
+    assert.ok(chips.endsWith('<button type="button" class="chip clear-toggle" data-action="clear-exercise" ' +
+      'aria-label="Switch off all exercises" title="Switch off all exercises">unselect all</button>'));
+  }
 });

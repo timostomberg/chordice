@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { JSDOM } from 'jsdom';
 import {
   DEFAULT_ZOOM,
   MAX_ZOOM,
@@ -8,6 +9,8 @@ import {
   bindZoom,
   blockZoom,
   clampZoom,
+  fittedZoom,
+  measureRows,
   pinchZoom,
   wheelZoom,
 } from '../../../../chordice/app/song/zoom.js';
@@ -157,4 +160,70 @@ test('the chords start at a zoom above 100%, and the stylesheet shows the same d
   for (const value of defaults) {
     assert.equal(value, DEFAULT_ZOOM);
   }
+});
+
+test('fittedZoom keeps the wanted scale while the content fits, and zooms out just far enough when it does not', () => {
+  assert.equal(fittedZoom(1.2, 500, 800), 1.2);
+  assert.equal(fittedZoom(1.2, 500, 500), 1);
+  assert.ok(fittedZoom(1.2, 500, 501) <= 501 / 500);
+  // Never below the minimum: on a very narrow area the chords wrap instead.
+  assert.equal(fittedZoom(1.2, 1000, 100), MIN_ZOOM);
+  // The user's own smaller scale wins.
+  assert.equal(fittedZoom(0.8, 500, 500), 0.8);
+});
+
+test('fittedZoom shows the wanted scale without a measurement', () => {
+  assert.equal(fittedZoom(1.2, 0, 500), 1.2);
+  assert.equal(fittedZoom(1.2, 500, 0), 1.2);
+  assert.equal(fittedZoom(1.2, Number.NaN, 500), 1.2);
+});
+
+test('bindZoom fits the shown scale to the room, and keeps the chosen scale for when there is room again', () => {
+  const area = fakeArea();
+  const surface = fakeSurface();
+  let available = 400;
+  // The content needs 500px at the scale 1.
+  const zoom = bindZoom(area, surface, { measure: () => ({ needed: 500, available }) });
+  zoom.fit();
+  assert.equal(zoom.shown, 0.8);
+  assert.equal(surface.style['--zoom'], '0.8');
+  assert.equal(zoom.scale, DEFAULT_ZOOM, 'the chosen scale stays');
+  available = 1000;
+  zoom.fit();
+  assert.equal(zoom.shown, DEFAULT_ZOOM);
+  // Zooming in (here with Ctrl + scroll) is capped by the room too.
+  available = 600;
+  area.fire('wheel', { ctrlKey: true, deltaY: -300, deltaMode: 0 });
+  assert.equal(zoom.scale, DEFAULT_ZOOM * 2);
+  assert.equal(zoom.shown, 1.2);
+});
+
+test('bindZoom shows the chosen scale when nothing can be measured', () => {
+  const surface = fakeSurface();
+  const zoom = bindZoom(fakeArea(), surface, { measure: () => null });
+  zoom.fit();
+  assert.equal(surface.style['--zoom'], String(DEFAULT_ZOOM));
+});
+
+test('measureRows takes the widest row of chords, as on one line, at the scale 1, and the room inside the padding', () => {
+  const dom = new JSDOM('<!DOCTYPE html><section id="area"><div id="surface">' +
+    '<ol class="chords"><li></li><li></li></ol><ol class="chords"><li></li><li></li><li></li></ol></div></section>');
+  const { document } = dom.window;
+  const area = document.getElementById('area');
+  const surface = document.getElementById('surface');
+  // jsdom has no layout, so the sizes are given here.
+  Object.defineProperty(area, 'clientWidth', { value: 600 });
+  area.style.padding = '0 16px';
+  for (const row of surface.querySelectorAll('.chords')) {
+    row.style.columnGap = '10px';
+    for (const chord of row.children) {
+      chord.getBoundingClientRect = () => ({ width: 100 });
+    }
+  }
+  // The widest row: 3 chords of 100px and 2 gaps of 10px at the scale 2.
+  assert.deepEqual(measureRows(area, surface, 2), { needed: 160, available: 568 });
+});
+
+test('measureRows gives nothing without a page to measure', () => {
+  assert.equal(measureRows(fakeArea(), fakeSurface(), 1), null);
 });

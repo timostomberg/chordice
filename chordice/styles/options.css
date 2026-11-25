@@ -8,6 +8,11 @@
   margin-left: 0.5rem;
 }
 
+/* The "unselect all" chip at the end of Chord variations and Exercises: set a little smaller than the chip labels. */
+.clear-toggle {
+  font-size: 0.9rem;
+}
+
 /* The count shows a number, so its digits use tabular figures. */
 .count-toggle {
   font-variant-numeric: tabular-nums;
@@ -256,7 +261,8 @@
   justify-content: space-between;
 }
 
-/* Custom slider: grey track, darker blue up to the value, blue thumb. --fill is set on each input from its value. */
+/* Custom slider: grey track, darker blue up to the value, blue thumb. --fill is set on each input from its value. The track
+   is a stroke of the brush and the knob a dab of paint: both carry the soft clouds of the washes (see main.css). */
 .slider input {
   width: 100%;
   min-height: var(--touch);
@@ -268,7 +274,8 @@
 .slider input::-webkit-slider-runnable-track {
   height: 6px;
   border-radius: 999px;
-  background: linear-gradient(to right, var(--slider-fill) var(--fill), var(--muted) var(--fill));
+  background: var(--mottle), linear-gradient(to right, var(--slider-fill) var(--fill), var(--muted) var(--fill));
+  background-size: 200px 200px, auto;
 }
 
 /* The thumb is a white knob with a blue ring and a soft shadow. */
@@ -279,20 +286,20 @@
   margin-top: -7px;
   border: 3px solid var(--icon-blue);
   border-radius: 50%;
-  background: var(--surface);
+  background: var(--mottle), var(--surface);
   box-shadow: var(--shadow);
 }
 
 .slider input::-moz-range-track {
   height: 6px;
   border-radius: 999px;
-  background: var(--muted);
+  background: var(--mottle), var(--muted);
 }
 
 .slider input::-moz-range-progress {
   height: 6px;
   border-radius: 999px;
-  background: var(--slider-fill);
+  background: var(--mottle), var(--slider-fill);
 }
 
 .slider input::-moz-range-thumb {
@@ -300,7 +307,7 @@
   height: 14px;
   border: 3px solid var(--icon-blue);
   border-radius: 50%;
-  background: var(--surface);
+  background: var(--mottle), var(--surface);
   box-shadow: var(--shadow);
 }
 

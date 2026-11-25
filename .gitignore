@@ -147,3 +147,7 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Claude Code: ignore every .claude folder except the one at the root of the repository
+.claude/
+!/.claude/

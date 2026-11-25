@@ -63,3 +63,34 @@ test('the three switches on the right of the header are evenly spaced', () => {
   const viewGap = /\.view-toggles\s*\{[^}]*gap:\s*([^;]+);/.exec(CSS)[1];
   assert.equal(viewGap, toolbarGap);
 });
+
+test('the buttons left and right of the title are two groups that wrap to the next row only as a whole', () => {
+  const block = declarationsOf('.toolbar-start,\n.toolbar-end');
+  assert.ok(block.includes('display: flex'));
+  assert.ok(block.includes('flex-wrap: nowrap'));
+  assert.ok(block.includes('flex: none'), 'a group does not shrink, so it wraps instead');
+  const toolbarGap = /\.toolbar\s*\{[^}]*gap:\s*([^;]+);/.exec(CSS)[1];
+  assert.ok(block.includes(`gap: ${toolbarGap}`), 'the buttons inside a group keep the gap of the toolbar');
+  assert.ok(declarationsOf('.toolbar-end').includes('margin-left: auto'), 'the right group stays at the right edge');
+});
+
+test('the symbol of a header button sits in its middle, also when the minimum touch size widens the button', () => {
+  const block = declarationsOf('.toolbar button');
+  assert.ok(block.includes('display: inline-flex'));
+  assert.ok(block.includes('align-items: center'));
+  assert.ok(block.includes('justify-content: center'));
+});
+
+test('the dark mode switch looks active in the dark theme, like the other pressed switches, and inactive in the light theme', () => {
+  assert.match(CSS, /\.toolbar \.theme-toggle\[aria-pressed="true"\][^{]*\{[^}]*background: var\(--icon-blue\)/);
+  assert.ok(!/\.theme-toggle\[aria-pressed="false"\]/.test(CSS), 'unpressed, it keeps the plain look of an inactive switch');
+});
+
+test('in a low window (a phone held sideways) the header is thinner, and still keeps clear of the status bar', () => {
+  const media = /@media \(max-height: (\d+)px\) \{([\s\S]*?)\n\}/.exec(CSS);
+  assert.ok(media, 'a media query for low windows');
+  assert.ok(Number(media[1]) >= 400);
+  assert.ok(/\.toolbar\s*\{[^}]*padding-top: calc\([^;]*env\(safe-area-inset-top\)\)/.test(media[2]));
+  assert.ok(/\.toolbar h1\s*\{[^}]*font-size/.test(media[2]));
+  assert.ok(!media[2].includes('min-height'), 'the buttons keep their touch size');
+});

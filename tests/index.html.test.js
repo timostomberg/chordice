@@ -42,6 +42,9 @@ test('every element that app.js looks up exists in index.html', () => {
       // Classes are either in the markup or rendered by options.js or song/song.js (e.g. the progression list).
       const rendered = read('options/options.js') + read('song/song.js');
       assert.ok(new RegExp(`class="[^"]*\\b${selector.slice(1)}\\b`).test(html + rendered), selector);
+    } else if (/^meta\[name="[^"]+"\]$/.test(selector)) {
+      const name = /name="([^"]+)"/.exec(selector)[1];
+      assert.ok(html.includes(`<meta name="${name}"`), selector);
     } else {
       const action = /data-action="([^"]+)"/.exec(selector)?.[1];
       assert.ok(html.includes(`data-action="${action}"`), selector);
@@ -56,6 +59,8 @@ const ACTION_PARAMS = {
   'toggle-progression': { id: 'Pop / Pop Progression' },
   'cycle-count': {},
   'toggle-variation': { variation: '7' },
+  'clear-variations': {},
+  'clear-exercise': {},
   'set-probability': { option: 'rotation', value: '3' },
   'toggle-section': { section: 'bass' },
   'toggle-exercise': { exercise: 'circle-ii-v-i' },
@@ -272,4 +277,43 @@ test('the painting switch with its mountains sits left of the dark mode switch, 
   assert.ok(html.indexOf('data-action="toggle-painting"') < theme);
   // No other button stands between them: the only button opened in between is the theme button itself.
   assert.equal(html.slice(html.indexOf('data-action="toggle-painting"'), theme).split('<button').length - 1, 1);
+});
+
+test('the buttons left of the title form one group, the buttons right of it another', () => {
+  const html = readIndex();
+  const toolbar = /<header class="toolbar"[\s\S]*?<\/header>/.exec(html)?.[0] ?? '';
+  const title = toolbar.indexOf('<h1>');
+  const start = toolbar.indexOf('<div class="toolbar-start">');
+  const end = toolbar.indexOf('<div class="toolbar-end">');
+  assert.ok(start >= 0 && start < title, 'the left group comes before the title');
+  assert.ok(end > title, 'the right group comes after the title');
+  const left = toolbar.slice(start, title);
+  for (const action of ['toggle-options', 'toggle-exercises', 'toggle-help', 'set-instrument']) {
+    assert.ok(left.includes(`data-action="${action}"`), `${action} is in the left group`);
+  }
+  const right = toolbar.slice(end);
+  for (const action of ['toggle-roman', 'toggle-tones', 'toggle-colour', 'toggle-painting', 'toggle-theme']) {
+    assert.ok(right.includes(`data-action="${action}"`), `${action} is in the right group`);
+  }
+});
+
+test('index.html can be added to the home screen as an app: the manifest, the icons and the tags of iPhones and iPads', () => {
+  const html = readIndex();
+  const root = new URL('../', import.meta.url);
+  for (const href of ['manifest.webmanifest', 'icons/icon.svg', 'icons/icon-180.png']) {
+    assert.ok(html.includes(`href="${href}"`), href);
+    assert.ok(existsSync(fileURLToPath(new URL(href, root))), `${href} is missing`);
+  }
+  assert.ok(html.includes('<link rel="manifest" href="manifest.webmanifest">'));
+  assert.ok(html.includes('<link rel="apple-touch-icon" href="icons/icon-180.png">'));
+  assert.ok(html.includes('<meta name="apple-mobile-web-app-capable" content="yes">'));
+  assert.ok(html.includes('<meta name="apple-mobile-web-app-title" content="Chordice">'));
+  // The header reaches under the status bar of the app, and keeps clear of it by the top safe area (see header.css).
+  assert.ok(html.includes('<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">'));
+  assert.ok(html.includes('viewport-fit=cover'));
+});
+
+test('the colour of the browser bars in index.html starts as the paper of the light theme, the default', async () => {
+  const { THEME_COLOURS } = await import('../chordice/app/app.js');
+  assert.ok(readIndex().includes(`<meta name="theme-color" content="${THEME_COLOURS.light}">`));
 });

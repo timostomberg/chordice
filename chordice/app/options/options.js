@@ -91,10 +91,15 @@ function slider(option, state) {
 /** The content of one options section, shown while the section is expanded. */
 function sectionBody(name, state, library) {
   switch (name) {
-    case 'keys':
-      // With the circle of fifths switch on, the section cannot be opened (see SECTION_OPTIONS), so the circle is not drawn.
-      return `<div class="circle-wrap">${renderCircleSvg(state.key)}</div>` +
-        (keySignatureOf(state.key).length > 0 ? `<p class="key-signature">${keySignatureTags(state.key)}</p>` : '');
+    case 'keys': {
+      // With the circle of fifths switch on, every key is used: the circle is greyed out, with no key selected, and the
+      // key signature is not shown.
+      const disabled = isUnavailable(state, 'key');
+      const signature = !disabled && keySignatureOf(state.key).length > 0
+        ? `<p class="key-signature">${keySignatureTags(state.key)}</p>`
+        : '';
+      return `<div class="circle-wrap">${renderCircleSvg(state.key, { disabled })}</div>${signature}`;
+    }
     case 'progressions':
       return `<div class="progression-list">${progressionGroups(state, library)}</div>`;
     case 'progressionVariations':
@@ -105,7 +110,7 @@ function sectionBody(name, state, library) {
       return slider('variationProbability', state) +
         `<div class="chips">${VARIATION_NAMES.map((variation) =>
           toggleButton(variation, `data-action="toggle-variation" data-variation="${escapeHtml(variation)}"`, variations.includes(variation), disabled),
-        ).join('')}</div>`;
+        ).join('')}${clearVariationsButton(state)}</div>`;
     }
     case 'bass':
       return slider('bassProbability', state);
@@ -114,7 +119,7 @@ function sectionBody(name, state, library) {
     case 'exercises':
       return `<div class="chips">${EXERCISES.map((exercise) =>
         toggleButton(exercise.name, `data-action="toggle-exercise" data-exercise="${escapeHtml(exercise.id)}"`, state.exercise === exercise.id),
-      ).join('')}</div>`;
+      ).join('')}${clearExerciseButton()}</div>`;
     default:
       return '';
   }
@@ -227,12 +232,31 @@ function melodyButton(state) {
     `data-action="toggle-melody" data-flag="inversions" aria-label="Melody" title="Melody"${disabled ? ' disabled' : ''}>${MELODY_ICON}</button>`;
 }
 
-/** The button beside the heading of a section, by the name of the section; the other sections have none. */
+/**
+ * A button that switches everything of a section off at once, e.g. every chord variation. It is the last chip of the
+ * section's chips. It is not a switch, so it has no pressed state, and a click when everything is already off changes nothing.
+ */
+function clearButton(attributes, label, disabled) {
+  return `<button type="button" class="chip clear-toggle" ${attributes} aria-label="${escapeHtml(label)}" ` +
+    `title="${escapeHtml(label)}"${disabled ? ' disabled' : ''}>unselect all</button>`;
+}
+
+/** The last chip of the Chord variations section, which switches every chord variation off. */
+function clearVariationsButton(state) {
+  return clearButton('data-action="clear-variations"', 'Switch off all chord variations', isUnavailable(state, 'variations'));
+}
+
+/** The last chip of the Exercises section, which switches the exercise that is on off. */
+function clearExerciseButton() {
+  return clearButton('data-action="clear-exercise"', 'Switch off all exercises', false);
+}
+
+/** The buttons beside the heading of a section, by the name of the section; the other sections have none. */
 const SIDE_BUTTONS = {
-  keys: circleButton,
-  progressions: countButton,
-  variations: foreignButton,
-  melody: melodyButton,
+  keys: [circleButton],
+  progressions: [countButton],
+  variations: [foreignButton],
+  melody: [melodyButton],
 };
 
 function optionSection(name, state, library) {
@@ -246,7 +270,7 @@ function optionSection(name, state, library) {
     `data-section="${name}" aria-expanded="${expanded}"${unavailable ? ' disabled' : ''}>` +
     `<span class="section-title">${SECTION_TITLES[name]}</span>${summary}</button>`;
   // The headings with a button beside them draw their arrow after that button, so the arrow is on the header, not on the toggle.
-  const sideButton = SIDE_BUTTONS[name]?.(state) ?? '';
+  const sideButton = (SIDE_BUTTONS[name] ?? []).map((button) => button(state)).join('');
   const header = sideButton
     ? `<h2 class="section-header${expanded ? ' is-expanded' : ''}">${toggle}${sideButton}</h2>`
     : `<h2>${toggle}</h2>`;

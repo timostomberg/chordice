@@ -1,6 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { COOKIE_NAME, cookiePathOf, parseCookie, sanitizeState, serializeCookie } from '../../../../chordice/app/state/persistence.js';
+import {
+  COOKIE_NAME,
+  STORAGE_KEY,
+  cookiePathOf,
+  parseCookie,
+  parseStored,
+  readState,
+  sanitizeState,
+  serializeCookie,
+  serializeStored,
+} from '../../../../chordice/app/state/persistence.js';
 import { defaultState, SECTIONS } from '../../../../chordice/app/state/state.js';
 import { SEED_NAMES } from '../../../../chordice/music/generator/random.js';
 import { VARIATION_NAMES } from '../../../../chordice/music/theory/chords.js';
@@ -197,4 +207,31 @@ test('the painting switch is kept in the cookie, and is on when the cookie does 
   assert.equal(sanitizeState(parseCookie(serializeCookie(off)), SMALL_LIBRARY, FIXED).painting, false);
   assert.equal(sanitizeState({}, SMALL_LIBRARY, FIXED).painting, true);
   assert.equal(sanitizeState({ painting: 'maybe' }, SMALL_LIBRARY, FIXED).painting, true);
+});
+
+test('the stored copy of the state survives a round trip, and leaves out the selection like the cookie', () => {
+  const state = { ...defaultState(LIBRARY, FIXED), count: 8, theme: 'dark' };
+  const raw = parseStored(serializeStored(state));
+  assert.equal(raw.selection, undefined);
+  assert.deepEqual(sanitizeState(raw, LIBRARY), sanitizeState(parseCookie(serializeCookie(state)), LIBRARY));
+  assert.equal(raw.count, 8);
+});
+
+test('a missing or broken stored copy reads as null', () => {
+  assert.equal(parseStored(null), null);
+  assert.equal(parseStored(undefined), null);
+  assert.equal(parseStored('{broken'), null);
+});
+
+test('the page starts from the cookie, and from the stored copy once the cookie is gone or broken', () => {
+  const fromCookie = { ...defaultState(LIBRARY, FIXED), count: 1 };
+  const fromStorage = { ...defaultState(LIBRARY, FIXED), count: 8 };
+  assert.equal(readState(serializeCookie(fromCookie), serializeStored(fromStorage)).count, 1);
+  assert.equal(readState('', serializeStored(fromStorage)).count, 8);
+  assert.equal(readState(`${COOKIE_NAME}=%7Bbroken`, serializeStored(fromStorage)).count, 8);
+  assert.equal(readState('', null), null);
+});
+
+test('the stored copy has the name of the cookie, which names Chordice, as the projects on one host share the local storage', () => {
+  assert.equal(STORAGE_KEY, COOKIE_NAME);
 });

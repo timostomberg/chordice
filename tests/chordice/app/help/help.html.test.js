@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { JSDOM } from 'jsdom';
 import { PROGRESSIONS_DATA } from '../../../helpers/fixtures.js';
 
 // The help page is a static page in chordice/app/help/; its stylesheet is chordice/styles/help.css. The app shows its main
@@ -118,6 +119,41 @@ test('the help page follows the stored theme and defaults to light, as the app d
   assert.match(html, /data-theme="light"/);
   assert.ok(html.includes("chordice_state="));
   assert.ok(html.includes("theme === 'dark'"));
+});
+
+/**
+ * The theme the help page picks, by running its theme script in a page of jsdom with the given cookie and stored copy of
+ * the state (each an object, or null when absent). `refuse` makes the local storage throw, as a private window may.
+ */
+function themeOf({ cookie = null, stored = null, refuse = false } = {}) {
+  const script = /<script>([\s\S]*?)<\/script>/.exec(help())[1];
+  const { window } = new JSDOM('<!DOCTYPE html><html></html>', { url: 'https://example.github.io/chordice/', runScripts: 'outside-only' });
+  if (cookie) {
+    window.document.cookie = `chordice_state=${encodeURIComponent(JSON.stringify(cookie))}`;
+  }
+  if (stored) {
+    window.localStorage.setItem('chordice_state', JSON.stringify(stored));
+  }
+  if (refuse) {
+    Object.defineProperty(window, 'localStorage', { get() { throw new Error('SecurityError'); } });
+  }
+  window.eval(script);
+  return window.document.documentElement.dataset.theme;
+}
+
+test('the help page takes the theme from the cookie, and from the stored copy once the cookie is gone', () => {
+  assert.equal(themeOf(), 'light');
+  assert.equal(themeOf({ cookie: { theme: 'dark' } }), 'dark');
+  assert.equal(themeOf({ stored: { theme: 'dark' } }), 'dark');
+  assert.equal(themeOf({ cookie: { theme: 'light' }, stored: { theme: 'dark' } }), 'light', 'the cookie wins');
+  assert.equal(themeOf({ refuse: true }), 'light', 'a refused storage leaves the default');
+});
+
+test('the help page tells how Chordice works on a phone or tablet: the home screen, offline, the screen, swipes', () => {
+  const html = help();
+  for (const words of ['Add to Home Screen', 'offline', 'the screen stays on', 'swipe']) {
+    assert.ok(html.includes(words), words);
+  }
 });
 
 /**

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createNotesDialog } from '../../../../chordice/app/notes/notes.js';
+import { SWIPE_DISTANCE, createNotesDialog } from '../../../../chordice/app/notes/notes.js';
 import { diagramOf } from '../../../../chordice/app/notes/diagram.js';
 
 // Minimal stand-ins for the dialog parts. The staff is drawn by an injected function, so no VexFlow or DOM is needed.
@@ -429,4 +429,73 @@ test('other keys do nothing, and the arrow keys do nothing once the window is cl
   dialog.close();
   dialog.emit('keydown', { key: 'ArrowRight', preventDefault() {} });
   assert.equal(drawn.length, 1);
+});
+
+/** A swipe across the window from one x position to another; a mouse ends it with a click, a finger mostly not. */
+function swipe(dialog, fromX, toX, { dy = 0, thenClick = false } = {}) {
+  dialog.emit('pointerdown', { clientX: fromX, clientY: 100 });
+  dialog.emit('pointerup', { clientX: toX, clientY: 100 + dy });
+  if (thenClick) {
+    click(dialog, toX);
+  }
+}
+
+test('a swipe to the left shows the next inversion, one to the right the previous', () => {
+  const { dialog, drawn, notes } = setup();
+  notes.open(E_OVER_C);
+  swipe(dialog, 300, 300 - SWIPE_DISTANCE);
+  assert.equal(drawn.at(-1).upper[0], 'G4');
+  swipe(dialog, 100, 100 + SWIPE_DISTANCE);
+  assert.equal(drawn.at(-1).upper[0], 'E4');
+  assert.equal(drawn.length, 3);
+});
+
+test('the click a mouse sends after a swipe is not a step of its own, nor does it close the window', () => {
+  const { dialog, drawn, notes } = setup();
+  notes.open(E_OVER_C);
+  swipe(dialog, 300, 100, { thenClick: true });
+  assert.equal(drawn.length, 2, 'one step, by the swipe');
+  assert.equal(dialog.isOpen, true);
+});
+
+test('after a swipe that the browser did not end with a click, the next tap is a click again', () => {
+  const { dialog, drawn, notes } = setup();
+  notes.open(E_OVER_C);
+  swipe(dialog, 300, 200);
+  assert.equal(drawn.length, 2);
+  swipe(dialog, FORWARD, FORWARD, { thenClick: true });
+  assert.equal(drawn.length, 3, 'the tap in the right half steps forward');
+});
+
+test('a short move or a move mostly up or down is no swipe, so the click that follows steps by its half', () => {
+  const { dialog, drawn, notes } = setup();
+  notes.open(E_OVER_C);
+  swipe(dialog, 300, 300 - (SWIPE_DISTANCE - 1), { thenClick: true });
+  assert.equal(drawn.length, 2, 'the click in the right half steps forward');
+  swipe(dialog, 300, 300 - SWIPE_DISTANCE, { dy: SWIPE_DISTANCE * 2 });
+  assert.equal(drawn.length, 2, 'the move up or down does not step');
+});
+
+test('a guitar diagram steps to the next shape with a swipe to the left', () => {
+  const { dialog, notes, diagrams } = guitarSetup();
+  notes.open(E_OVER_C, null, null, {}, { instrument: 'guitar', fingering: C_SHAPES });
+  swipe(dialog, 300, 200);
+  assert.deepEqual(diagrams.at(-1), diagramOf(C_SHAPES, 1));
+});
+
+test('a move the browser cancels (e.g. it scrolls the window instead) is no swipe, and the next tap is a click again', () => {
+  const { dialog, drawn, notes } = setup();
+  notes.open(E_OVER_C);
+  dialog.emit('pointerdown', { clientX: 300, clientY: 100 });
+  dialog.emit('pointercancel', {});
+  dialog.emit('pointerup', { clientX: 100, clientY: 100 });
+  assert.equal(drawn.length, 1, 'no step');
+  swipe(dialog, FORWARD, FORWARD, { thenClick: true });
+  assert.equal(drawn.length, 2, 'the tap in the right half steps forward');
+});
+
+test('a swipe while the window is closed does nothing', () => {
+  const { dialog, drawn } = setup();
+  swipe(dialog, 300, 100);
+  assert.equal(drawn.length, 0);
 });

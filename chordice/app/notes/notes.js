@@ -1,8 +1,9 @@
 /**
  * The notes window: shows a chord's voicing in a grand staff for the piano, or its shape as a diagram for the guitar.
  * A click in the left half of the window shows the previous view, one in the right half the next: for the piano an
- * inversion with the same bass, for the guitar a shape. The arrow keys Left and Right step the same way. The window closes
- * with Escape or a click outside its content.
+ * inversion with the same bass, for the guitar a shape. A swipe to the left shows the next view, one to the right the
+ * previous, as pages turn. The arrow keys Left and Right step the same way. The window closes with Escape or a click
+ * outside its content.
  */
 
 import { inversionOrders, voicing } from '../../music/instruments/piano.js';
@@ -16,6 +17,9 @@ const OPEN_CLASS = 'is-open';
 
 /** The class on the staff box while it shows a guitar diagram. */
 const GUITAR_CLASS = 'is-guitar';
+
+/** How far, in pixels, a finger or the mouse must move sideways for a swipe; a shorter move is a click. */
+export const SWIPE_DISTANCE = 40;
 
 /**
  * Connects the dialog element to its parts. Returns an object with open(chord, element, tonic, display, options), which
@@ -109,9 +113,39 @@ export function createNotesDialog(dialog, drawStaff = renderScore, drawChord = c
     show();
   }
 
+  // A swipe steps through the views: to the left for the next one, to the right for the previous one. It counts when the
+  // move is long enough and more sideways than up or down. The click the browser may send at the end of a swipe (a mouse
+  // does, a finger mostly not) is not a step of its own, nor does it close the window; the next press starts afresh.
+  let swipeStart = null;
+  let swiped = false;
+  dialog.addEventListener('pointerdown', (event) => {
+    swipeStart = { x: event.clientX, y: event.clientY };
+    swiped = false;
+  });
+  dialog.addEventListener('pointerup', (event) => {
+    const start = swipeStart;
+    swipeStart = null;
+    if (!start || !current) {
+      return;
+    }
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (Math.abs(dx) >= SWIPE_DISTANCE && Math.abs(dx) > Math.abs(dy)) {
+      swiped = true;
+      step(dx < 0 ? 1 : -1);
+    }
+  });
+  dialog.addEventListener('pointercancel', () => {
+    swipeStart = null;
+  });
+
   // A click on the backdrop, which is the dialog element itself, closes the window. Any other click inside the window steps
   // back when it lands in the left half, and forward in the right half.
   dialog.addEventListener('click', (event) => {
+    if (swiped) {
+      swiped = false;
+      return;
+    }
     if (event.target === dialog) {
       dialog.close();
       return;

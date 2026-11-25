@@ -63,3 +63,15 @@ test('a filled disabled button beside a greyed-out heading, such as the count of
   assert.ok(filled.includes('background: var(--disabled-text)'));
   assert.ok(filled.includes('color: var(--surface)'));
 });
+
+test('the track and the knob of the sliders carry the soft clouds of the washes', () => {
+  for (const selector of [
+    '.slider input::-webkit-slider-runnable-track',
+    '.slider input::-webkit-slider-thumb',
+    '.slider input::-moz-range-track',
+    '.slider input::-moz-range-progress',
+    '.slider input::-moz-range-thumb',
+  ]) {
+    assert.match(declarationsOf(selector), /background: var\(--mottle\), /, selector);
+  }
+});

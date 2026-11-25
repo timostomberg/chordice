@@ -53,8 +53,11 @@
   --pigment-edge: rgba(70, 52, 30, 0.16);
   --bloom: rgba(255, 255, 255, 0.4);
   --bloom-ink: rgba(255, 255, 255, 0.14);
-  /* The opacity of the paper grain over the painting behind the app (see landscape.css). */
-  --grain: 0.55;
+  /* The pigment of a wash settles unevenly, a little denser in soft clouds: a small tile of noise, drawn once by the
+     browser and repeated, in the warm brown of the rim. On the deep blue of a filled button the clouds are a darker
+     indigo, so they show. */
+  --mottle: url("data:image/svg+xml,%3Csvg xmlns='http://www%2Ew3%2Eorg/2000/svg' width='200' height='200'%3E%3Cfilter id='m' color-interpolation-filters='sRGB' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0%2E035' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0%2E27 0 0 0 0 0%2E2 0 0 0 0 0%2E12 0%2E2 0 0 0 -0%2E06'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)'/%3E%3C/svg%3E");
+  --mottle-ink: url("data:image/svg+xml,%3Csvg xmlns='http://www%2Ew3%2Eorg/2000/svg' width='200' height='200'%3E%3Cfilter id='m' color-interpolation-filters='sRGB' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0%2E035' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0%2E12 0 0 0 0 0%2E19 0 0 0 0 0%2E32 0%2E4 0 0 0 -0%2E13'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)'/%3E%3C/svg%3E");
 }
 
 /* Tones below a chord: blue when the chord variation adds them, red when they are foreign to the key. The staff of the
@@ -105,7 +108,8 @@
   --pigment-edge: rgba(0, 0, 0, 0.3);
   --bloom: rgba(255, 255, 255, 0.08);
   --bloom-ink: rgba(255, 255, 255, 0.06);
-  --grain: 0.35;
+  --mottle: url("data:image/svg+xml,%3Csvg xmlns='http://www%2Ew3%2Eorg/2000/svg' width='200' height='200'%3E%3Cfilter id='m' color-interpolation-filters='sRGB' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0%2E035' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0%2E25 0 0 0 -0%2E08'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)'/%3E%3C/svg%3E");
+  --mottle-ink: url("data:image/svg+xml,%3Csvg xmlns='http://www%2Ew3%2Eorg/2000/svg' width='200' height='200'%3E%3Cfilter id='m' color-interpolation-filters='sRGB' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0%2E035' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0%2E16 0 0 0 0 0%2E24 0 0 0 0 0%2E4 0%2E4 0 0 0 -0%2E13'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)'/%3E%3C/svg%3E");
 }
 
 * {
@@ -118,10 +122,12 @@ body {
   height: 100%;
 }
 
-/* The side insets keep the page clear of the notch in landscape, the bottom inset of the home indicator. */
+/* The side insets keep the page clear of the notch in landscape, the bottom inset of the home indicator. The body is as
+   high as the visible window (dvh), also while Safari's bars slide in and out; a browser without dvh keeps the 100% above. */
 body {
   display: flex;
   flex-direction: column;
+  height: 100dvh;
   margin: 0;
   padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   overflow: hidden;
@@ -161,8 +167,8 @@ button {
 /*
  * The watercolour wash, the one look of everything that can be pressed: the chords, the buttons (Generate among them)
  * and, drawn by an SVG filter in the same colours, the keys of the circle of fifths (see circle-of-fifths.css). A wash
- * has a lighter bloom in its middle, where the water pooled, and a darker rim of pigment at its edge, where it dried.
- * Both lie in ::before, between the colour of the element and its label (the element isolates them), so they stay
+ * has a lighter bloom in its middle, where the water pooled, a darker rim of pigment at its edge, where it dried (densest
+ * at the bottom, where the water ran to), and soft clouds where its pigment settled denser. All lie in ::before, between the colour of the element and its label (the element isolates them), so they stay
  * whatever colour, shadow or shape a rule gives the element. The rim grows with the text, so it grows with the zoom of
  * the chords. The section headings of the options are plain text, not washes.
  * :where() gives these rules no weight, so every other rule wins over them: Generate, for one, stays fixed in its corner
@@ -179,18 +185,20 @@ button {
   inset: 0;
   z-index: -1;
   border-radius: inherit;
-  background: radial-gradient(ellipse at 35% 30%, var(--bloom), transparent 70%);
-  box-shadow: inset 0 0 0.45em var(--pigment-edge);
+  background: radial-gradient(ellipse at 35% 30%, var(--bloom), transparent 70%), var(--mottle);
+  background-size: auto, 200px 200px;
+  box-shadow: inset 0 0 0.45em var(--pigment-edge), inset -0.1em -0.2em 0.35em var(--pigment-edge);
   pointer-events: none;
 }
 
-/* On the deep blue of a filled button the bloom is fainter, so the blue stays calm. */
+/* On the deep blue of a filled button the bloom is fainter, so the blue stays calm, and its clouds are darker. */
 .generate::before,
 .chip.is-on::before,
 .chip.count-toggle::before,
 .toolbar button[aria-pressed="true"]::before,
 .toolbar button[aria-expanded="true"]::before {
-  background: radial-gradient(ellipse at 35% 30%, var(--bloom-ink), transparent 70%);
+  background: radial-gradient(ellipse at 35% 30%, var(--bloom-ink), transparent 70%), var(--mottle-ink);
+  background-size: auto, 200px 200px;
 }
 
 /* A greyed-out button is not painted: no bloom, no rim. */
@@ -218,7 +226,8 @@ button[aria-expanded="true"] {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(320px, 400px) 1fr;
+  /* The side panel is up to 480px wide, but never wider than half the window, so the chords keep at least the other half. */
+  grid-template-columns: min(480px, 50%) minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   flex: 1;
   min-height: 0;
@@ -352,19 +361,18 @@ span.minor-sign {
   }
 }
 
-/* Phones in portrait: the options sit above the chords, each in its own scrolling area. The safe-area insets are on body. */
-@media (max-width: 600px) {
+/* Narrow windows (phones in portrait): the side panel stays on the left, but there is no room beside it for the chords. While
+   it is open, it takes the full width and the song is hidden; closed, the song takes the full width. */
+@media (max-width: 500px) {
   .layout {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 40%) minmax(0, 1fr);
   }
 
-  .layout:has(> .side-panel[hidden]) {
-    grid-template-rows: minmax(0, 1fr);
+  .layout:has(> .side-panel:not([hidden])) > .song {
+    display: none;
   }
 
   .side-panel {
     border-right: none;
-    border-bottom: 1px solid var(--line);
   }
 }

@@ -1,7 +1,7 @@
 /**
  * The page: loads the progression data, holds the state (state/), renders it through the windows (header.js, options/,
- * song/, notes/, help/), wires the events of the page to the state transitions and keeps the state in a cookie. The music
- * (music/) generates the song; the look of the page is in styles/. main.js starts it.
+ * song/, notes/, help/), wires the events of the page to the state transitions and keeps the state in a cookie and in
+ * the local storage. The music (music/) generates the song; the look of the page is in styles/. main.js starts it.
  */
 
 import { load } from 'js-yaml';
@@ -9,7 +9,7 @@ import { generateSong } from '../music/generator/song.js';
 import { buildBassPatterns, buildLibrary } from '../music/data/validate.js';
 import { applyAction } from './state/actions.js';
 import { onlyKeysOpen, setInstrument } from './state/state.js';
-import { cookiePathOf, parseCookie, sanitizeState, serializeCookie } from './state/persistence.js';
+import { STORAGE_KEY, cookiePathOf, readState, sanitizeState, serializeCookie, serializeStored } from './state/persistence.js';
 import { displaySwitches, effectiveState } from './state/availability.js';
 import { updateHeader } from './header.js';
 import { renderExercises, renderOptions } from './options/options.js';
@@ -18,7 +18,8 @@ import { keepFocus } from './options/focus.js';
 import { renderSong } from './song/song.js';
 import { bindZoom, blockZoom } from './song/zoom.js';
 import { createNotesDialog } from './notes/notes.js';
-import { renderLandscape } from './landscape/landscape.js';
+import { createBackground } from './background/background.js';
+import { bindPanelHistory, bindPanelSwipes } from './panel.js';
 import { fingeringOf } from '../music/instruments/guitar.js';
 
 const PROGRESSIONS_URL = new URL('../music/data/chord_progressions.yaml', import.meta.url);
@@ -60,8 +61,31 @@ function guitarLoader() {
   };
 }
 
+/**
+ * The copy of the state in the browser's local storage (see persistence.js). A browser that refuses the storage (e.g. a
+ * private window that is full) keeps only the cookie.
+ */
+function readStorage() {
+  try {
+    return globalThis.localStorage?.getItem(STORAGE_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStorage(text) {
+  try {
+    globalThis.localStorage?.setItem(STORAGE_KEY, text);
+  } catch {
+    // Only the cookie keeps the state then.
+  }
+}
+
 /** The message shown when the guitar shapes cannot be loaded; the piano stays chosen. */
 const GUITAR_FAILED = 'The guitar shapes could not be loaded, so the piano stays chosen.';
+
+/** The paper of each theme (--bg in main.css), for the browser's own bars. */
+export const THEME_COLOURS = { light: '#f1ebdf', dark: '#141824' };
 
 /** The accessible name of the side panel for each of its panels. */
 const PANEL_LABELS = { options: 'Options', exercises: 'Exercises', help: 'Help' };
@@ -82,7 +106,7 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
   const options = document.querySelector('#options');
   const optionList = document.querySelector('#option-list');
   const songRows = document.querySelector('#song-rows');
-  const landscape = document.querySelector('#landscape');
+  const background = createBackground(document.querySelector('#background'));
   const notes = createNotesDialog(document.querySelector('#notes'));
   let currentSong = [];
   // Once a load of the help has ended, the help is shown if its panel is still chosen.
@@ -97,8 +121,18 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
 
   // Only the chords zoom, with Ctrl + scroll or a pinch. The options never zoom; Ctrl + scroll there does nothing.
   const song = document.querySelector('.song');
-  bindZoom(song, songRows);
+  // When there is too little room, the chords zoom out by themselves (see zoom.js), after every render and resize.
+  const zoom = bindZoom(song, songRows);
   blockZoom(sidePanel);
+
+  // The side panel as a screen of its own: the back button closes it, and swipes open and close it (see panel.js).
+  const setPanelOpen = (open) => {
+    if (state.showOptions !== open) {
+      dispatch('toggle-panel', {});
+    }
+  };
+  const panelHistory = bindPanelHistory(globalThis, () => state.showOptions, setPanelOpen);
+  bindPanelSwipes(document, sidePanel, () => state.showOptions, setPanelOpen);
 
   function render() {
     // Re-rendering replaces the markup, which would otherwise scroll the progression list and the chords back to the top.
@@ -136,13 +170,19 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
     const effective = effectiveState(state);
     currentSong = generateSong({ ...effective, library, bassPatterns });
     songRows.innerHTML = renderSong(currentSong, displaySwitches(state), { showKey: effective.circleOfFifths });
+    zoom.fit();
     song.scrollTop = songScroll;
     document.documentElement.dataset.theme = state.theme;
-    // The painting belongs to the song: it changes with Generate (new seeds) and with the theme, otherwise it stays. With
-    // the painting switch off, a plain background in its mean colour takes its place.
-    renderLandscape(landscape, state.seeds, state.theme, { plain: !state.painting });
+    // The browser's own bars (e.g. Safari's, or the status bar of the app on the home screen) take the paper of the theme.
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME_COLOURS[state.theme]);
+    // The painting belongs to the song: it changes with Generate (new seeds) and with the theme, otherwise it stays. Its
+    // colour shows at once, with the chords; the painting fades in over it once it is drawn. With the painting switch
+    // off, only its colour is shown.
+    background.show(state.seeds, state.theme, { plain: !state.painting });
     updateHeader(state);
     document.cookie = serializeCookie(state, cookiePath);
+    writeStorage(serializeStored(state));
+    panelHistory.sync();
   }
 
   function dispatch(action, params) {
@@ -226,7 +266,7 @@ export function startApp() {
   const loadGuitar = guitarLoader();
   return loadData()
     .then(async (data) => {
-      const stored = sanitizeState(parseCookie(document.cookie), data.library);
+      const stored = sanitizeState(readState(document.cookie, readStorage()), data.library);
       // A stored guitar needs its shapes before the page is drawn; without them the piano is shown instead.
       let guitar = null;
       let guitarError = false;

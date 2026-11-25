@@ -20,10 +20,12 @@ import { fileURLToPath } from 'node:url';
 const JS = fileURLToPath(new URL('../../chordice/', import.meta.url));
 const MUSIC_FOLDERS = ['theory', 'data', 'generator', 'instruments'];
 // The windows of the app: a window of one file is that file in app/, a window of several files a folder.
-const WINDOWS = { header: 'header.js', options: 'options', song: 'song', notes: 'notes', help: 'help', landscape: 'landscape' };
+const WINDOWS = { header: 'header.js', options: 'options', song: 'song', notes: 'notes', help: 'help', background: 'background' };
 // The files that several windows share: the escaping, and the chord box that the rows and the notes window both show.
 const SHARED = ['app/escape.js', 'app/names.js', 'app/chord.js'];
-const APP_ENTRIES = ['app.js', 'main.js', 'state', ...Object.values(WINDOWS), ...SHARED.map((path) => path.slice('app/'.length))];
+// device.js is what main.js asks of the device (the screen kept on, the service worker); it belongs to no window.
+// panel.js makes the side panel a screen of its own (back button, swipes) for app.js; it belongs to no window either.
+const APP_ENTRIES = ['app.js', 'main.js', 'device.js', 'panel.js', 'state', ...Object.values(WINDOWS), ...SHARED.map((path) => path.slice('app/'.length))];
 
 function sourceFiles(dir = JS) {
   return readdirSync(dir).flatMap((name) => {
@@ -154,7 +156,8 @@ test('structure: the shared files exist', () => {
 });
 
 // The tests mirror the repository: the test of <path> is tests/<path without .js>.test.js, e.g. chordice/app/state/state.js
-// is tested in tests/chordice/app/state/state.test.js, and index.html in tests/index.html.test.js. Besides, this file tests
+// is tested in tests/chordice/app/state/state.test.js, and index.html in tests/index.html.test.js (likewise sw.js and
+// manifest.webmanifest). Besides, this file tests
 // the structure of chordice/ as a whole, tests/features/ holds the tests of a feature that spans several modules (e.g. an
 // exercise from its action to its song), and tests/helpers/ the shared fixtures, which are no tests.
 const REPO = fileURLToPath(new URL('../../', import.meta.url));
@@ -203,7 +206,9 @@ test('structure: every stylesheet is linked by a page, and both pages link main.
 const STRUCTURE_TEST = 'chordice/structure.test.js';
 const FEATURES = 'features/';
 const HELPERS = 'helpers/';
-const TESTED = /\.(js|html|css|yaml)$/;
+const TESTED = /\.(js|html|css|yaml|webmanifest)$/;
+// The files of the page that sit next to index.html: the service worker and the manifest of the app on the home screen.
+const ROOT_SOURCES = ['index.html', 'sw.js', 'manifest.webmanifest'];
 
 function filesUnder(dir) {
   return readdirSync(dir).flatMap((name) => {
@@ -213,7 +218,7 @@ function filesUnder(dir) {
 }
 
 const testPathOf = (source) => `${source.replace(/\.js$/, '')}.test.js`;
-const sources = () => ['index.html', ...filesUnder(join(REPO, 'chordice')).map((file) => relative(REPO, file))]
+const sources = () => [...ROOT_SOURCES, ...filesUnder(join(REPO, 'chordice')).map((file) => relative(REPO, file))]
   .filter((path) => TESTED.test(path));
 
 test('structure: every source file has a test file at the mirrored path in tests/', () => {
@@ -230,7 +235,7 @@ test('structure: every test file in tests/ belongs to a source file at the mirro
 });
 
 test('structure: tests/ holds the mirrored tests, the feature tests and the helpers, and the helpers hold no tests', () => {
-  assert.deepEqual(visible(TESTS), ['chordice', 'features', 'helpers', 'index.html.test.js']);
+  assert.deepEqual(visible(TESTS), ['chordice', 'features', 'helpers', ...ROOT_SOURCES.map(testPathOf)].sort());
   assert.deepEqual(visible(join(TESTS, HELPERS)).filter((name) => name.endsWith('.test.js')), []);
   const features = visible(join(TESTS, FEATURES));
   assert.ok(features.length > 0);
