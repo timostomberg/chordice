@@ -10,7 +10,6 @@ import {
   clearExercise,
   clearVariations,
   cycleCount,
-  openKeys,
   reroll,
   setInstrument,
   setKey,
@@ -41,11 +40,10 @@ const FLAG_ACTIONS = {
 
 /** The option of the actions that change one option, when that option can be unavailable. */
 const ACTION_OPTIONS = {
+  'toggle-tones': 'tones',
   'toggle-melody': 'inversions',
   'cycle-count': 'count',
   'set-key': 'key',
-  // A click on the song opens Keys to choose a key, so it does nothing while the circle of fifths switch fixes the key.
-  'open-keys': 'key',
   'toggle-group': 'selection',
   'toggle-progression': 'selection',
   'toggle-variation': 'variations',
@@ -90,7 +88,6 @@ export function applyAction(state, action, params, library, random = Math.random
     'toggle-exercises': () => choosePanel(state, 'exercises'),
     'toggle-help': () => choosePanel(state, 'help'),
     'toggle-section': () => toggleSection(state, params.section),
-    'open-keys': () => openKeys(state),
     'toggle-theme': () => toggleTheme(state),
     'set-instrument': () => setInstrument(state, params.instrument),
     'reroll': () => reroll(state, random),

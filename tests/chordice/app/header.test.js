@@ -57,6 +57,16 @@ test('on the guitar the switches the instrument does not use are greyed out, and
   assert.equal(page.flags.find((flag) => flag.dataset.flag === 'roman').disabled, false);
 });
 
+test('on the guitar the chord tones switch cannot be clicked, and keeps its stored pressed state', () => {
+  const page = headerPage();
+  updateHeader({ ...defaultState(LIBRARY), instrument: 'guitar', tones: true }, page);
+  const tones = page.flags.find((flag) => flag.dataset.flag === 'tones');
+  assert.equal(tones.disabled, true);
+  assert.equal(tones.attributes['aria-pressed'], 'true');
+  updateHeader({ ...defaultState(LIBRARY), instrument: 'piano', tones: true }, page);
+  assert.equal(tones.disabled, false);
+});
+
 test('exactly the tab of the chosen instrument is pressed', () => {
   const page = headerPage();
   updateHeader({ ...defaultState(LIBRARY), instrument: 'guitar' }, page);

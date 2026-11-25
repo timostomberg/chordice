@@ -8,15 +8,16 @@ import { load } from 'js-yaml';
 import { generateSong } from '../music/generator/song.js';
 import { buildBassPatterns, buildLibrary } from '../music/data/validate.js';
 import { applyAction } from './state/actions.js';
-import { onlyKeysOpen, setInstrument } from './state/state.js';
+import { setInstrument } from './state/state.js';
 import { STORAGE_KEY, cookiePathOf, readState, sanitizeState, serializeCookie, serializeStored } from './state/persistence.js';
 import { displaySwitches, effectiveState } from './state/availability.js';
 import { updateHeader } from './header.js';
 import { renderExercises, renderOptions } from './options/options.js';
+import { renderKeyCircle } from './options/circle-of-fifths.js';
 import { createHelp } from './help/help.js';
 import { keepFocus } from './options/focus.js';
 import { renderSong } from './song/song.js';
-import { bindZoom, blockZoom } from './song/zoom.js';
+import { bindZoom, blockZoom, measureSong } from './song/zoom.js';
 import { createNotesDialog } from './notes/notes.js';
 import { createBackground } from './background/background.js';
 import { bindPanelHistory, bindPanelSwipes } from './panel.js';
@@ -106,6 +107,8 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
   const options = document.querySelector('#options');
   const optionList = document.querySelector('#option-list');
   const songRows = document.querySelector('#song-rows');
+  const songCircle = document.querySelector('#song-circle');
+  const songBody = document.querySelector('.song-body');
   const background = createBackground(document.querySelector('#background'));
   const notes = createNotesDialog(document.querySelector('#notes'));
   let currentSong = [];
@@ -121,8 +124,9 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
 
   // Only the chords zoom, with Ctrl + scroll or a pinch. The options never zoom; Ctrl + scroll there does nothing.
   const song = document.querySelector('.song');
-  // When there is too little room, the chords zoom out by themselves (see zoom.js), after every render and resize.
-  const zoom = bindZoom(song, songRows);
+  // When there is too little room, the chords zoom out by themselves (see zoom.js), after every render and resize. The
+  // circle of fifths beside them zooms with them, so on a narrower screen both get smaller together.
+  const zoom = bindZoom(song, songBody, { measure: (shown) => measureSong(song, songBody, songCircle, shown) });
   blockZoom(sidePanel);
 
   // The side panel as a screen of its own: the back button closes it, and swipes open and close it (see panel.js).
@@ -142,7 +146,7 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
     options.hidden = !state.showOptions;
     // A keyboard user keeps their place: the control they used is focused again in the new markup.
     // The side panel shows the options, the exercises or the help, as the Options, Exercises and Help buttons choose. The help
-    // stays as it is while it is shown, so a re-render (e.g. after Generate) keeps the reader's place in it.
+    // stays as it is while it is shown, so a re-render (e.g. after New Song) keeps the reader's place in it.
     options.setAttribute('aria-label', PANEL_LABELS[state.panel]);
     // Another panel starts at its top.
     if (state.panel !== shownPanel) {
@@ -169,13 +173,17 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
     }
     const effective = effectiveState(state);
     currentSong = generateSong({ ...effective, library, bassPatterns });
+    // The circle of fifths left of the chords, where the key is chosen, with the circle of fifths button in its middle.
+    keepFocus(songCircle, () => {
+      songCircle.innerHTML = renderKeyCircle(state);
+    });
     songRows.innerHTML = renderSong(currentSong, displaySwitches(state), { showKey: effective.circleOfFifths });
     zoom.fit();
     song.scrollTop = songScroll;
     document.documentElement.dataset.theme = state.theme;
     // The browser's own bars (e.g. Safari's, or the status bar of the app on the home screen) take the paper of the theme.
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME_COLOURS[state.theme]);
-    // The painting belongs to the song: it changes with Generate (new seeds) and with the theme, otherwise it stays. Its
+    // The painting belongs to the song: it changes with New Song (new seeds) and with the theme, otherwise it stays. Its
     // colour shows at once, with the chords; the painting fades in over it once it is drawn. With the painting switch
     // off, only its colour is shown.
     background.show(state.seeds, state.theme, { plain: !state.painting });
@@ -227,26 +235,30 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
       return chooseGuitar(target.dataset);
     } else if (target) {
       dispatch(target.dataset.action, target.dataset);
-    } else if (song.contains(event.target)) {
-      // A click on the song outside the chords opens Keys and closes the other options sections.
-      // The options scroll back to the top, so the opened Keys section is in view. A click when Keys is already the only
-      // section open changes nothing, so it does not re-render the page.
-      // While the side panel shows the exercises or the help, the reader keeps their place there.
-      if (state.panel === 'options') {
-        if (!onlyKeysOpen(state)) {
-          dispatch('open-keys', {});
-        }
-        sidePanel.scrollTop = 0;
-      }
+    } else if (song.contains(event.target) && !songCircle.contains(event.target)) {
+      // A click on the song outside the chords closes the side panel. With the panel closed it changes nothing, so it does
+      // not re-render the page. A click on the circle of fifths does not count: a near miss between its wedges, or a click
+      // on its greyed-out keys (which let the pointer through), would otherwise close the panel.
+      setPanelOpen(false);
     }
   });
 
-  // Chords are buttons for keyboard users too: Enter or Space opens their notes.
+  // Chords and the keys of the circle of fifths are buttons for keyboard users too: Enter or Space presses them (a chord
+  // opens its notes, a key is chosen). Neither is a <button>, which would turn the keys into a click by itself. Space would
+  // otherwise scroll the song area.
   document.addEventListener('keydown', (event) => {
-    const target = event.target.closest?.('[data-action="show-notes"]');
-    if (target && (event.key === 'Enter' || event.key === ' ')) {
-      event.preventDefault();
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+    const target = event.target.closest?.('[data-action="show-notes"], [data-action="set-key"]');
+    if (!target) {
+      return;
+    }
+    event.preventDefault();
+    if (target.dataset.action === 'show-notes') {
       openNotes(target);
+    } else {
+      dispatch(target.dataset.action, target.dataset);
     }
   });
 

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 import { keepFocus } from '../../../../chordice/app/options/focus.js';
 import { renderOptions } from '../../../../chordice/app/options/options.js';
+import { renderKeyCircle } from '../../../../chordice/app/options/circle-of-fifths.js';
 import { buildLibrary } from '../../../../chordice/music/data/validate.js';
 import { defaultState } from '../../../../chordice/app/state/state.js';
 import { applyAction } from '../../../../chordice/app/state/actions.js';
@@ -29,7 +30,7 @@ function rerender(list, state) {
 }
 
 test('after a re-render the focus is on the new element of the control that had it', () => {
-  const state = { ...defaultState(LIBRARY, () => 0.5), collapsed: ['keys', 'progressionVariations', 'variations', 'bass', 'melody', 'exercises'] };
+  const state = { ...defaultState(LIBRARY, () => 0.5), collapsed: ['progressionVariations', 'variations', 'bass', 'melody', 'exercises'] };
   const { document, list } = page(state);
   const chip = list.querySelector('[data-action="toggle-progression"][data-id="Jazz / Jazz Cadence"]');
   chip.focus();
@@ -55,16 +56,34 @@ test('the focus follows a section toggle and a slider, which are named by their 
 });
 
 test('nothing is focused when the focus was outside the list, or the control is gone', () => {
-  const state = defaultState(LIBRARY, () => 0.5);
+  const state = { ...defaultState(LIBRARY, () => 0.5), collapsed: [] };
   const { document, list } = page(state);
   const outside = document.getElementById('outside');
   outside.focus();
   rerender(list, state);
   assert.equal(document.activeElement, outside, 'a focus outside the list stays where it is');
 
-  // A key of the circle is focused; opening another section collapses Keys, so the key is not drawn any more.
-  list.querySelector('[data-action="set-key"][data-key="G"]').focus();
-  rerender(list, applyAction(state, 'toggle-section', { section: 'bass' }, LIBRARY));
-  assert.equal(list.querySelector('[data-key="G"]'), null);
+  // A progression chip is focused; collapsing Progressions means the chip is not drawn any more.
+  list.querySelector('[data-action="toggle-progression"][data-id="Jazz / Jazz Cadence"]').focus();
+  rerender(list, applyAction(state, 'toggle-section', { section: 'progressions' }, LIBRARY));
+  assert.equal(list.querySelector('[data-id="Jazz / Jazz Cadence"]'), null);
   assert.ok(!list.contains(document.activeElement));
+});
+
+test('after a key of the circle of fifths is chosen, the focus stays on that key, so the keyboard keeps its place', () => {
+  const dom = new JSDOM('<!DOCTYPE html><body><div id="song-circle"></div></body>');
+  const { document } = dom.window;
+  const circle = document.getElementById('song-circle');
+  const state = defaultState(LIBRARY, () => 0.5);
+  circle.innerHTML = renderKeyCircle(state);
+  const key = circle.querySelector('[data-action="set-key"][data-key="G"]');
+  key.focus();
+  assert.equal(document.activeElement, key, 'a key with a tabindex can be focused');
+  const next = applyAction(state, 'set-key', { key: 'G' }, LIBRARY);
+  keepFocus(circle, () => {
+    circle.innerHTML = renderKeyCircle(next);
+  });
+  assert.ok(!circle.contains(key), 'the old key is replaced');
+  assert.equal(document.activeElement.dataset.key, 'G');
+  assert.equal(document.activeElement.getAttribute('aria-pressed'), 'true', 'the new key shows that it is chosen');
 });

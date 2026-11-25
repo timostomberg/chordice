@@ -59,6 +59,35 @@ export function measureRows(area, surface, zoom) {
   return { needed: widest / zoom, available };
 }
 
+/**
+ * Measures the song as measureRows does, with the circle of fifths beside the chords: while the circle stands left of the
+ * chords (the body is laid out in a row), its width and the gap to the chords need room too. Both scale with the zoom, so
+ * they are divided by it like the chords. Above the chords (a column), the circle needs no width beside them.
+ * Beside the chords, the circle also has to fit into the height of the area (e.g. a phone held sideways), as it stays in
+ * its vertical middle: when the height is what limits the scale, that is the measurement returned.
+ */
+export function measureSong(area, body, circle, zoom) {
+  const size = measureRows(area, body, zoom);
+  if (!size) {
+    return null;
+  }
+  const view = area.ownerDocument.defaultView;
+  const style = view.getComputedStyle(body);
+  if (style.flexDirection.startsWith('column')) {
+    return size;
+  }
+  const px = (value) => Number.parseFloat(value) || 0;
+  const box = circle.getBoundingClientRect();
+  const width = { needed: size.needed + (box.width + px(style.columnGap)) / zoom, available: size.available };
+  const areaStyle = view.getComputedStyle(area);
+  const height = {
+    needed: (box.height ?? box.width) / zoom,
+    available: area.clientHeight - px(areaStyle.paddingTop) - px(areaStyle.paddingBottom),
+  };
+  const ratio = ({ needed, available }) => (needed > 0 && available > 0 ? available / needed : Infinity);
+  return ratio(height) < ratio(width) ? height : width;
+}
+
 /** New scale after one wheel event. Scrolling up (negative deltaY) zooms in. */
 export function wheelZoom(scale, deltaY, deltaMode = 0) {
   const pixels = deltaMode === 1 ? deltaY * PIXELS_PER_LINE : deltaY;

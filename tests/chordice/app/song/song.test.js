@@ -37,8 +37,8 @@ const tones = (upper, bass = null) =>
 test('renderSong names each row after its progression', () => {
   const html = renderSong(ROWS, PLAIN);
   assert.ok(html.includes('<h2><span class="row-title">Pop Progression'));
-  assert.ok(html.includes('<li class="chord" role="button" tabindex="0" data-action="show-notes" data-row="0" data-chord="0">C<span class="bass"><span class="slash">/</span>E</span></li>'));
-  assert.ok(html.includes('<li class="chord" role="button" tabindex="0" data-action="show-notes" data-row="0" data-chord="1">G<span class="variation">7</span></li>'));
+  assert.ok(html.includes('<li class="chord" role="button" tabindex="0" data-action="show-notes" data-row="0" data-chord="0"><span class="symbol"><span class="chord-name">C</span><span class="bass"><span class="slash">/</span>E</span></span></li>'));
+  assert.ok(html.includes('<li class="chord" role="button" tabindex="0" data-action="show-notes" data-row="0" data-chord="1"><span class="symbol"><span class="chord-name">G</span><span class="variation">7</span></span></li>'));
 });
 
 test('renderSong shows the chord tones in the order of the inversion, lowest first, and the bass below them', () => {
@@ -154,9 +154,9 @@ test('renderSong separates the progression name from its category with a middle 
   assert.ok(heading.startsWith('<h2><span class="row-title">Pop Progression <span class="meta">· Pop</span></span>'));
 });
 
-test('the colour switch alone colours the chords by harmonic function and keeps the plain symbols', () => {
+test('the colour switch alone colours the chords by harmonic function and keeps the split symbols', () => {
   const html = renderSong(ROWS, { colour: true, roman: false, tones: false });
-  assert.ok(html.includes('<li class="chord fn-tonic is-major" role="button" tabindex="0" data-action="show-notes" data-row="0" data-chord="0">C<span class="bass"><span class="slash">/</span>E</span></li>'));
+  assert.ok(html.includes('<li class="chord fn-tonic is-major" role="button" tabindex="0" data-action="show-notes" data-row="0" data-chord="0"><span class="symbol"><span class="chord-name">C</span><span class="bass"><span class="slash">/</span>E</span></span></li>'));
   assert.ok(!html.includes('class="roman"'));
   assert.ok(!html.includes('class="tones"'));
 });
@@ -176,9 +176,9 @@ test('the roman switch alone adds the roman numeral and no tones, the tones swit
   const tonesOnly = renderSong(ROWS, { colour: false, roman: false, tones: true });
   assert.ok(!tonesOnly.includes('class="roman"'));
   assert.ok(tonesOnly.includes(tones([tone('c'), tone('e'), tone('g')], tone('e'))));
-  // The symbol is split into name and bass with either switch on, and kept whole with both off.
+  // The symbol is split into name and bass whichever switches are on, also with both off.
   assert.ok(tonesOnly.includes('<span class="chord-name">C</span><span class="bass"><span class="slash">/</span>E</span>'));
-  assert.ok(renderSong(ROWS, PLAIN).includes('<li class="chord" role="button" tabindex="0" data-action="show-notes" data-row="0" data-chord="0">C<span class="bass"><span class="slash">/</span>E</span></li>'));
+  assert.ok(renderSong(ROWS, PLAIN).includes('<li class="chord" role="button" tabindex="0" data-action="show-notes" data-row="0" data-chord="0"><span class="symbol"><span class="chord-name">C</span><span class="bass"><span class="slash">/</span>E</span></span></li>'));
 });
 
 test('a natural B is written h in the tones and in the melody note, but B flat stays b♭, and chord symbols keep their names', () => {

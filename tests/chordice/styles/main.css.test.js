@@ -84,11 +84,16 @@ test('touch targets use the shared minimum size', () => {
   assert.ok(CSS.includes('--touch:'));
 });
 
-test('the toolbar, the floating Generate button and the body keep clear of the iPhone safe areas', () => {
+test('the toolbar, the floating New Song button and the body keep clear of the iPhone safe areas', () => {
   assert.ok(/\.toolbar\s*\{[^}]*env\(safe-area-inset-top\)/.test(ALL));
-  assert.ok(/body\s*\{[^}]*env\(safe-area-inset-bottom\)/.test(CSS));
   assert.ok(/body\s*\{[^}]*env\(safe-area-inset-left\)/.test(CSS));
   assert.ok(/\.generate\s*\{[^}]*env\(safe-area-inset-bottom\)/.test(CSS));
+});
+
+test('the side panel and the song reach down to the bottom edge; only their content keeps clear of the home indicator', () => {
+  assert.ok(!/(^|\n)body\s*\{[^}]*safe-area-inset-bottom/.test(CSS), 'the body leaves no gap at the bottom');
+  assert.match(declarationsOf('.side-panel'), /padding: [^;]*calc\(1rem \+ env\(safe-area-inset-bottom\)\)/);
+  assert.match(declarationsOf('.song'), /padding: [^;]*calc\(5rem \+ env\(safe-area-inset-bottom\)\)/);
 });
 
 test('a pinch on the options and on the chords zooms that area, not the page', () => {
@@ -133,10 +138,11 @@ test('the options panel and the chords scroll on their own', () => {
   assert.ok(/\.song\s*\{[^}]*overflow-y: auto/.test(CSS));
 });
 
-test('the chord block is centred vertically and horizontally in the song area', () => {
+test('the chord block is centred vertically in the song area and horizontally in its room beside the circle', () => {
   assert.ok(/\.song\s*\{[^}]*display: flex/.test(CSS));
   assert.ok(/\.song\s*\{[^}]*flex-direction: column/.test(CSS));
-  assert.ok(/\.song-rows\s*\{[^}]*margin: auto/.test(CSS));
+  assert.ok(/\.song-body\s*\{[^}]*margin: auto 0/.test(CSS));
+  assert.ok(/\.song-rows\s*\{[^}]*margin: 0 auto/.test(CSS));
 });
 
 test('the grey text of a disabled button is defined in both themes, and differs from the text colour of the dark theme', () => {
@@ -186,7 +192,7 @@ test('the cards and the floating elements cast the soft shadows of the theme', (
   assert.ok(declarationsIn(ALL, '.notes').includes('box-shadow: var(--shadow-raised)'));
 });
 
-test('the Generate button is a pill', () => {
+test('the New Song button is a pill', () => {
   assert.ok(declarationsOf('.generate').includes('border-radius: 999px'));
 });
 
@@ -219,7 +225,7 @@ test('in both themes a minor chord is darker than the major chord of its harmoni
 });
 
 test('the chords and every button share one watercolour wash, defined once: a bloom and a rim of pigment', () => {
-  // :where() gives the shared rules no weight, so a rule of one element (e.g. Generate's position: fixed) wins over them.
+  // :where() gives the shared rules no weight, so a rule of one element (e.g. New Song's position: fixed) wins over them.
   const host = declarationsOf(':where(.chord, button:not(.section-toggle))');
   assert.ok(host.includes('position: relative'));
   assert.ok(host.includes('isolation: isolate'), 'the wash stays behind the label');
@@ -251,10 +257,31 @@ test('the pigment of every wash settles in soft clouds: a tile of noise in both 
     }
   }
   const wash = declarationsOf(':where(.chord, button:not(.section-toggle))::before');
-  assert.ok(wash.includes('var(--mottle)'));
+  assert.ok(wash.includes('var(--clouds)'));
+  for (const block of [themeBlock(':root'), themeBlock(':root\\[data-theme="dark"\\]')]) {
+    assert.match(block, /--clouds: var\(--mottle\);/, 'the buttons carry the clouds of the theme');
+  }
   const filled = declarationsOf('.generate::before,\n.chip.is-on::before,\n.chip.count-toggle::before,\n' +
     '.toolbar button[aria-pressed="true"]::before,\n.toolbar button[aria-expanded="true"]::before');
   assert.ok(filled.includes('var(--mottle-ink)'), 'the filled buttons have darker clouds, which show on the blue');
+});
+
+test('the chords are clear washes: bloom and rim, but no clouds', () => {
+  assert.ok(declarationsOf('.chord').includes('--clouds: none'));
+});
+
+test('the watercolour is soft: a faint rim, a faint bloom and faint clouds in both themes', () => {
+  const alpha = (block, name) => Number(new RegExp(`${name}:\\s*rgba\\([^)]*,\\s*([\\d.]+)\\)`).exec(block)[1]);
+  const clouds = (block, name) => Number(/0%2E(\d+) 0 0 0 -0%2E\d+'/.exec(new RegExp(`${name}:[^;]*`).exec(block)[0])[1].padEnd(3, '0')) / 1000;
+  const light = themeBlock(':root');
+  const dark = themeBlock(':root\\[data-theme="dark"\\]');
+  assert.ok(alpha(light, '--pigment-edge') <= 0.12 && alpha(dark, '--pigment-edge') <= 0.2);
+  assert.ok(alpha(light, '--bloom') <= 0.3 && alpha(dark, '--bloom') <= 0.06);
+  for (const block of [light, dark]) {
+    assert.ok(clouds(block, '--mottle') <= 0.15, 'the clouds of the buttons');
+    assert.ok(clouds(block, '--mottle-ink') <= 0.3, 'the clouds of the filled buttons');
+    assert.ok(alpha(block, '--mottle-tint') <= 0.15, 'the clouds of the circle');
+  }
 });
 
 test('the rim of a wash is uneven: the pigment gathers more at the bottom, where the water ran to', () => {
@@ -289,7 +316,7 @@ test('the panels are translucent enough to show the painting behind them', () =>
   }
 });
 
-test('Generate floats fixed in its corner, as a pill, whatever the shared wash gives every button', () => {
+test('New Song floats fixed in its corner, as a pill, whatever the shared wash gives every button', () => {
   assert.ok(declarationsOf('.generate').includes('position: fixed'));
   // The only rule that sets the position of every button carries no weight.
   const rules = CSS.replace(/\/\*[\s\S]*?\*\//g, '');
@@ -303,4 +330,15 @@ test('the body is as high as the visible window, also while the bars of Safari s
   assert.ok(declarationsOf('body').includes('height: 100dvh'));
   // A browser without dvh keeps the height of the window from the shared rule of html and body.
   assert.ok(/html,\s*body\s*\{[^}]*height: 100%/.test(CSS));
+});
+
+test('the song area is the container of the circle beside the chords, and the chords take the room beside it', () => {
+  assert.ok(declarationsOf('.song').includes('container-type: inline-size'));
+  const body = declarationsOf('.song-body');
+  assert.ok(body.includes('display: flex'));
+  assert.ok(body.includes('margin: auto 0'), 'centred vertically, scrolling without cutting off the top');
+  assert.ok(body.includes('gap: calc(var(--zoom) * '), 'the gap to the circle zooms with the chords');
+  const chords = declarationsOf('.song-chords');
+  assert.ok(chords.includes('flex: 1 1 0'));
+  assert.ok(chords.includes('min-width: 0'));
 });

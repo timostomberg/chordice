@@ -105,14 +105,12 @@
         </button>
         <button type="button" class="tones-toggle" data-action="toggle-tones" aria-label="Chord tones" aria-pressed="false" data-flag="tones" title="Chord tones">
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <!-- Three stacked noteheads, tilted like the inversions note, on one quarter-note stem: a chord. -->
-            <!-- The noteheads span x 5.3 to 11.1 of the 24 units, the stem's right edge meets their outer edge; the translate centres the chord horizontally. -->
-            <g transform="translate(3.8 0)">
-              <path d="M10.2 18V1" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
-              <ellipse cx="8.2" cy="6" rx="3" ry="2.3" transform="rotate(-20 8.2 6)" fill="currentColor"/>
-              <ellipse cx="8.2" cy="12" rx="3" ry="2.3" transform="rotate(-20 8.2 12)" fill="currentColor"/>
-              <ellipse cx="8.2" cy="18" rx="3" ry="2.3" transform="rotate(-20 8.2 18)" fill="currentColor"/>
-            </g>
+            <!-- A triad as it is engraved: three tilted noteheads a third apart, so they just touch, on one thin stem that meets
+                 the right edge of the heads. -->
+            <path d="M14.55 18.4V2.6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            <ellipse cx="12" cy="9" rx="3.2" ry="2.3" transform="rotate(-22 12 9)" fill="currentColor"/>
+            <ellipse cx="12" cy="14" rx="3.2" ry="2.3" transform="rotate(-22 12 14)" fill="currentColor"/>
+            <ellipse cx="12" cy="19" rx="3.2" ry="2.3" transform="rotate(-22 12 19)" fill="currentColor"/>
           </svg>
         </button>
         <button type="button" class="colour-toggle" data-action="toggle-colour" aria-label="Colours" aria-pressed="true" data-flag="colour" title="Colours">
@@ -150,10 +148,17 @@
     </aside>
     <section class="song">
       <p id="status" class="status" role="status" hidden></p>
-      <div id="song-rows" class="song-rows" aria-live="polite"></div>
+      <!-- The circle of fifths left of the chords, where the key is chosen; the only one on the page, shown also while the
+           side panel is closed. -->
+      <div class="song-body">
+        <div id="song-circle" class="song-circle"></div>
+        <div class="song-chords">
+          <div id="song-rows" class="song-rows" aria-live="polite"></div>
+        </div>
+      </div>
     </section>
   </main>
-  <button type="button" class="generate" data-action="reroll">Generate</button>
+  <button type="button" class="generate" data-action="reroll">New Song</button>
   <dialog id="notes" class="notes" aria-label="Notes" tabindex="-1">
     <div class="notes-body">
       <ol id="notes-chord" class="chords notes-chord"></ol>

@@ -39,29 +39,19 @@ test('the circle of fifths button shows its arrow as a block, at the size of the
   assert.deepEqual(size('.circle-toggle svg'), size('.melody-toggle svg'));
 });
 
-test('a disabled chip that is pressed or filled (the count of 12) is filled grey, not blue', () => {
-  const rule = /\.options \.chip\.is-on:disabled,\s*\.options \.chip\.count-toggle:disabled \{([^}]*)\}/.exec(CSS);
-  assert.ok(rule, 'rule for disabled filled chips');
-  assert.ok(rule[1].includes('background: var(--disabled-text)'));
-  assert.ok(rule[1].includes('border-color: var(--disabled-text)'));
-  // It comes after the blue fill of the count button and the pressed chips, so it wins over them.
-  assert.ok(CSS.indexOf('.options .chip.is-on:disabled') > CSS.indexOf('.chip.count-toggle {'));
-  assert.ok(CSS.indexOf('.options .chip.is-on:disabled') > CSS.indexOf('.options .chip.is-on {'));
+test('a disabled chip keeps the blue of its state: no rule turns a pressed or filled disabled chip grey', () => {
+  assert.ok(!CSS.includes('.chip.is-on:disabled'));
+  assert.ok(!CSS.includes('.chip.count-toggle:disabled'));
+  assert.ok(!/\.chip[^{]*:disabled[^{]*\{[^}]*--disabled-text/.test(CSS));
 });
 
 test('a greyed-out option fades its heading and content, but not a clickable button beside its heading', () => {
-  // The melody button beside a greyed-out Melody variations heading keeps the normal blue outline while it can be pressed.
+  // The melody button beside a greyed-out Melody variations heading keeps the normal blue outline while it can be pressed;
+  // a disabled one is faded by the general rule for buttons.
   assert.equal(declarationsOf('.option.is-unavailable'), '');
-  const faded = declarationsOf('.option.is-unavailable .section-toggle,\n.option.is-unavailable > :not(h2),\n.option.is-unavailable .chip:disabled:not(.is-on, .count-toggle)');
+  const faded = declarationsOf('.option.is-unavailable .section-toggle,\n.option.is-unavailable > :not(h2)');
   assert.ok(faded.includes('opacity: var(--faded)'));
-});
-
-test('a filled disabled button beside a greyed-out heading, such as the count of 12, is not faded, so its label stays readable', () => {
-  assert.ok(CSS.includes('.option.is-unavailable .chip:disabled:not(.is-on, .count-toggle) {'));
-  assert.ok(!/\.option\.is-unavailable \.chip:disabled\s*[,{]/.test(CSS));
-  const filled = declarationsOf('.options .chip.is-on:disabled,\n.options .chip.count-toggle:disabled');
-  assert.ok(filled.includes('background: var(--disabled-text)'));
-  assert.ok(filled.includes('color: var(--surface)'));
+  assert.ok(!/\.option\.is-unavailable \.chip/.test(CSS));
 });
 
 test('the track and the knob of the sliders carry the soft clouds of the washes', () => {
@@ -74,4 +64,10 @@ test('the track and the knob of the sliders carry the soft clouds of the washes'
   ]) {
     assert.match(declarationsOf(selector), /background: var\(--mottle\), /, selector);
   }
+});
+
+test('the circle of fifths button beside the chords is filled blue when on, like the option chips, but has no blue outline when off', () => {
+  assert.ok(/\.options \.chip\.is-on,\s*\.song-circle \.chip\.is-on \{[^}]*background: var\(--icon-blue\)/.test(CSS));
+  assert.ok(/\.options \.chip \{[^}]*border-color: var\(--icon-blue\)/.test(CSS));
+  assert.ok(!/\.song-circle \.chip \{/.test(CSS) && !/\.song-circle \.chip,/.test(CSS));
 });

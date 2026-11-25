@@ -9,10 +9,10 @@ import { CIRCLE_COUNT } from './state.js';
 import { exerciseSettings } from './exercises.js';
 
 /**
- * The options the guitar does not use: it has no bass variations and no inversions, so no melody note.
- * They stay in the state with their values, and take effect again when the piano is chosen.
+ * The options the guitar does not use: it has no bass variations, no inversions, so no melody note, and no chord tones
+ * column. They stay in the state with their values, and take effect again when the piano is chosen.
  */
-const GUITAR_UNAVAILABLE = ['bassProbability', 'inversions'];
+const GUITAR_UNAVAILABLE = ['bassProbability', 'inversions', 'tones'];
 
 /**
  * The state with the settings of the exercise that is on; the stored values of every other option. Its options show these
@@ -61,6 +61,7 @@ export function effectiveState(state) {
     bassProbability: offForInstrument('bassProbability') ? 0 : fixed.bassProbability,
     melodyAmount: offForInstrument('melodyAmount') ? 0 : fixed.melodyAmount,
     inversions: fixed.inversions && !offForInstrument('inversions'),
+    tones: fixed.tones && !offForInstrument('tones'),
   };
 }
 

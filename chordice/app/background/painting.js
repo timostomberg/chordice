@@ -1,6 +1,6 @@
 /**
  * The painting behind the app, composed at random from a seed: a calm landscape or an abstract work in watercolour. It is
- * a pure function of the seed and the theme, so the same seed always gives the same picture, and Generate (a new seed)
+ * a pure function of the seed and the theme, so the same seed always gives the same picture, and New Song (a new seed)
  * gives a new one. The theme changes only the colours: the same motif by day (light) or at dusk (dark).
  *
  * Everything starts from the colour of the painting, the first thing drawn from its seed: it is cheap to know, so the

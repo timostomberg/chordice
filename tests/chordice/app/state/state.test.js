@@ -5,8 +5,6 @@ import {
   reroll,
   setCount,
   cycleCount,
-  onlyKeysOpen,
-  openKeys,
   FLAGS,
   SECTIONS,
   EXERCISE_SECTIONS,
@@ -50,8 +48,8 @@ test('defaults select everything, show colours and extended information, and rot
   assert.equal(state.exercise, null);
 });
 
-test('the options sections are keys, progressions, number of progressions, chord variations, bass and melody variations', () => {
-  assert.deepEqual(SECTIONS, ['keys', 'progressions', 'progressionVariations', 'variations', 'bass', 'melody']);
+test('the options sections are progressions, progression variations, chord variations, bass and melody variations; the key is chosen beside the chords', () => {
+  assert.deepEqual(SECTIONS, ['progressions', 'progressionVariations', 'variations', 'bass', 'melody']);
 });
 
 test('the side panel shows the options, the exercises or the help', () => {
@@ -94,46 +92,38 @@ test('colour, roman numerals and chord tones are independent switches', () => {
   assert.equal(toggleFlag(state, 'unknown'), state);
 });
 
-test('toggleSection expands one section and collapses all others, so only one section is open at a time', () => {
+test('toggleSection expands a section and leaves the others as they are, so several sections can be open at once', () => {
   const state = defaultState(LIBRARY, FIXED);
-  // Keys is open by default; opening bass closes it.
   const bass = toggleSection(state, 'bass');
-  assert.deepEqual(bass.collapsed, ['keys', 'progressions', 'progressionVariations', 'variations', 'melody']);
+  assert.deepEqual(bass.collapsed, ['progressions', 'progressionVariations', 'variations', 'melody']);
   const progressions = toggleSection(bass, 'progressions');
-  assert.deepEqual(progressions.collapsed, ['keys', 'progressionVariations', 'variations', 'bass', 'melody']);
+  assert.deepEqual(progressions.collapsed, ['progressionVariations', 'variations', 'melody']);
+  assert.deepEqual(toggleSection(progressions, 'bass').collapsed, ['progressionVariations', 'variations', 'bass', 'melody']);
   assert.equal(toggleSection(state, 'unknown'), state);
+  assert.equal(toggleSection(state, 'keys'), state, 'the Keys section is gone');
 });
 
-test('the boxes of the options and of the exercises open and close independently, one open box per panel', () => {
+test('the boxes of the options and of the exercises open and close independently', () => {
   const state = defaultState(LIBRARY, FIXED);
-  // By default Keys and the Exercises box are open.
-  assert.ok(!state.collapsed.includes('keys') && !state.collapsed.includes('exercises'));
+  // By default every options box is closed and the Exercises box is open.
+  assert.ok(state.collapsed.includes('progressions') && !state.collapsed.includes('exercises'));
   assert.deepEqual(EXERCISE_SECTIONS, ['exercises']);
   assert.deepEqual(ALL_SECTIONS, [...SECTIONS, 'exercises']);
-  // Closing the Exercises box leaves Keys open; opening Bass leaves the Exercises box as it is.
+  // Closing the Exercises box leaves Progressions as it is; opening Bass leaves the Exercises box as it is.
   const closed = toggleSection(state, 'exercises');
   assert.deepEqual(closed.collapsed, [...state.collapsed, 'exercises']);
   assert.ok(toggleSection(closed, 'bass').collapsed.includes('exercises'));
   assert.ok(!toggleSection(state, 'bass').collapsed.includes('exercises'));
   assert.ok(!toggleSection(closed, 'exercises').collapsed.includes('exercises'));
-  assert.ok(!toggleSection(closed, 'exercises').collapsed.includes('keys'));
-  // Opening Keys from a click on the song leaves the Exercises box as it is.
-  assert.ok(openKeys(closed).collapsed.includes('exercises'));
-  assert.ok(!openKeys(state).collapsed.includes('exercises'));
+  assert.ok(toggleSection(closed, 'exercises').collapsed.includes('progressions'));
 });
 
-test('toggleSection collapsing the open section leaves every section closed, with no exception for Keys', () => {
-  const state = defaultState(LIBRARY, FIXED);
-  assert.deepEqual(toggleSection(state, 'keys').collapsed, SECTIONS);
-  const variations = toggleSection(state, 'variations');
-  assert.deepEqual(toggleSection(variations, 'variations').collapsed, SECTIONS);
-});
-
-test('openKeys expands Keys and collapses every other section', () => {
-  const state = { ...defaultState(LIBRARY, FIXED), collapsed: SECTIONS };
-  assert.deepEqual(openKeys(state).collapsed, SECTIONS.filter((section) => section !== 'keys'));
-  const bass = toggleSection(defaultState(LIBRARY, FIXED), 'bass');
-  assert.deepEqual(openKeys(bass).collapsed, SECTIONS.filter((section) => section !== 'keys'));
+test('toggleSection collapsing an open section leaves the other open sections open', () => {
+  const state = { ...defaultState(LIBRARY, FIXED), collapsed: [] };
+  assert.deepEqual(toggleSection(state, 'bass').collapsed, ['bass']);
+  const closed = defaultState(LIBRARY, FIXED);
+  const bass = toggleSection(closed, 'bass');
+  assert.deepEqual(toggleSection(bass, 'bass').collapsed, SECTIONS);
 });
 
 test('toggleTheme switches between dark and light and leaves the other settings alone', () => {
@@ -312,13 +302,4 @@ test('the instrument is the piano by default, and a tab sets it to the guitar or
 test('an unknown instrument leaves the state unchanged', () => {
   const state = defaultState(LIBRARY, FIXED);
   assert.equal(setInstrument(state, 'ukulele'), state);
-});
-
-test('onlyKeysOpen is true exactly when Keys is the one section that is open', () => {
-  const state = defaultState(LIBRARY, () => 0.5);
-  assert.equal(onlyKeysOpen(state), true);
-  assert.equal(onlyKeysOpen(openKeys(state)), true);
-  assert.equal(onlyKeysOpen(toggleSection(state, 'bass')), false);
-  assert.equal(onlyKeysOpen({ ...state, collapsed: [] }), false);
-  assert.equal(onlyKeysOpen({ ...state, collapsed: SECTIONS.filter((section) => section !== 'keys') }), true);
 });

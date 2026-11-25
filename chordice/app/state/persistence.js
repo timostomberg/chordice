@@ -9,7 +9,7 @@ import { isKeyName } from '../../music/theory/keys.js';
 import { PROBABILITY_MAX } from '../../music/constants.js';
 import { SEED_NAMES } from '../../music/generator/random.js';
 import { exerciseById } from './exercises.js';
-import { ALL_SECTIONS, COUNTS, EXERCISE_SECTIONS, INSTRUMENTS, PANELS, SECTIONS, THEMES, defaultState } from './state.js';
+import { ALL_SECTIONS, COUNTS, INSTRUMENTS, PANELS, THEMES, defaultState } from './state.js';
 
 export const COOKIE_NAME = 'chordice_state';
 
@@ -26,14 +26,6 @@ function toSeed(value, fallback) {
 
 function toBoolean(value, fallback) {
   return typeof value === 'boolean' ? value : fallback;
-}
-
-/** Keeps at most one section of each panel expanded: the first expanded one in section order. */
-function withAtMostOneExpanded(collapsed) {
-  return [SECTIONS, EXERCISE_SECTIONS].flatMap((group) => {
-    const expanded = group.find((section) => !collapsed.includes(section));
-    return group.filter((section) => section !== expanded);
-  });
 }
 
 /** Returns a valid state built from untrusted input (e.g. a cookie), filling gaps with defaults. */
@@ -76,7 +68,7 @@ export function sanitizeState(raw, library, random = Math.random) {
     showOptions: toBoolean(raw.showOptions, fallback.showOptions),
     panel: PANELS.includes(raw.panel) ? raw.panel : fallback.panel,
     collapsed: Array.isArray(raw.collapsed)
-      ? withAtMostOneExpanded(ALL_SECTIONS.filter((name) => raw.collapsed.includes(name)))
+      ? ALL_SECTIONS.filter((name) => raw.collapsed.includes(name))
       : fallback.collapsed,
     seeds,
   };

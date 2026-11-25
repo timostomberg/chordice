@@ -71,10 +71,11 @@ test('sanitizeState repairs an unknown theme to the light default', () => {
   assert.equal(sanitizeState({}, LIBRARY, FIXED).theme, 'light');
 });
 
-test('sanitizeState keeps only known collapsed sections and at most one expanded section', () => {
-  const state = sanitizeState({ collapsed: ['progressionVariations', 'unknown', 'keys'] }, LIBRARY, FIXED);
-  // Three sections were open in the cookie; the first one in section order stays open.
-  assert.deepEqual(state.collapsed, ['keys', 'progressionVariations', 'variations', 'bass', 'melody']);
+test('sanitizeState keeps only known collapsed sections, and every open section open', () => {
+  // 'keys' was the Keys section of the options, which is gone (the key is chosen beside the chords).
+  const state = sanitizeState({ collapsed: ['progressionVariations', 'unknown', 'keys', 'bass'] }, LIBRARY, FIXED);
+  // Three sections were open in the cookie; they all stay open.
+  assert.deepEqual(state.collapsed, ['progressionVariations', 'bass']);
   // A cookie with every section closed keeps them all closed.
   assert.deepEqual(sanitizeState({ collapsed: SECTIONS }, LIBRARY, FIXED).collapsed, SECTIONS);
   assert.deepEqual(sanitizeState({ collapsed: 'keys' }, LIBRARY, FIXED).collapsed, defaultState(LIBRARY, FIXED).collapsed);
@@ -132,14 +133,14 @@ test('the melody amount is kept in the cookie, and a broken or missing one is th
   assert.equal(sanitizeState({}, LIBRARY, FIXED).melodyAmount, 2);
 });
 
-test('a cookie that does not list a section as collapsed keeps its one open section open, and closes the section it does not know', () => {
-  // The cookie lists every section but bass and melody: bass, the first of them, stays open, and melody is closed.
+test('a cookie that does not list a section as collapsed keeps that section open', () => {
+  // The cookie lists every section but bass and melody: both stay open.
   const older = sanitizeState({ collapsed: ['keys', 'progressions', 'progressionVariations', 'variations'] }, LIBRARY, FIXED);
-  assert.deepEqual(older.collapsed, ['keys', 'progressions', 'progressionVariations', 'variations', 'melody']);
+  assert.deepEqual(older.collapsed, ['progressions', 'progressionVariations', 'variations']);
 });
 
 test('sanitizeState keeps the Exercises box closed or open as stored, apart from the options sections', () => {
-  assert.deepEqual(sanitizeState({ collapsed: ['exercises', 'progressions'] }, LIBRARY, FIXED).collapsed, [...SECTIONS.filter((name) => name !== 'keys'), 'exercises']);
+  assert.deepEqual(sanitizeState({ collapsed: ['exercises', 'progressions'] }, LIBRARY, FIXED).collapsed, ['progressions', 'exercises']);
   assert.ok(!sanitizeState({ collapsed: SECTIONS }, LIBRARY, FIXED).collapsed.includes('exercises'));
   const stored = sanitizeState(parseCookie(serializeCookie({ ...defaultState(LIBRARY, FIXED), collapsed: [...SECTIONS, 'exercises'] }).split(';')[0]), LIBRARY, FIXED);
   assert.deepEqual(stored.collapsed, [...SECTIONS, 'exercises']);

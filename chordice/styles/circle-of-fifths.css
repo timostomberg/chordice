@@ -1,24 +1,79 @@
-/* The circle of fifths in the Keys section: a ring of wedges, the major key outside, its relative minor inside. */
+/* The circle of fifths left of the chords: a ring of wedges, the major key outside, its relative minor inside, and the
+   circle of fifths button in its middle. */
 
-/* The circle reaches into the padding of its frame, so it is a little larger than the frame's content width. */
-.circle-wrap {
-  margin: 0 -0.6rem 0.5rem;
+/* The circle of fifths button sits in the middle of the circle, in the hole of the ring, round like the circle, with its
+   arrow in its middle. It is centred by its auto margins, not by a transform, which a pressed button uses for itself. */
+.song-circle > .circle-toggle {
+  position: absolute;
+  inset: 0;
+  width: var(--touch);
+  height: var(--touch);
+  margin: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 50%;
+}
+
+/* The exception among the buttons: while it is off, the circle of fifths button looks like a key of the circle around it,
+   a quiet wash of the paper with a thin line and the muted colour of the key labels, and no shadow, instead of the blue
+   outline of the other switches. Under the mouse it turns blue like the keys (the general hover rule for buttons). On, it is
+   filled blue like every pressed switch. */
+.song-circle > .circle-toggle:not(.is-on) {
+  background: var(--wedge-major);
+  border-color: var(--line);
+  color: var(--muted);
+  box-shadow: none;
 }
 
 .circle {
   width: 100%;
-  max-width: 26rem;
   height: auto;
   display: block;
-  margin: 0 auto;
+}
+
+/* The circle in the song area, left of the chords: it stays there while the side panel is closed. It zooms
+   with the chords (--zoom, see zoom.js), so where the screen is narrower or lower, both get smaller together.
+   It always stands in the vertical middle of the visible song area, not in the middle of the rows: while many rows scroll
+   (e.g. the 12 rows of the circle of fifths switch), it stays where it is. Sticky with the same distance from the top and
+   the bottom of the visible area (half of it less half the circle, which is as high as it is wide) holds it there. */
+.song-circle {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  /* Sticky, it is also the frame the button in its middle is placed in. */
+  position: sticky;
+  top: calc(50% - var(--zoom) * 9rem);
+  bottom: calc(50% - var(--zoom) * 9rem);
+  width: calc(var(--zoom) * 18rem);
+}
+
+/* A narrow song area (a phone, or the iPad in portrait with the side panel open) has no room beside the circle: the circle
+   sits above the chords, smaller and centred. */
+@container (max-width: 34rem) {
+  .song-body {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .song-circle {
+    position: relative;
+    top: auto;
+    bottom: auto;
+    align-self: center;
+    width: min(calc(var(--zoom) * 16rem), 85%);
+  }
 }
 
 /* The wedges take the pointer, so they can be hovered; the gaps between them do not. Each wedge is a wash of watercolour,
-   like the buttons and the chords (see "The watercolour wash" in main.css): its filter (in circle-of-fifths.js) lays the
-   bloom and the rim on it, in the colours of the theme. */
+   like the buttons (see "The watercolour wash" in main.css): its filter (set on the wedge in circle-of-fifths.js) lays the bloom, the rim and the clouds on it, in the colours of the theme, and a thin line edges it
+   like the border of a button. */
 .circle .key path {
   pointer-events: all;
-  filter: url(#circle-wash);
+  stroke: var(--line);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
   transition: fill 0.15s ease;
 }
 
@@ -28,6 +83,10 @@
 
 .circle .wash-rim {
   flood-color: var(--pigment-edge);
+}
+
+.circle .wash-clouds {
+  flood-color: var(--mottle-tint);
 }
 
 .circle .key path.major {

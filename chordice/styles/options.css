@@ -1,7 +1,7 @@
 /* The options panel: the sections with their headings, summaries and side buttons, the chips, the sliders, the
    progression groups and the Help link at the bottom. The circle of fifths has its own stylesheet. */
 
-/* The circle of fifths, count, #b and melody chips sit beside a section heading. They keep the touch height of the heading row. */
+/* The count, #b and melody chips sit beside a section heading. They keep the touch height of the heading row. */
 .section-header > .chip {
   flex: none;
   align-self: flex-start;
@@ -49,15 +49,6 @@
   color: var(--disabled-text);
 }
 
-/* The key signature of the selected key, below the circle. */
-.key-signature {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.3rem;
-  margin: 0.4rem 0 0;
-}
-
 /* No outer frame: each options section has its own frame. */
 /* The section frames reach the edges of the panel. */
 .options {
@@ -70,7 +61,7 @@
   display: none;
 }
 
-/* Heading above a group of option sections, e.g. "Variations" above the three variation sections. */
+/* Heading above a group of option sections, e.g. "Progressions" above the progressions and their variations. */
 .options-heading {
   margin: 0.6rem 0.2rem 0.6rem;
   font-family: var(--serif);
@@ -164,11 +155,10 @@
 }
 
 /* An unavailable option is greyed out: its heading and its content. The button beside the heading is not, as it may still
-   be pressed (e.g. the circle of fifths button beside Keys); it is only faded while it is disabled itself and not filled.
-   A filled disabled button (the count of 12, a pressed switch) is already grey, and faded its label would vanish. */
+   be clicked (e.g. the melody button beside Melody variations); while it is disabled itself, it is faded by the general rule
+   for buttons in main.css. */
 .option.is-unavailable .section-toggle,
-.option.is-unavailable > :not(h2),
-.option.is-unavailable .chip:disabled:not(.is-on, .count-toggle) {
+.option.is-unavailable > :not(h2) {
   opacity: var(--faded);
 }
 
@@ -193,7 +183,8 @@
   color: var(--icon-blue);
 }
 
-.options .chip.is-on {
+.options .chip.is-on,
+.song-circle .chip.is-on {
   background: var(--icon-blue);
   border-color: var(--icon-blue);
   color: var(--surface);
@@ -204,15 +195,6 @@
   background: var(--icon-blue);
   border-color: var(--icon-blue);
   color: var(--surface);
-}
-
-/* A pressed or filled chip that is disabled (e.g. the count of 12 with the circle of fifths) is filled grey, not blue. */
-.options .chip.is-on:disabled,
-.options .chip.count-toggle:disabled {
-  background: var(--disabled-text);
-  border-color: var(--disabled-text);
-  color: var(--surface);
-  cursor: default;
 }
 
 /* The melody button shows the note symbol, sized like the chip text. */

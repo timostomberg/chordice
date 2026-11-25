@@ -20,23 +20,18 @@ test('the options and exercises buttons are one segmented switch, like the instr
   assert.match(CSS, /\.toolbar \.exercises-toggle\[aria-expanded="true"\][^{]*\{[^}]*background: var\(--icon-blue\)/);
 });
 
-test('a gap separates the colour button from the music switches', () => {
-  assert.match(CSS, /\.view-toggles \.colour-toggle \{[^}]*margin-left:/);
+test('a wider gap, the same on both sides of the title, separates the instrument tabs and the colour button from their neighbours', () => {
+  assert.ok(declarationsOf('.toolbar .instrument-tabs,\n.view-toggles .colour-toggle').includes('margin-left:'));
+  assert.ok(!CSS.includes('toolbar-separator'), 'no separator sign between the groups');
 });
 const declarationsOf = (selector) => declarationsIn(CSS, selector);
 const themeBlock = (selector) => themeBlockIn(CSS, selector);
 
-test('an option the guitar does not use is greyed out, and so is its header switch while it is disabled', () => {
-  // The greyed-out option is faded as a whole.
-  assert.ok(declarationsIn(ALL, '.option.is-unavailable .section-toggle,\n.option.is-unavailable > :not(h2),\n.option.is-unavailable .chip:disabled:not(.is-on, .count-toggle)').includes('opacity'));
-  const block = declarationsOf('.toolbar .instrument-tab:disabled');
-  assert.ok(block.includes('background: none'));
-  assert.ok(block.includes('color: var(--disabled-text)'));
-});
-
-test('a disabled header switch is faded by the same opacity as a greyed-out option', () => {
-  assert.ok(declarationsOf('.toolbar .instrument-tab:disabled').includes('opacity: var(--faded)'));
-  assert.ok(declarationsIn(ALL, '.option.is-unavailable .section-toggle,\n.option.is-unavailable > :not(h2),\n.option.is-unavailable .chip:disabled:not(.is-on, .count-toggle)').includes('opacity: var(--faded)'));
+test('a disabled header switch is faded by the general button rule, with the same opacity as a greyed-out option', () => {
+  assert.ok(declarationsIn(ALL, 'button:disabled').includes('opacity: var(--faded)'));
+  assert.ok(declarationsIn(ALL, '.option.is-unavailable .section-toggle,\n.option.is-unavailable > :not(h2)').includes('opacity: var(--faded)'));
+  // The header has no rules of its own for disabled buttons, so they keep the blue of their state.
+  assert.ok(!/:disabled\s*[,{]|:disabled\[|:disabled:not\(\[/.test(CSS));
 });
 
 test('the instrument tabs turn medium blue on hover, the chosen one too, but not when disabled', () => {
@@ -93,4 +88,31 @@ test('in a low window (a phone held sideways) the header is thinner, and still k
   assert.ok(/\.toolbar\s*\{[^}]*padding-top: calc\([^;]*env\(safe-area-inset-top\)\)/.test(media[2]));
   assert.ok(/\.toolbar h1\s*\{[^}]*font-size/.test(media[2]));
   assert.ok(!media[2].includes('min-height'), 'the buttons keep their touch size');
+});
+
+test('the toolbar is sticky at the top, so Safari tints the status bar above it instead of blurring the header', () => {
+  const toolbar = declarationsOf('.toolbar');
+  assert.ok(toolbar.includes('position: sticky'));
+  assert.ok(toolbar.includes('top: 0'));
+  assert.ok(toolbar.includes('z-index: 5'), 'its shadow still falls on the panel and the song');
+});
+
+test('a disabled view switch, like the chord tones on the guitar, stays blue, filled while pressed, and is faded', () => {
+  assert.ok(!CSS.includes('.view-toggles button:disabled'));
+  assert.ok(CSS.includes('.toolbar .tones-toggle[aria-pressed="true"]'));
+  const general = declarationsIn(ALL, 'button:disabled');
+  assert.ok(general.includes('opacity: var(--faded)'));
+  assert.ok(general.includes('cursor: default'));
+  assert.ok(!general.includes('background'));
+  assert.ok(!general.includes('color'));
+});
+
+test('the header buttons keep their width on narrow screens: no media query changes their padding', () => {
+  for (const query of CSS.matchAll(/@media[^{]*\{([\s\S]*?)\n\}/g)) {
+    assert.ok(!/\.toolbar button\s*\{[^}]*padding/.test(query[1]), `no padding for the header buttons in ${query[0].split('{')[0].trim()}`);
+  }
+});
+
+test('the header keeps its spacing on narrow screens: no media query for the width changes it', () => {
+  assert.ok(!/@media[^{]*max-width/.test(CSS));
 });

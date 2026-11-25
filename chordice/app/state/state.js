@@ -21,17 +21,14 @@ export const INSTRUMENTS = ['piano', 'guitar'];
 // What the side panel shows: the options, the exercises or the help. The Options, Exercises and Help buttons in the header
 // choose it, like the instrument tabs, so exactly one of them is pressed while the panel is open.
 export const PANELS = ['options', 'exercises', 'help'];
-// The boxes of the options panel, and those of the exercises panel. Each panel has at most one box open; opening a box of
-// one panel leaves the boxes of the other as they are.
-export const SECTIONS = ['keys', 'progressions', 'progressionVariations', 'variations', 'bass', 'melody'];
+// The boxes of the options panel, and those of the exercises panel. Each box opens and closes on its own.
+export const SECTIONS = ['progressions', 'progressionVariations', 'variations', 'bass', 'melody'];
 export const EXERCISE_SECTIONS = ['exercises'];
 export const ALL_SECTIONS = [...SECTIONS, ...EXERCISE_SECTIONS];
-const SECTION_GROUPS = [SECTIONS, EXERCISE_SECTIONS];
-// The option each section belongs to; a section whose option is unavailable is greyed out and cannot be opened. Keys is
-// unavailable while an exercise fixes the circle of fifths switch; with the switch on by hand it can still be opened, and
-// its circle shows no key. The progressions and the variation sections are unavailable while an exercise fixes them.
+// The option each section belongs to; a section whose option is unavailable is greyed out and cannot be opened. The
+// progressions and the variation sections are unavailable while an exercise fixes them. The key is not in the panel: it
+// is chosen on the circle of fifths left of the chords.
 export const SECTION_OPTIONS = {
-  keys: 'circleOfFifths',
   progressions: 'selection',
   progressionVariations: 'rotation',
   variations: 'variations',
@@ -72,8 +69,8 @@ export function defaultState(library, random = Math.random) {
     // Whether the side panel is open, and which panel it shows (see PANELS).
     showOptions: true,
     panel: 'options',
-    // Only the key circle is expanded by default in the options, and the first box of the exercises.
-    collapsed: SECTIONS.filter((name) => name !== 'keys'),
+    // Every box of the options starts collapsed; the box of the exercises starts expanded.
+    collapsed: [...SECTIONS],
     seeds: createSeeds(random),
   };
 }
@@ -154,35 +151,14 @@ export function setProbability(state, option, value) {
   return { ...state, [option]: Math.min(PROBABILITY_MAX, Math.max(0, rounded)) };
 }
 
-/**
- * Expands a collapsed section, which collapses all others of its panel, or collapses the expanded one. Only one section of
- * a panel is expanded at a time; the sections of the other panel stay as they are. Unknown section names are ignored.
- */
+/** Expands a collapsed section or collapses an expanded one; the other sections stay as they are. Unknown names are ignored. */
 export function toggleSection(state, name) {
-  const group = SECTION_GROUPS.find((sections) => sections.includes(name));
-  if (!group) {
+  if (!ALL_SECTIONS.includes(name)) {
     return state;
   }
   const opening = state.collapsed.includes(name);
-  const isCollapsed = (section) => {
-    if (!group.includes(section)) {
-      return state.collapsed.includes(section);
-    }
-    return opening ? section !== name : section === name || state.collapsed.includes(section);
-  };
-  return { ...state, collapsed: ALL_SECTIONS.filter(isCollapsed) };
-}
-
-/** Opens Keys and closes every other options section; the sections of the exercises stay as they are. */
-export function openKeys(state) {
-  const collapsed = ALL_SECTIONS.filter((section) =>
-    (SECTIONS.includes(section) ? section !== 'keys' : state.collapsed.includes(section)));
+  const collapsed = ALL_SECTIONS.filter((section) => (section === name ? !opening : state.collapsed.includes(section)));
   return { ...state, collapsed };
-}
-
-/** True when Keys is the only options section open, so that opening Keys again would change nothing. */
-export function onlyKeysOpen(state) {
-  return SECTIONS.every((section) => state.collapsed.includes(section) === (section !== 'keys'));
 }
 
 /** Switches between the light and the dark theme. */

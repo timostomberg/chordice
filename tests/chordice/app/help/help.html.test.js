@@ -49,10 +49,10 @@ test('the help page links back to the app', () => {
   assert.ok(existsSync(fileURLToPath(new URL('../../../index.html', SITE))));
 });
 
-test('the help page covers every options section, the toolbar and the notes window', () => {
+test('the help page covers the circle of fifths, every options section, the toolbar and the notes window', () => {
   const html = help();
   const topics = [
-    'Keys',
+    'The circle of fifths',
     'Progressions',
     'Progression variations',
     'Chord variations',
@@ -60,7 +60,7 @@ test('the help page covers every options section, the toolbar and the notes wind
     'Melody variations',
     'Exercises',
     'The toolbar',
-    'Generate',
+    'New Song',
     'Viewing the chords',
     'The notes window',
     'Saved settings',
@@ -215,3 +215,21 @@ test('the melody icon matches the one on the Melody button in the app', () => {
   }
 });
 
+
+test('the chord tones icon matches the one on the chord tones button in the header, and the help says it is greyed out on the guitar', () => {
+  const index = readFileSync(new URL('index.html', ROOT), 'utf8');
+  const button = /<button[^>]*class="tones-toggle"[\s\S]*?<\/button>/.exec(index)?.[0] ?? '';
+  const icon = /<li><span class="help-icon">(<svg(?:(?!<li>)[^])*?<\/svg>)<\/span><strong>Chord tones button<\/strong>([^<]*)/.exec(help());
+  assert.ok(icon, 'the chord tones item shows the icon');
+  const drawing = (svg) => [...svg.matchAll(/<(?:path|ellipse) [^>]*?\/>/g)].map((match) => match[0]);
+  assert.equal(drawing(button).length, 4);
+  assert.deepEqual(drawing(icon[1]), drawing(button));
+  assert.match(icon[2], /Greyed out on the guitar/);
+});
+
+test('the help page explains the circle of fifths beside the chords and its arrow button, not a Keys section', () => {
+  const html = help();
+  assert.ok(!/<h[23][^>]*>Keys<\/h[23]>/.test(html));
+  assert.ok(html.includes('left of the chords'));
+  assert.ok(html.includes('arrow button in the middle of the circle'));
+});

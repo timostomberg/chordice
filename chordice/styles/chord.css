@@ -10,7 +10,7 @@
   list-style: none;
 }
 
-/* Plain chords are not bold. With the extended information on, only the chord name (e.g. C, Cm) is bold, see .chord-name. */
+/* Only the chord name (e.g. C, Cm) is bold, see .chord-name, whichever display switches are on. */
 /* Each chord is a wash of watercolour on paper (see "The watercolour wash" in main.css), with uneven corners as if laid
    with the brush. The function rules below change only the colour of the wash. */
 .chord {
@@ -28,6 +28,9 @@
   font-size: calc(var(--zoom) * 1.4rem);
   font-weight: 400;
   text-align: center;
+  /* The content of a chord never breaks onto a second line, and a chord at the end of a row does not shrink to make room. */
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .chord .chord-name {

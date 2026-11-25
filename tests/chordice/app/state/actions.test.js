@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { defaultState, reroll, SECTIONS } from '../../../../chordice/app/state/state.js';
+import { defaultState, reroll } from '../../../../chordice/app/state/state.js';
 import { applyAction } from '../../../../chordice/app/state/actions.js';
 import { FIXED, LIBRARY as APP_LIBRARY, SMALL_LIBRARY } from '../../../helpers/fixtures.js';
 
@@ -13,8 +13,6 @@ test('applyAction dispatches UI actions and ignores unknown ones', () => {
   assert.equal(applyAction(state, 'toggle-colour', {}, LIBRARY).colour, false);
   assert.equal(applyAction(state, 'toggle-roman', {}, LIBRARY).roman, false);
   assert.equal(applyAction(state, 'toggle-tones', {}, LIBRARY).tones, true);
-  assert.ok(applyAction(state, 'toggle-section', { section: 'keys' }, LIBRARY).collapsed.includes('keys'));
-  assert.deepEqual(applyAction(state, 'open-keys', {}, LIBRARY).collapsed, SECTIONS.filter((section) => section !== 'keys'));
   assert.ok(!applyAction(state, 'toggle-section', { section: 'bass' }, LIBRARY).collapsed.includes('bass'));
   assert.equal(applyAction(state, 'toggle-options', {}, LIBRARY).showOptions, false);
   assert.deepEqual(['showOptions', 'panel'].map((key) => applyAction(state, 'toggle-exercises', {}, LIBRARY)[key]), [true, 'exercises']);
@@ -58,10 +56,11 @@ test('applyAction switches the circle of fifths, the instrument and the exercise
   assert.equal(applyAction(exercise, 'toggle-exercise', { exercise: 'circle-ii-v-i' }, LIBRARY).exercise, null);
 });
 
-test('on the guitar the actions on the bass and the melody change nothing, while the other actions still work', () => {
+test('on the guitar the actions on the bass, the melody and the chord tones change nothing, while the other actions still work', () => {
   const guitar = { ...defaultState(LIBRARY, FIXED), instrument: 'guitar', bassProbability: 4, inversions: true };
   for (const [action, params] of [
     ['toggle-melody', {}],
+    ['toggle-tones', {}],
     ['set-probability', { option: 'bassProbability', value: '1' }],
     ['set-probability', { option: 'melodyAmount', value: '1' }],
     ['toggle-section', { section: 'bass' }],
@@ -83,13 +82,10 @@ test('with the melody button off the melody amount cannot be changed, but the bu
   assert.equal(applyAction(off, 'toggle-melody', {}, LIBRARY).inversions, true);
 });
 
-test('with the circle of fifths switch on, the count and the key cannot be changed, and the song does not open Keys', () => {
+test('with the circle of fifths switch on, the count and the key cannot be changed', () => {
   const state = { ...defaultState(LIBRARY, FIXED), count: 4, circleOfFifths: true };
   assert.equal(applyAction(state, 'cycle-count', {}, LIBRARY), state);
   assert.equal(applyAction(state, 'set-key', { key: 'D' }, LIBRARY), state);
-  assert.equal(applyAction(state, 'open-keys', {}, LIBRARY), state);
-  // The Keys section can still be opened and closed, to look at the circle.
-  assert.ok(applyAction(state, 'toggle-section', { section: 'keys' }, LIBRARY).collapsed.includes('keys'));
   const off = applyAction(state, 'toggle-circle-of-fifths', {}, LIBRARY);
   assert.equal(applyAction(off, 'cycle-count', {}, LIBRARY).count, 8);
   assert.equal(applyAction(off, 'set-key', { key: 'D' }, LIBRARY).key, 'D');
@@ -111,11 +107,9 @@ test('while an exercise is on, the options it fixes cannot be changed; the melod
     ['set-probability', { option: 'permutation', value: '1' }],
     ['set-probability', { option: 'bassProbability', value: '1' }],
     ['toggle-section', { section: 'bass' }],
-    ['toggle-section', { section: 'keys' }],
     ['toggle-section', { section: 'progressions' }],
     ['toggle-section', { section: 'progressionVariations' }],
     ['toggle-section', { section: 'variations' }],
-    ['open-keys', {}],
   ];
   for (const [action, params] of blocked) {
     assert.equal(applyAction(state, action, params, APP_LIBRARY), state, action);

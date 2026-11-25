@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { labelContent, renderCircleSvg, wedgePath } from '../../../../chordice/app/options/circle-of-fifths.js';
+import { labelContent, renderCircleSvg, renderKeyCircle, wedgePath } from '../../../../chordice/app/options/circle-of-fifths.js';
+import { defaultState } from '../../../../chordice/app/state/state.js';
+import { LIBRARY } from '../../../helpers/fixtures.js';
 
 test('renderCircleSvg returns an accessible svg group', () => {
   const svg = renderCircleSvg(null);
@@ -175,6 +177,53 @@ test('renderCircleSvg defines the watercolour filter of the wedges once, with th
   }
 });
 
-test('the watercolour filter of the wedges has no grain of specks, like the washes of the buttons', () => {
-  assert.ok(!renderCircleSvg('C', {}).includes('<feTurbulence'));
+test('the watercolour filter of the wedges lays soft clouds like the buttons, not a grain of specks', () => {
+  const svg = renderCircleSvg('C', {});
+  assert.equal(svg.split('<feTurbulence').length - 1, 1, 'one layer of clouds');
+  const frequency = Number(/<feTurbulence[^>]*baseFrequency="([\d.]+)"/.exec(svg)[1]);
+  assert.ok(frequency > 0 && frequency < 0.1, 'a low frequency: clouds, not specks');
+  assert.ok(svg.includes('class="wash-clouds"'), 'in the colour of the theme');
+  assert.ok(svg.includes('<filter id="circle-wash"') && /<filter[^>]*color-interpolation-filters="sRGB"/.test(svg), 'colours as written');
+});
+
+test('every wedge, major and minor, carries the watercolour filter of the circle', () => {
+  const svg = renderCircleSvg('C', {});
+  const wedges = svg.split('<path ').length - 1;
+  assert.equal(svg.split('filter="url(#circle-wash)"').length - 1, wedges);
+});
+
+test('renderKeyCircle shows the circle with the selected key and the circle of fifths button in its middle', () => {
+  const state = { ...defaultState(LIBRARY, () => 0.5), key: 'G' };
+  const html = renderKeyCircle(state);
+  assert.ok(html.startsWith('<svg class="circle"'));
+  assert.ok(html.includes('class="key is-on" data-action="set-key" data-key="G"'));
+  // After the circle, so that it lies over its middle.
+  assert.ok(html.includes('</svg><button type="button" class="chip circle-toggle" aria-pressed="false" ' +
+    'data-action="toggle-circle-of-fifths" data-flag="circleOfFifths"'));
+  assert.ok(/circle-toggle[^>]*><svg/.test(html), 'the button shows the arrow, and no text');
+  assert.ok(html.endsWith('</svg></button>'));
+});
+
+test('with the circle of fifths switch on, the circle shows no key and is greyed out, and the button stays clickable', () => {
+  const state = { ...defaultState(LIBRARY, () => 0.5), key: 'G', circleOfFifths: true };
+  const html = renderKeyCircle(state);
+  assert.ok(html.includes('<svg class="circle is-disabled"'));
+  assert.ok(!html.includes('class="key is-'), 'no key is selected or highlighted');
+  assert.ok(html.includes('aria-disabled="true"'));
+  assert.ok(/class="chip circle-toggle is-on" aria-pressed="true"[^>]*title="[^"]*">/.test(html), 'not disabled');
+});
+
+test('while an exercise switches the circle of fifths on, its button is pressed and greyed out', () => {
+  const state = { ...defaultState(LIBRARY, () => 0.5), circleOfFifths: false, exercise: 'circle-ii-v-i' };
+  const html = renderKeyCircle(state);
+  assert.ok(html.includes('class="chip circle-toggle is-on" aria-pressed="true"'));
+  assert.ok(/circle-toggle[^>]*disabled/.test(html));
+  assert.ok(html.includes('<svg class="circle is-disabled"'));
+});
+
+test('the rim of the wedges is denser at the bottom, and the bloom lies towards the top left, as on the buttons', () => {
+  const svg = renderCircleSvg('C', {});
+  const offsets = [...svg.matchAll(/<feOffset[^>]*dx="(-?[\d.]+)" dy="(-?[\d.]+)"/g)].map((match) => [Number(match[1]), Number(match[2])]);
+  assert.equal(offsets.length, 2);
+  assert.ok(offsets.every(([dx, dy]) => dx < 0 && dy < 0));
 });

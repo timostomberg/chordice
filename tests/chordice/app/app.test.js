@@ -130,6 +130,9 @@ async function loadApp({ cookie = '', stored = null, storage = fakeStorage(store
     '#options': new FakeElement(),
     '#option-list': new FakeElement(),
     '#song-rows': new FakeElement(),
+    // Only the targets marked as inside the circle count as inside it, not every target inside the song.
+    '#song-circle': Object.assign(new FakeElement(), { contains: (node) => node?.insideCircle === true }),
+    '.song-body': new FakeElement(),
     '#background': new FakeBackground(),
     '#status': new FakeElement(),
     '.options-toggle': new FakeElement(),
@@ -212,7 +215,18 @@ async function loadApp({ cookie = '', stored = null, storage = fakeStorage(store
       listener({ target });
     }
   };
-  return { document, elements, fetched, dispatch, click, change, instrumentTabs, written, storage, listeners };
+  // A key pressed on an element with these data attributes; returns whether the browser's default (e.g. scrolling on Space)
+  // was prevented.
+  const keydown = (key, dataset) => {
+    let prevented = false;
+    const element = { dataset };
+    const target = { closest: (selector) => (selector.includes(`[data-action="${dataset.action}"]`) ? element : null) };
+    for (const listener of listeners.keydown ?? []) {
+      listener({ key, target, preventDefault: () => { prevented = true; } });
+    }
+    return prevented;
+  };
+  return { document, elements, fetched, dispatch, click, change, keydown, instrumentTabs, written, storage, listeners };
 }
 
 /** Stands in for the browser's local storage, holding the stored copy of the state, if any. */
@@ -245,7 +259,7 @@ function rowCount(html) {
   return html.split('<section class="row">').length - 1;
 }
 
-test('app.js loads the YAML library and renders the circle, option sections, rows and toggle state', async () => {
+test('app.js loads the YAML library and renders the collapsed option sections, rows and toggle state', async () => {
   try {
     const app = await loadApp();
     assert.deepEqual(app.fetched.length, 2);
@@ -253,7 +267,9 @@ test('app.js loads the YAML library and renders the circle, option sections, row
     assert.ok(app.fetched[1].endsWith('/chordice/music/data/bass_patterns.yaml'));
     // The piano needs no guitar shapes, so they are not fetched at start-up.
     assert.ok(!app.fetched.some((url) => url.endsWith('guitar.json')));
-    assert.ok(app.elements['#option-list'].innerHTML.includes('<svg class="circle"'));
+    // The circle of fifths is beside the chords, not in the options.
+    assert.ok(!app.elements['#option-list'].innerHTML.includes('<svg class="circle"'));
+    assert.ok(app.elements['#song-circle'].innerHTML.includes('<svg class="circle"'));
     assert.ok(app.elements['#option-list'].innerHTML.includes('<span class="section-title">Progressions</span>'));
     assert.equal(app.elements['#options'].hidden, false);
     assert.equal(rowCount(app.elements['#song-rows'].innerHTML), 2);
@@ -291,7 +307,7 @@ async function until(predicate) {
   }
 }
 
-test('app.js shows the colour of the painting at once and the painting once painted, anew with Generate and the theme', async () => {
+test('app.js shows the colour of the painting at once and the painting once painted, anew with New Song and the theme', async () => {
   try {
     const app = await loadApp();
     const background = app.elements['#background'];
@@ -312,9 +328,9 @@ test('app.js shows the colour of the painting at once and the painting once pain
     await until(() => background.children.length > 0);
     assert.notEqual(background.children[0], painting);
     app.dispatch({ action: 'reroll' });
-    assert.notEqual(background.style.backgroundColor, dark, 'Generate shows a new colour at once');
+    assert.notEqual(background.style.backgroundColor, dark, 'New Song shows a new colour at once');
     assert.equal(background.children.length, 0);
-    // Generate again before the painting is painted: only the last song's painting is shown.
+    // New Song again before the painting is painted: only the last song's painting is shown.
     app.dispatch({ action: 'reroll' });
     await until(() => background.children.length > 0);
     await frames();
@@ -378,14 +394,14 @@ test('the exercises button shows the exercises in the side panel instead of the 
     assert.equal(app.elements['#side-panel'].hidden, false);
     assert.equal(app.elements['#options'].attributes['aria-label'], 'Exercises');
     assert.ok(app.elements['#option-list'].innerHTML.includes('data-action="toggle-exercise"'));
-    assert.ok(!app.elements['#option-list'].innerHTML.includes('<span class="section-title">Keys</span>'));
+    assert.ok(!app.elements['#option-list'].innerHTML.includes('<span class="section-title">Progressions</span>'));
     assert.equal(app.elements['.exercises-toggle'].attributes['aria-expanded'], 'true');
     assert.equal(app.elements['.options-toggle'].attributes['aria-expanded'], 'false');
     assert.ok(decodeURIComponent(app.document.cookie).includes('"panel":"exercises"'));
     // The options button shows the options again in its place.
     app.dispatch({ action: 'toggle-options' });
     assert.equal(app.elements['#options'].attributes['aria-label'], 'Options');
-    assert.ok(app.elements['#option-list'].innerHTML.includes('<span class="section-title">Keys</span>'));
+    assert.ok(app.elements['#option-list'].innerHTML.includes('<span class="section-title">Progressions</span>'));
     assert.ok(!app.elements['#option-list'].innerHTML.includes('data-action="toggle-exercise"'));
     assert.equal(app.elements['.exercises-toggle'].attributes['aria-expanded'], 'false');
     assert.equal(app.elements['.options-toggle'].attributes['aria-expanded'], 'true');
@@ -481,7 +497,7 @@ test('the help button loads the help page once and shows its main part in the si
   }
 });
 
-test('the help is not re-rendered while it is shown, e.g. by Generate, so the reader keeps their place', async () => {
+test('the help is not re-rendered while it is shown, e.g. by New Song, so the reader keeps their place', async () => {
   try {
     const app = await loadApp();
     app.dispatch({ action: 'toggle-help' });
@@ -489,10 +505,6 @@ test('the help is not re-rendered while it is shown, e.g. by Generate, so the re
     app.elements['#option-list'].innerHTML = 'kept';
     app.dispatch({ action: 'reroll' });
     assert.equal(app.elements['#option-list'].innerHTML, 'kept');
-    // A click on the song does not open Keys or scroll the side panel while the help is shown.
-    app.elements['#side-panel'].scrollTop = 40;
-    app.click({ closest: () => null, insideContent: true });
-    assert.equal(app.elements['#side-panel'].scrollTop, 40);
   } finally {
     uninstall();
   }
@@ -504,7 +516,7 @@ test('when the help cannot be loaded, the side panel says so, and the next press
     app.dispatch({ action: 'toggle-help' });
     await settle();
     assert.ok(app.elements['#option-list'].innerHTML.includes('The help could not be loaded.'));
-    // Generate does not retry the load.
+    // New Song does not retry the load.
     app.dispatch({ action: 'reroll' });
     await settle();
     assert.equal(app.fetched.filter((url) => url.endsWith('/help.html')).length, 1);
@@ -529,24 +541,52 @@ test('a stored help panel is shown again at start-up', async () => {
   }
 });
 
-test('a click on the song outside the chords opens Keys and closes the other sections', async () => {
+test('a click on the song outside the chords closes the side panel, whatever it shows, and leaves its sections as they are', async () => {
+  for (const panel of ['toggle-options', 'toggle-exercises', 'toggle-help']) {
+    try {
+      const app = await loadApp();
+      app.dispatch({ action: panel });
+      await settle();
+      if (panel === 'toggle-options') {
+        // The options panel is shown at start-up; pressing its button again would close it.
+        app.dispatch({ action: 'toggle-panel' });
+      }
+      app.dispatch({ action: 'toggle-section', section: 'bass' });
+      const before = decodeURIComponent(app.document.cookie);
+      assert.ok(before.includes('"showOptions":true'), panel);
+      assert.equal(app.elements['#side-panel'].hidden, false, panel);
+      app.click({ closest: () => null, insideContent: true });
+      const after = decodeURIComponent(app.document.cookie);
+      assert.ok(after.includes('"showOptions":false'), panel);
+      assert.equal(app.elements['#side-panel'].hidden, true, panel);
+      const collapsed = (cookie) => /"collapsed":\[[^\]]*\]/.exec(cookie)[0];
+      assert.equal(collapsed(after), collapsed(before), 'the sections stay as they were');
+    } finally {
+      uninstall();
+    }
+  }
+});
+
+test('a click on the circle of fifths outside its keys leaves the side panel open', async () => {
   try {
     const app = await loadApp();
-    app.dispatch({ action: 'toggle-section', section: 'bass' });
-    app.click({ closest: () => null, insideContent: true });
-    const cookie = decodeURIComponent(app.document.cookie);
-    assert.ok(cookie.includes('"collapsed":["progressions","progressionVariations","variations","bass","melody"]'));
+    // Inside the song and inside the circle, but not on a key: between two wedges, or on a greyed-out key.
+    assert.ok(decodeURIComponent(app.document.cookie).includes('"showOptions":true'));
+    app.click({ closest: () => null, insideContent: true, insideCircle: true });
+    assert.ok(decodeURIComponent(app.document.cookie).includes('"showOptions":true'));
+    assert.equal(app.elements['#side-panel'].hidden, false);
   } finally {
     uninstall();
   }
 });
 
-test('a click on the song scrolls the options back to the top', async () => {
+test('a click on the song with the side panel closed leaves it closed', async () => {
   try {
     const app = await loadApp();
-    app.elements['#side-panel'].scrollTop = 300;
+    app.dispatch({ action: 'toggle-panel' });
     app.click({ closest: () => null, insideContent: true });
-    assert.equal(app.elements['#side-panel'].scrollTop, 0);
+    assert.ok(decodeURIComponent(app.document.cookie).includes('"showOptions":false'));
+    assert.equal(app.elements['#side-panel'].hidden, true);
   } finally {
     uninstall();
   }
@@ -859,4 +899,64 @@ test('the paper of each theme for the browser bars is the --bg of that theme in 
   const backgrounds = [...css.matchAll(/--bg:\s*(#[0-9a-f]{6})/g)].map((match) => match[1]);
   assert.ok(backgrounds.includes(THEME_COLOURS.light));
   assert.ok(backgrounds.includes(THEME_COLOURS.dark));
+});
+
+test('the circle of fifths beside the chords shows the selected key and its button, also while the side panel is closed', async () => {
+  try {
+    const app = await loadApp();
+    const circle = () => app.elements['#song-circle'].innerHTML;
+    assert.ok(circle().includes('aria-label="Circle of fifths"'));
+    assert.ok(circle().includes('data-action="toggle-circle-of-fifths"'), 'the circle of fifths button in its middle');
+    assert.ok(/data-key="C" [^>]*aria-pressed="true"/.test(circle()));
+    app.dispatch({ action: 'toggle-options' });
+    assert.equal(app.elements['#side-panel'].hidden, true);
+    app.dispatch({ action: 'set-key', key: 'G' });
+    assert.ok(/data-key="G" [^>]*aria-pressed="true"/.test(circle()), 'a click on a key beside the chords selects it');
+    assert.ok(!circle().includes('is-disabled'));
+  } finally {
+    uninstall();
+  }
+});
+
+test('Enter or Space on a key of the circle of fifths chooses it, without scrolling the page', async () => {
+  try {
+    const app = await loadApp();
+    const circle = () => app.elements['#song-circle'].innerHTML;
+    assert.equal(app.keydown('Enter', { action: 'set-key', key: 'G' }), true);
+    assert.ok(/data-key="G" [^>]*aria-pressed="true"/.test(circle()), 'Enter chooses the key');
+    assert.equal(app.keydown(' ', { action: 'set-key', key: 'D' }), true);
+    assert.ok(/data-key="D" [^>]*aria-pressed="true"/.test(circle()), 'Space chooses the key');
+    assert.equal(app.keydown('a', { action: 'set-key', key: 'A' }), false, 'other keys are left to the browser');
+    assert.ok(/data-key="D" [^>]*aria-pressed="true"/.test(circle()));
+    assert.equal(app.keydown('Enter', { action: 'reroll' }), false, 'real buttons are left to the browser');
+  } finally {
+    uninstall();
+  }
+});
+
+test('Enter on a key of the greyed-out circle of fifths changes nothing', async () => {
+  try {
+    const app = await loadApp();
+    app.dispatch({ action: 'toggle-circle-of-fifths' });
+    const before = decodeURIComponent(app.document.cookie);
+    app.keydown('Enter', { action: 'set-key', key: 'G' });
+    assert.equal(decodeURIComponent(app.document.cookie), before);
+  } finally {
+    uninstall();
+  }
+});
+
+test('the circle of fifths beside the chords is greyed out while the circle of fifths switch is on', async () => {
+  try {
+    const app = await loadApp();
+    app.dispatch({ action: 'toggle-circle-of-fifths' });
+    const circle = app.elements['#song-circle'].innerHTML;
+    assert.ok(circle.includes('class="circle is-disabled"'));
+    assert.ok(!/data-key="[^"]+" [^>]*aria-pressed="true"/.test(circle), 'no key is selected');
+    assert.ok(circle.includes('class="chip circle-toggle is-on" aria-pressed="true"'));
+    app.dispatch({ action: 'toggle-circle-of-fifths' });
+    assert.ok(!app.elements['#song-circle'].innerHTML.includes('is-disabled'), 'the button switches it off again');
+  } finally {
+    uninstall();
+  }
 });

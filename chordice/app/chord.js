@@ -64,21 +64,25 @@ function variationHtml(variation) {
 }
 
 /**
- * The chord symbol split into the chord name (root and minor sign, e.g. "C" or "Cm"), the variation after it (e.g. "7"),
- * raised like an accidental, and the bass after a slash (e.g. "/E" for G/E). Split (`plain` off), the name is bold and the
- * symbol is a block of its own; plain, the parts follow each other as text, and only the variation and the bass have spans.
+ * The parts of a chord given only by its display symbol (e.g. "G7/B"): the symbol without the bass ("G7"), the variation
+ * after the root and minor sign ("7") and the bass ("B"). The "m" of "maj" is not a minor sign.
  */
-function symbolHtml(chord, { plain = false } = {}) {
-  // A chord given only by its display symbol (see notes.js) is shown as that, as text.
-  if (plain && chord.symbol === undefined) {
-    return nameHtml(chord.displaySymbol);
-  }
+function partsOf(displaySymbol) {
+  const [symbol, bass = ''] = displaySymbol.split('/');
+  const name = /^[A-G][#b♯♭]*(?:m(?!aj))?/.exec(symbol)?.[0] ?? symbol;
+  return { symbol, variation: symbol.slice(name.length), bass };
+}
+
+/**
+ * The chord symbol split into the chord name (root and minor sign, e.g. "C" or "Cm"), the variation after it (e.g. "7"),
+ * raised like an accidental, and the bass after a slash (e.g. "/E" for G/E). The name is bold and the symbol is a block of
+ * its own, whichever display switches are on, so the symbol always looks the same.
+ */
+function symbolHtml(given) {
+  const chord = given.symbol === undefined ? partsOf(given.displaySymbol) : given;
   const variation = chord.variation && chord.symbol.endsWith(chord.variation) ? chord.variation : '';
   const name = chord.symbol.slice(0, chord.symbol.length - variation.length);
   const bass = chord.bass ? `<span class="bass"><span class="slash">/</span>${nameHtml(chord.bass)}</span>` : '';
-  if (plain) {
-    return nameHtml(name) + variationHtml(variation) + bass;
-  }
   return `<span class="symbol"><span class="chord-name">${nameHtml(name)}</span>` + variationHtml(variation) + bass + '</span>';
 }
 
@@ -87,7 +91,7 @@ function symbolHtml(chord, { plain = false } = {}) {
  * the chord symbol. The tones switch adds the chord tones in lower case in a column beside the chord, judged against the
  * key `tonic` of the row. The melody switch alone adds only the top melody note, in the same column and style, circled.
  * The `has-tones` class marks a chord with such a column, which the stylesheet places beside the chord. With either
- * switch on, the chord symbol is split into name, variation and bass. With both, the top tone is circled and is the melody.
+ * switch on or off, the chord symbol is split into name, variation and bass. With both, the top tone is circled and is the melody.
  */
 export function chordCell(chord, attributes, { colour, roman, tones, melody }, tonic) {
   const classes = ['chord'];
@@ -98,8 +102,7 @@ export function chordCell(chord, attributes, { colour, roman, tones, melody }, t
   if (column) {
     classes.push('has-tones');
   }
-  // Without roman numerals and a column the symbol is plain text; otherwise it is split into name, variation and bass.
-  const symbol = symbolHtml(chord, { plain: !roman && !column });
+  const symbol = symbolHtml(chord);
   const numeral = roman ? `<span class="roman">${nameHtml(chord.roman)}</span>` : '';
   // With a column, the numeral and the symbol are wrapped together, so that their distance stays fixed whatever the height
   // of the column beside them is.

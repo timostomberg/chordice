@@ -7,7 +7,7 @@ import {
 import { SEED_NAMES, createSeeds } from '../../../../chordice/music/generator/random.js';
 import { colourOf } from '../../../../chordice/app/background/painting.js';
 
-/** The seeds of a song, as Generate rolls them, from a fixed sequence of random numbers. */
+/** The seeds of a song, as New Song rolls them, from a fixed sequence of random numbers. */
 function songSeeds(start) {
   let value = start;
   return createSeeds(() => {
@@ -20,7 +20,7 @@ test('the painting of a song is made from all the seeds of the song: the same so
   const seeds = songSeeds(1);
   assert.equal(paintingSeedOf(seeds), paintingSeedOf({ ...seeds }));
   assert.ok(Number.isInteger(paintingSeedOf(seeds)));
-  // Every seed of the song counts, so another song (a Generate) has another painting.
+  // Every seed of the song counts, so another song (New Song) has another painting.
   for (const name of SEED_NAMES) {
     assert.notEqual(paintingSeedOf({ ...seeds, [name]: seeds[name] + 1 }), paintingSeedOf(seeds), name);
   }
@@ -133,7 +133,7 @@ test('the background is shown anew only when the song, the theme or the painting
   assert.equal(page.background.show(song, 'dark'), false);
   assert.equal(paintingIn(page.element), first, 'the painting stays');
   assert.equal(page.background.show(song, 'light'), true, 'another theme repaints');
-  assert.equal(page.background.show(songSeeds(6), 'light'), true, 'a new song (Generate) paints a new picture');
+  assert.equal(page.background.show(songSeeds(6), 'light'), true, 'New Song paints a new picture');
   assert.equal(page.background.show(songSeeds(6), 'light', { plain: true }), true, 'the painting switch off');
   assert.equal(page.background.show(songSeeds(6), 'light', { plain: true }), false);
 });
@@ -159,14 +159,14 @@ test('switching back to a painting shown a moment ago shows it at once, without 
   assert.equal(await page.background.painted(), true);
 });
 
-test('Generate while a painting is painted drops it: the new colour shows at once, the old painting never', async () => {
+test('New Song while a painting is painted drops it: the new colour shows at once, the old painting never', async () => {
   const page = steppedBackground();
   const first = songSeeds(7);
   const second = songSeeds(8);
   page.background.show(first, 'light');
   await page.frame();
   const dropped = page.background.painted();
-  // A second Generate, while the first painting is still being painted.
+  // A second New Song, while the first painting is still being painted.
   page.background.show(second, 'light');
   const colour = page.element.style.backgroundColor;
   await page.finish();
@@ -181,7 +181,7 @@ test('Generate while a painting is painted drops it: the new colour shows at onc
   assert.equal(paintingsIn(page.element).length, 1, 'only the new painting is shown');
 });
 
-test('Generate before the first frame drops the painting before it is painted at all', async () => {
+test('New Song before the first frame drops the painting before it is painted at all', async () => {
   const page = steppedBackground();
   page.background.show(songSeeds(9), 'light');
   const dropped = page.background.painted();
@@ -191,7 +191,7 @@ test('Generate before the first frame drops the painting before it is painted at
   assert.equal(page.jobs.length, 1, 'only the new painting is painted');
 });
 
-test('Generate drops a painting already shown: the new colour takes its place at once', async () => {
+test('New Song drops a painting already shown: the new colour takes its place at once', async () => {
   const page = steppedBackground();
   page.background.show(songSeeds(11), 'light');
   await page.frame();

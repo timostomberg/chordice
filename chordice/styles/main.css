@@ -21,7 +21,7 @@
   --dominant-major: #f4d6ba;
   --dominant-minor: #e2a77d;
   --slider-fill: #4a6a96;
-  /* The soft shadows of the cards (options, chords) and of the floating elements (Generate, the notes window): warm, like
+  /* The soft shadows of the cards (options, chords) and of the floating elements (New Song, the notes window): warm, like
      paper lifted from the table. */
   --shadow: 0 1px 2px rgba(74, 56, 32, 0.07), 0 2px 6px rgba(74, 56, 32, 0.07);
   --shadow-raised: 0 14px 36px rgba(74, 56, 32, 0.18), 0 4px 10px rgba(74, 56, 32, 0.08);
@@ -50,14 +50,18 @@
   --card: rgba(251, 248, 241, 0.55);
   /* Watercolour: the pigment gathers at the edge of a wash and leaves a lighter bloom in its middle (see "The watercolour
      wash" below). On the deep blue of a filled button the bloom is fainter. */
-  --pigment-edge: rgba(70, 52, 30, 0.16);
-  --bloom: rgba(255, 255, 255, 0.4);
-  --bloom-ink: rgba(255, 255, 255, 0.14);
+  --pigment-edge: rgba(70, 52, 30, 0.11);
+  --bloom: rgba(255, 255, 255, 0.28);
+  --bloom-ink: rgba(255, 255, 255, 0.1);
   /* The pigment of a wash settles unevenly, a little denser in soft clouds: a small tile of noise, drawn once by the
      browser and repeated, in the warm brown of the rim. On the deep blue of a filled button the clouds are a darker
      indigo, so they show. */
-  --mottle: url("data:image/svg+xml,%3Csvg xmlns='http://www%2Ew3%2Eorg/2000/svg' width='200' height='200'%3E%3Cfilter id='m' color-interpolation-filters='sRGB' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0%2E035' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0%2E27 0 0 0 0 0%2E2 0 0 0 0 0%2E12 0%2E2 0 0 0 -0%2E06'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)'/%3E%3C/svg%3E");
-  --mottle-ink: url("data:image/svg+xml,%3Csvg xmlns='http://www%2Ew3%2Eorg/2000/svg' width='200' height='200'%3E%3Cfilter id='m' color-interpolation-filters='sRGB' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0%2E035' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0%2E12 0 0 0 0 0%2E19 0 0 0 0 0%2E32 0%2E4 0 0 0 -0%2E13'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)'/%3E%3C/svg%3E");
+  --mottle: url("data:image/svg+xml,%3Csvg xmlns='http://www%2Ew3%2Eorg/2000/svg' width='200' height='200'%3E%3Cfilter id='m' color-interpolation-filters='sRGB' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0%2E035' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0%2E27 0 0 0 0 0%2E2 0 0 0 0 0%2E12 0%2E12 0 0 0 -0%2E036'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)'/%3E%3C/svg%3E");
+  --mottle-ink: url("data:image/svg+xml,%3Csvg xmlns='http://www%2Ew3%2Eorg/2000/svg' width='200' height='200'%3E%3Cfilter id='m' color-interpolation-filters='sRGB' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0%2E035' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0%2E12 0 0 0 0 0%2E19 0 0 0 0 0%2E32 0%2E28 0 0 0 -0%2E09'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)'/%3E%3C/svg%3E");
+  /* The colour and strength of the same clouds on the keys of the circle of fifths, whose SVG filter draws them itself. */
+  --mottle-tint: rgba(69, 51, 31, 0.12);
+  /* The clouds of a wash: those of the theme on the buttons; the chords have none (see "The watercolour wash" below). */
+  --clouds: var(--mottle);
 }
 
 /* Tones below a chord: blue when the chord variation adds them, red when they are foreign to the key. The staff of the
@@ -105,11 +109,13 @@
   --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
   --panel: rgba(28, 33, 48, 0.55);
   --card: rgba(28, 33, 48, 0.5);
-  --pigment-edge: rgba(0, 0, 0, 0.3);
-  --bloom: rgba(255, 255, 255, 0.08);
-  --bloom-ink: rgba(255, 255, 255, 0.06);
-  --mottle: url("data:image/svg+xml,%3Csvg xmlns='http://www%2Ew3%2Eorg/2000/svg' width='200' height='200'%3E%3Cfilter id='m' color-interpolation-filters='sRGB' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0%2E035' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0%2E25 0 0 0 -0%2E08'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)'/%3E%3C/svg%3E");
-  --mottle-ink: url("data:image/svg+xml,%3Csvg xmlns='http://www%2Ew3%2Eorg/2000/svg' width='200' height='200'%3E%3Cfilter id='m' color-interpolation-filters='sRGB' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0%2E035' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0%2E16 0 0 0 0 0%2E24 0 0 0 0 0%2E4 0%2E4 0 0 0 -0%2E13'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)'/%3E%3C/svg%3E");
+  --pigment-edge: rgba(0, 0, 0, 0.2);
+  --bloom: rgba(255, 255, 255, 0.06);
+  --bloom-ink: rgba(255, 255, 255, 0.04);
+  --mottle: url("data:image/svg+xml,%3Csvg xmlns='http://www%2Ew3%2Eorg/2000/svg' width='200' height='200'%3E%3Cfilter id='m' color-interpolation-filters='sRGB' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0%2E035' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0%2E15 0 0 0 -0%2E048'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)'/%3E%3C/svg%3E");
+  --mottle-ink: url("data:image/svg+xml,%3Csvg xmlns='http://www%2Ew3%2Eorg/2000/svg' width='200' height='200'%3E%3Cfilter id='m' color-interpolation-filters='sRGB' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0%2E035' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0%2E16 0 0 0 0 0%2E24 0 0 0 0 0%2E4 0%2E28 0 0 0 -0%2E09'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)'/%3E%3C/svg%3E");
+  --mottle-tint: rgba(0, 0, 0, 0.15);
+  --clouds: var(--mottle);
 }
 
 * {
@@ -122,14 +128,15 @@ body {
   height: 100%;
 }
 
-/* The side insets keep the page clear of the notch in landscape, the bottom inset of the home indicator. The body is as
-   high as the visible window (dvh), also while Safari's bars slide in and out; a browser without dvh keeps the 100% above. */
+/* The side insets keep the page clear of the notch in landscape. The body is as high as the visible window (dvh), also
+   while Safari's bars slide in and out; a browser without dvh keeps the 100% above. The panel and the song reach down to
+   the bottom edge, under the home indicator; only their content keeps clear of it (see .side-panel and .song). */
 body {
   display: flex;
   flex-direction: column;
   height: 100dvh;
   margin: 0;
-  padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  padding: 0 env(safe-area-inset-right) 0 env(safe-area-inset-left);
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", system-ui, Roboto, sans-serif;
   color: var(--text);
@@ -165,18 +172,24 @@ button {
 }
 
 /*
- * The watercolour wash, the one look of everything that can be pressed: the chords, the buttons (Generate among them)
+ * The watercolour wash, the one look of everything that can be pressed: the chords, the buttons (New Song among them)
  * and, drawn by an SVG filter in the same colours, the keys of the circle of fifths (see circle-of-fifths.css). A wash
  * has a lighter bloom in its middle, where the water pooled, a darker rim of pigment at its edge, where it dried (densest
  * at the bottom, where the water ran to), and soft clouds where its pigment settled denser. All lie in ::before, between the colour of the element and its label (the element isolates them), so they stay
  * whatever colour, shadow or shape a rule gives the element. The rim grows with the text, so it grows with the zoom of
- * the chords. The section headings of the options are plain text, not washes.
- * :where() gives these rules no weight, so every other rule wins over them: Generate, for one, stays fixed in its corner
+ * the chords. The clouds come from --clouds: the buttons have them, the chords do not (see chord.css), so the colours of
+ * the harmonic functions stay clear. The section headings of the options are plain text, not washes.
+ * :where() gives these rules no weight, so every other rule wins over them: New Song, for one, stays fixed in its corner
  * rather than relative in the page.
  */
 :where(.chord, button:not(.section-toggle)) {
   position: relative;
   isolation: isolate;
+}
+
+/* A chord is a clear wash: bloom and rim, but no clouds over the colour of its function. */
+.chord {
+  --clouds: none;
 }
 
 :where(.chord, button:not(.section-toggle))::before {
@@ -185,7 +198,7 @@ button {
   inset: 0;
   z-index: -1;
   border-radius: inherit;
-  background: radial-gradient(ellipse at 35% 30%, var(--bloom), transparent 70%), var(--mottle);
+  background: radial-gradient(ellipse at 35% 30%, var(--bloom), transparent 70%), var(--clouds);
   background-size: auto, 200px 200px;
   box-shadow: inset 0 0 0.45em var(--pigment-edge), inset -0.1em -0.2em 0.35em var(--pigment-edge);
   pointer-events: none;
@@ -204,6 +217,14 @@ button {
 /* A greyed-out button is not painted: no bloom, no rim. */
 button:disabled::before {
   content: none;
+}
+
+/* The general rule of every button: its colours say whether it is on (filled blue) or off (blue outline), and a button that
+   cannot be clicked keeps those colours but is faded, e.g. the pressed #b switch and the count of 12 while an exercise
+   fixes them, or the chord tones switch on the guitar. */
+button:disabled {
+  opacity: var(--faded);
+  cursor: default;
 }
 
 /* A pressed button gives way a little under the finger. */
@@ -243,7 +264,7 @@ button[aria-expanded="true"] {
 .side-panel {
   min-height: 0;
   overflow-y: auto;
-  padding: 1rem;
+  padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
   border-right: 1px solid var(--line);
   background: var(--panel);
   -webkit-backdrop-filter: blur(6px) saturate(1.1);
@@ -260,18 +281,38 @@ button[aria-expanded="true"] {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: 1rem 1rem 5rem;
+  padding: 1rem 1rem calc(5rem + env(safe-area-inset-bottom));
   min-width: 0;
   overflow-y: auto;
   /* As for the options: a pinch zooms the chords (see zoom.js), not the whole page. */
   touch-action: pan-x pan-y;
 }
 
-/* The chord block is centred in the song area, vertically and, where there is room, horizontally.
-   Auto margins give way to scrolling when the rows are taller than the area, so the top is never cut off. */
+/* The song area holds the circle of fifths on the left and the chords beside it. Its width is the container for the size
+   of the circle (see circle-of-fifths.css). The block is centred vertically; auto margins give way to scrolling when the
+   rows are taller than the area, so the top is never cut off. */
+.song {
+  container-type: inline-size;
+}
+
+.song-body {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--zoom) * 1.5rem);
+  margin: auto 0;
+}
+
+/* The chords take the room beside the circle; zoom.js fits the circle and the chords together into the song area. */
+.song-chords {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+}
+
+/* The chord block is centred in its room, where there is room. */
 .song-rows {
   max-width: 100%;
-  margin: auto;
+  margin: 0 auto;
 }
 
 /* A message from the page, e.g. that the guitar shapes could not be loaded. Hidden when there is none. */
@@ -282,7 +323,7 @@ button[aria-expanded="true"] {
   font-size: 0.9rem;
 }
 
-/* Generate floats in the bottom right corner, reachable from anywhere on the page. */
+/* New Song floats in the bottom right corner, reachable from anywhere on the page. */
 .generate {
   position: fixed;
   right: calc(1rem + env(safe-area-inset-right));
@@ -352,7 +393,7 @@ span.minor-sign {
 
 /* Hover: a button under the mouse turns medium blue, active ones too, and so does a disabled one. Only real pointers hover.
    The text turns dark on the medium blue, so it stays readable in both themes. The instrument tabs are not highlighted, and
-   neither are the section headings (Keys, Progressions, ...): they never turn blue, disabled or not.
+   neither are the section headings (Progressions, Chord variations, ...): they never turn blue, disabled or not.
    The type attribute only adds specificity, so the hover beats the filled look of the active buttons. */
 @media (hover: hover) {
   button[type="button"]:not(:disabled, .section-toggle):hover {

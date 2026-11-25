@@ -64,7 +64,6 @@ const ACTION_PARAMS = {
   'set-probability': { option: 'rotation', value: '3' },
   'toggle-section': { section: 'bass' },
   'toggle-exercise': { exercise: 'circle-ii-v-i' },
-  'open-keys': {},
   'toggle-foreign-variations': {},
   'toggle-circle-of-fifths': {},
   'toggle-colour': {},
@@ -129,12 +128,16 @@ test('the roman and tones buttons sit left of the colour button, in one group', 
   assert.ok(!group.includes('toggle-theme'));
 });
 
-test('Generate is a floating button after the main content, so it sits at the bottom right', () => {
+test('no separator sign stands between the switches of the header', () => {
+  assert.ok(!readIndex().includes('toolbar-separator'));
+});
+
+test('New Song is a floating button after the main content, so it sits at the bottom right', () => {
   const html = readIndex();
-  const generate = html.indexOf('class="generate" data-action="reroll">Generate</button>');
+  const generate = html.indexOf('class="generate" data-action="reroll">New Song</button>');
   assert.ok(generate > html.indexOf('</main>'));
   assert.ok(generate < html.indexOf('</body>'));
-  assert.ok(!html.slice(0, html.indexOf('</header>')).includes('Generate'));
+  assert.ok(!html.slice(0, html.indexOf('</header>')).includes('New Song'));
 });
 
 test('the theme button shows a half-filled circle and is labelled for screen readers', () => {
@@ -155,15 +158,19 @@ test('the colour, roman and tones buttons are symbol buttons that show their swi
   assert.ok(!html.includes('toggle-details'));
 });
 
-test('the roman button shows the IV symbol, the tones button three stacked noteheads on one stem, neither in a circle', () => {
+test('the roman button shows the IV symbol, the tones button three touching noteheads on one stem, no staff lines, neither in a circle', () => {
   const html = readIndex();
   const roman = /<button[^>]*class="roman-toggle"[\s\S]*?<\/button>/.exec(html)?.[0] ?? '';
   const tones = /<button[^>]*class="tones-toggle"[\s\S]*?<\/button>/.exec(html)?.[0] ?? '';
   assert.ok(roman.includes('font-size="14"') && roman.includes('>IV</text>'));
   assert.ok(!roman.includes('<circle'));
   assert.equal(tones.split('<ellipse').length - 1, 3);
-  assert.ok(tones.includes('<path d="M10.2 18V1"'));
-  assert.ok(tones.includes('<g transform="translate(3.8 0)">'));
+  assert.ok(tones.includes('<path d="M14.55 18.4V2.6"'), 'one thin stem at the right edge of the heads');
+  // The heads are 5 units apart, a third, so they just touch like an engraved triad.
+  const heads = [...tones.matchAll(/<ellipse cx="12" cy="([\d.]+)"/g)].map((match) => Number(match[1]));
+  assert.deepEqual(heads, [9, 14, 19]);
+  // The stem is the only path: no staff lines behind the heads.
+  assert.equal(tones.split('<path').length - 1, 1);
   assert.ok(!tones.includes('<circle'));
   assert.ok(!tones.includes('<text'));
 });
@@ -316,4 +323,12 @@ test('index.html can be added to the home screen as an app: the manifest, the ic
 test('the colour of the browser bars in index.html starts as the paper of the light theme, the default', async () => {
   const { THEME_COLOURS } = await import('../chordice/app/app.js');
   assert.ok(readIndex().includes(`<meta name="theme-color" content="${THEME_COLOURS.light}">`));
+});
+
+test('the song area holds the circle of fifths left of the chords', () => {
+  const html = readIndex();
+  const circle = html.indexOf('id="song-circle"');
+  const rows = html.indexOf('id="song-rows"');
+  assert.ok(circle > html.indexOf('class="song"') && circle < rows, 'the circle comes first, so it is on the left');
+  assert.ok(/class="song-chords">\s*<div id="song-rows"/.test(html), 'the chords sit in their own room beside the circle');
 });

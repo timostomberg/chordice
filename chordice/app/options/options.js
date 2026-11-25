@@ -1,22 +1,18 @@
 /**
- * The side panel on the left: the options panel (the keys on the circle, the progressions, the chord and bass variations
- * and the probability sliders) and the exercises panel; the Options, Exercises and Help buttons in the header choose which
+ * The side panel on the left: the options panel (the progressions, the chord and bass variations and the probability
+ * sliders) and the exercises panel; the Options, Exercises and Help buttons in the header choose which
  * one is shown, and the help panel is in help/. Every function returns a string of HTML.
  * While an exercise is on, the options it fixes show its values and are greyed out (see exerciseState in app/state/availability.js).
  */
 
 import { VARIATION_NAMES } from '../../music/theory/chords.js';
-import { keySignatureOf, minorNameOf } from '../../music/theory/keys.js';
 import { EXERCISE_SECTIONS, SECTIONS, SECTION_OPTIONS } from '../state/state.js';
 import { effectiveState, exerciseState, isUnavailable } from '../state/availability.js';
 import { EXERCISES } from '../state/exercises.js';
 import { PROBABILITY_MAX } from '../../music/constants.js';
 import { escapeHtml } from '../escape.js';
-import { renderCircleSvg } from './circle-of-fifths.js';
-import { nameHtml } from '../names.js';
 
 const SECTION_TITLES = {
-  keys: 'Keys',
   progressions: 'Progressions',
   progressionVariations: 'Progression variations',
   variations: 'Chord variations',
@@ -75,13 +71,6 @@ function progressionGroups(state, library) {
   }).join('');
 }
 
-/** The accidentals of a key as tones, in lower case like the tones beside the chords, each in the same oval tag as the row
- * tags, e.g. "f♯" with a raised sign; empty for C. */
-function keySignatureTags(major) {
-  return keySignatureOf(major)
-    .map((accidental) => `<span class="tag">${nameHtml(accidental.toLowerCase())}</span>`)
-    .join('');
-}
 
 /** The slider of a probability option with the value it shows, greyed out while the option is unavailable. */
 function slider(option, state) {
@@ -91,15 +80,6 @@ function slider(option, state) {
 /** The content of one options section, shown while the section is expanded. */
 function sectionBody(name, state, library) {
   switch (name) {
-    case 'keys': {
-      // With the circle of fifths switch on, every key is used: the circle is greyed out, with no key selected, and the
-      // key signature is not shown.
-      const disabled = isUnavailable(state, 'key');
-      const signature = !disabled && keySignatureOf(state.key).length > 0
-        ? `<p class="key-signature">${keySignatureTags(state.key)}</p>`
-        : '';
-      return `<div class="circle-wrap">${renderCircleSvg(state.key, { disabled })}</div>${signature}`;
-    }
     case 'progressions':
       return `<div class="progression-list">${progressionGroups(state, library)}</div>`;
     case 'progressionVariations':
@@ -132,12 +112,6 @@ function sectionBody(name, state, library) {
 function sectionSummary(name, state, library) {
   const shown = exerciseState(state);
   switch (name) {
-    case 'keys':
-      // With the circle of fifths switch on, every key is used, one row each.
-      if (shown.circleOfFifths) {
-        return ['all'];
-      }
-      return [`${nameHtml(state.key)} (${nameHtml(minorNameOf(state.key))})`];
     case 'progressions':
       if (library.every((progression) => shown.selection.includes(progression.id))) {
         return ['all'];
@@ -183,25 +157,6 @@ function countButton(state) {
   const disabled = isUnavailable(state, 'count');
   return `<button type="button" class="chip count-toggle" data-action="cycle-count" aria-label="Number of progressions" ` +
     `title="Number of progressions"${disabled ? ' disabled' : ''}>${effectiveState(state).count}</button>`;
-}
-
-// The arrow of the circle of fifths button: an open circle running counterclockwise from the top, round the left and the
-// bottom, up the right side, where its head points up.
-const CIRCLE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
-  '<path d="M9.78 5.11A7 7 0 1 0 18 12V9.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
-  '<path d="M15.2 11.2 18 8.4l2.8 2.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
-  '</svg>';
-
-/**
- * The circle of fifths button beside the Keys heading, a chip with a counterclockwise arrow. Pressed, every key gets one
- * row, counterclockwise from C (C, F, Bb, ...), so there are 12 rows; not pressed (the default), the selected key is used.
- */
-function circleButton(state) {
-  const on = exerciseState(state).circleOfFifths;
-  const disabled = isUnavailable(state, 'circleOfFifths');
-  return `<button type="button" class="chip circle-toggle${on ? ' is-on' : ''}" aria-pressed="${on}" ` +
-    'data-action="toggle-circle-of-fifths" data-flag="circleOfFifths" aria-label="All keys, counterclockwise on the circle of fifths" ' +
-    `title="All keys, counterclockwise on the circle of fifths"${disabled ? ' disabled' : ''}>${CIRCLE_ICON}</button>`;
 }
 
 /**
@@ -253,14 +208,13 @@ function clearExerciseButton() {
 
 /** The buttons beside the heading of a section, by the name of the section; the other sections have none. */
 const SIDE_BUTTONS = {
-  keys: [circleButton],
   progressions: [countButton],
   variations: [foreignButton],
   melody: [melodyButton],
 };
 
 function optionSection(name, state, library) {
-  // A section whose option is unavailable (for the instrument, the circle of fifths switch or the exercise) is greyed out
+  // A section whose option is unavailable (for the instrument or the exercise) is greyed out
   // and cannot be opened; it stays collapsed. The button beside its heading keeps its own look, as it may still be pressed.
   const unavailable = Object.hasOwn(SECTION_OPTIONS, name) && isUnavailable(state, SECTION_OPTIONS[name]);
   const expanded = !state.collapsed.includes(name) && !unavailable;
@@ -280,16 +234,18 @@ function optionSection(name, state, library) {
 }
 
 /** The headings that stand above a section, by the name of the first section under them. */
-const HEADINGS = { progressionVariations: 'Variations' };
+const HEADINGS = { progressions: 'Progressions', variations: 'Chords', bass: 'Bass', melody: 'Melody', exercises: 'Exercises' };
+
+/** One section with the heading that stands above it, if any. */
+function withHeading(name, section) {
+  const heading = HEADINGS[name];
+  return heading ? `<h2 class="options-heading">${heading}</h2>${section}` : section;
+}
 
 /** Renders the options panel: one collapsible section per option group. */
 export function renderOptions(state, library) {
-  return SECTIONS.map((name) => {
-    const section = optionSection(name, state, library);
-    // One heading "Variations" stands above the variation sections (Progression, Chord, Bass and Melody variations).
-    const heading = HEADINGS[name];
-    return heading ? `<h2 class="options-heading">${heading}</h2>${section}` : section;
-  }).join('');
+  // A heading stands above each group of sections: Progressions (with its variations), Chords, Bass and Melody.
+  return SECTIONS.map((name) => withHeading(name, optionSection(name, state, library))).join('');
 }
 
 /**
@@ -298,5 +254,6 @@ export function renderOptions(state, library) {
  * the box is collapsed, its summary names the exercise that is on.
  */
 export function renderExercises(state, library) {
-  return EXERCISE_SECTIONS.map((name) => optionSection(name, state, library)).join('');
+  // The heading Exercises stands above the box, like the headings of the options.
+  return EXERCISE_SECTIONS.map((name) => withHeading(name, optionSection(name, state, library))).join('');
 }

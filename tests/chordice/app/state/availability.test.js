@@ -24,6 +24,16 @@ test('on the guitar the effective settings have no bass and no inversions, but t
   assert.equal(state.inversions, true);
 });
 
+test('on the guitar the chord tones are unavailable and off, and come back on the piano', () => {
+  const guitar = { ...defaultState(LIBRARY, FIXED), instrument: 'guitar', tones: true };
+  assert.equal(isUnavailable(guitar, 'tones'), true);
+  assert.equal(effectiveState(guitar).tones, false);
+  assert.equal(guitar.tones, true);
+  const piano = setInstrument(guitar, 'piano');
+  assert.equal(isUnavailable(piano, 'tones'), false);
+  assert.equal(effectiveState(piano).tones, true);
+});
+
 test('on the piano the effective settings are the stored ones', () => {
   const state = { ...defaultState(LIBRARY, FIXED), bassProbability: 4, inversions: true };
   assert.deepEqual(effectiveState(state), state);

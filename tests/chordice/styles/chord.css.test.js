@@ -15,6 +15,11 @@ const ALL = allCss();
 const declarationsOf = (selector) => declarationsIn(CSS, selector);
 const themeBlock = (selector) => themeBlockIn(CSS, selector);
 
+test('the content of a chord never breaks onto a second line, and the chord does not shrink at the end of a row', () => {
+  assert.match(declarationsOf('.chord'), /white-space:\s*nowrap/);
+  assert.match(declarationsOf('.chord'), /flex-shrink:\s*0/);
+});
+
 test('harmonic function classes built at runtime have style rules', () => {
   for (const fn of ['tonic', 'dominant', 'subdominant']) {
     assert.ok(CSS.includes(`.fn-${fn}`), `.fn-${fn}`);

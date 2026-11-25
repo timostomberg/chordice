@@ -1,7 +1,7 @@
 /**
  * The background behind the app: the colour of the song's painting at once, and the painting (see painting.js, painted
  * by watercolour.js) fading in over it once it is painted. Its seed is made from the seeds of the song, so the same song
- * always shows the same picture, and Generate (a new song) a new one. The grain of the paper lies over it all, from the
+ * always shows the same picture, and New Song a new one. The grain of the paper lies over it all, from the
  * stylesheet.
  *
  * Painting never holds up the chords: a new song shows its chords and its colour in the same frame, and the painting is
