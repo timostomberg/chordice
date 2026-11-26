@@ -17,7 +17,7 @@ import { renderKeyCircle } from './options/circle-of-fifths.js';
 import { createHelp } from './help/help.js';
 import { keepFocus } from './options/focus.js';
 import { renderSong } from './song/song.js';
-import { bindZoom, blockZoom, measureSong } from './song/zoom.js';
+import { bindSongZoom, blockZoom } from './song/zoom.js';
 import { createNotesDialog } from './notes/notes.js';
 import { createBackground } from './background/background.js';
 import { bindPanelHistory, bindPanelSwipes } from './panel.js';
@@ -125,8 +125,10 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
   // Only the chords zoom, with Ctrl + scroll or a pinch. The options never zoom; Ctrl + scroll there does nothing.
   const song = document.querySelector('.song');
   // When there is too little room, the chords zoom out by themselves (see zoom.js), after every render and resize. The
-  // circle of fifths beside them zooms with them, so on a narrower screen both get smaller together.
-  const zoom = bindZoom(song, songBody, { measure: (shown) => measureSong(song, songBody, songCircle, shown) });
+  // circle of fifths beside them is not zoomed; it only gets smaller where the room is too little for it.
+  const zoom = bindSongZoom(song, songBody, songCircle, document.querySelector('.song-chords'), songRows);
+  // The number of rows shown at the last render: when it changes, every row is fitted into the song area at once.
+  let shownRowCount = null;
   blockZoom(sidePanel);
 
   // The side panel as a screen of its own: the back button closes it, and swipes open and close it (see panel.js).
@@ -178,7 +180,12 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
       songCircle.innerHTML = renderKeyCircle(state);
     });
     songRows.innerHTML = renderSong(currentSong, displaySwitches(state), { showKey: effective.circleOfFifths });
-    zoom.fit();
+    if (currentSong.length === shownRowCount) {
+      zoom.fit();
+    } else {
+      shownRowCount = currentSong.length;
+      zoom.fitAll();
+    }
     song.scrollTop = songScroll;
     document.documentElement.dataset.theme = state.theme;
     // The browser's own bars (e.g. Safari's, or the status bar of the app on the home screen) take the paper of the theme.

@@ -13,7 +13,6 @@ import {
 } from '../../../../chordice/app/state/persistence.js';
 import { defaultState, SECTIONS } from '../../../../chordice/app/state/state.js';
 import { SEED_NAMES } from '../../../../chordice/music/generator/random.js';
-import { VARIATION_NAMES } from '../../../../chordice/music/theory/chords.js';
 import { FIXED, SMALL_LIBRARY } from '../../../helpers/fixtures.js';
 
 const LIBRARY = SMALL_LIBRARY;
@@ -43,11 +42,11 @@ test('sanitizeState keeps valid values and repairs invalid ones', () => {
   assert.equal(state.key, 'D');
   // The selection is always every progression, whatever the cookie stored.
   assert.deepEqual(state.selection, IDS);
-  assert.equal(state.count, 2);
+  assert.equal(state.count, 4);
   assert.equal(state.rotation, 4);
   assert.equal(state.permutation, 2);
   assert.deepEqual(state.variations, ['add9']);
-  assert.equal(state.variationProbability, 2);
+  assert.equal(state.variationProbability, 4);
   assert.equal(state.bassProbability, 1);
   assert.equal(state.colour, true);
   assert.equal(state.roman, true);
@@ -58,11 +57,11 @@ test('sanitizeState keeps valid values and repairs invalid ones', () => {
   assert.deepEqual(Object.keys(state.seeds).sort(), [...SEED_NAMES].sort());
 });
 
-test('sanitizeState keeps only a major key, and repairs a count that is not offered to the default of 2', () => {
+test('sanitizeState keeps only a major key, and repairs a count that is not offered to the default of 4', () => {
   assert.equal(sanitizeState({ key: 'Gb' }, LIBRARY, FIXED).key, 'Gb');
   assert.equal(sanitizeState({ key: 'Am' }, LIBRARY, FIXED).key, 'C');
   assert.equal(sanitizeState({ key: ['G'] }, LIBRARY, FIXED).key, 'C');
-  assert.equal(sanitizeState({ count: 12 }, LIBRARY, FIXED).count, 2);
+  assert.equal(sanitizeState({ count: 12 }, LIBRARY, FIXED).count, 4);
   assert.equal(sanitizeState({ count: 8 }, LIBRARY, FIXED).count, 8);
 });
 
@@ -87,7 +86,7 @@ test('sanitizeState selects every progression, even when the cookie holds an emp
   assert.deepEqual(empty.variations, []);
   const missing = sanitizeState({}, LIBRARY, FIXED);
   assert.deepEqual(missing.selection, IDS);
-  assert.deepEqual(missing.variations, VARIATION_NAMES);
+  assert.deepEqual(missing.variations, ['7', 'maj7', '6', 'add9', 'sus2', 'sus4']);
 });
 
 test('the inversions switch is kept by cookies; a cookie without it, or with a broken value, is off', () => {
@@ -115,9 +114,9 @@ test('parseCookie ignores other cookies and broken values', () => {
 test('foreign variations are kept by cookies', () => {
   assert.equal(sanitizeState({ foreignVariations: false }, LIBRARY, FIXED).foreignVariations, false);
   assert.equal(sanitizeState({ foreignVariations: true }, LIBRARY, FIXED).foreignVariations, true);
-  // A cookie without the switch, or with a broken value, keeps the default: on.
-  assert.equal(sanitizeState({ rotation: 3 }, LIBRARY, FIXED).foreignVariations, true);
-  assert.equal(sanitizeState({ foreignVariations: 'no' }, LIBRARY, FIXED).foreignVariations, true);
+  // A cookie without the switch, or with a broken value, keeps the default: off.
+  assert.equal(sanitizeState({ rotation: 3 }, LIBRARY, FIXED).foreignVariations, false);
+  assert.equal(sanitizeState({ foreignVariations: 'no' }, LIBRARY, FIXED).foreignVariations, false);
 });
 
 test('the instrument is kept by cookies; a cookie without it, or with a broken value, is the piano', () => {
@@ -129,8 +128,8 @@ test('the instrument is kept by cookies; a cookie without it, or with a broken v
 
 test('the melody amount is kept in the cookie, and a broken or missing one is the default', () => {
   assert.equal(sanitizeState({ melodyAmount: 4 }, LIBRARY, FIXED).melodyAmount, 4);
-  assert.equal(sanitizeState({ melodyAmount: 'high' }, LIBRARY, FIXED).melodyAmount, 2);
-  assert.equal(sanitizeState({}, LIBRARY, FIXED).melodyAmount, 2);
+  assert.equal(sanitizeState({ melodyAmount: 'high' }, LIBRARY, FIXED).melodyAmount, 1);
+  assert.equal(sanitizeState({}, LIBRARY, FIXED).melodyAmount, 1);
 });
 
 test('a cookie that does not list a section as collapsed keeps that section open', () => {

@@ -332,13 +332,36 @@ test('the body is as high as the visible window, also while the bars of Safari s
   assert.ok(/html,\s*body\s*\{[^}]*height: 100%/.test(CSS));
 });
 
+test('the size of the circle of fifths has a default in both themes, the same as the zoom of the chords', () => {
+  for (const block of [themeBlock(':root'), themeBlock(':root\\[data-theme="dark"\\]')]) {
+    assert.match(block, /--circle-zoom: 1\.2;/);
+    assert.match(block, /--zoom: 1\.2;/);
+  }
+});
+
 test('the song area is the container of the circle beside the chords, and the chords take the room beside it', () => {
   assert.ok(declarationsOf('.song').includes('container-type: inline-size'));
   const body = declarationsOf('.song-body');
   assert.ok(body.includes('display: flex'));
   assert.ok(body.includes('margin: auto 0'), 'centred vertically, scrolling without cutting off the top');
-  assert.ok(body.includes('gap: calc(var(--zoom) * '), 'the gap to the circle zooms with the chords');
+  assert.ok(body.includes('gap: calc(var(--circle-zoom) * '), 'the gap to the circle takes the size of the circle');
+  // The parts stretch to the height of the rows, so the sticky circle can stay in view while they scroll.
+  assert.ok(!/align-items/.test(body));
+  assert.ok(declarationsOf('.song-chords').includes('min-width: 0'));
+});
+
+test('the circle and the chords share the free room one to two, each in the middle of its part, the rows on one left edge', () => {
+  // As wide as their content, plus their share of the free room: a third for the circle, two thirds for the chords.
+  const circlePart = declarationsOf('.song-circle-part');
   const chords = declarationsOf('.song-chords');
-  assert.ok(chords.includes('flex: 1 1 0'));
-  assert.ok(chords.includes('min-width: 0'));
+  assert.ok(circlePart.includes('flex: 1 0 auto'), 'the circle part never gets narrower than the circle');
+  assert.ok(chords.includes('flex: 2 1 auto'), 'the chords give way where there is no room');
+  assert.ok(circlePart.includes('display: flex'));
+  assert.ok(circlePart.includes('justify-content: center'));
+  // The rows are not centred one by one: the block is centred, its rows start at its left edge.
+  const rows = declarationsOf('.song-rows');
+  assert.ok(rows.includes('margin: 0 auto'));
+  assert.ok(!rows.includes('text-align: center'));
+  assert.ok(!declarationsOf('.row').includes('margin: 0 auto'));
+  assert.ok(!/justify-content: center/.test(declarationsOf('.row h2')));
 });

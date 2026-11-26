@@ -133,6 +133,7 @@ async function loadApp({ cookie = '', stored = null, storage = fakeStorage(store
     // Only the targets marked as inside the circle count as inside it, not every target inside the song.
     '#song-circle': Object.assign(new FakeElement(), { contains: (node) => node?.insideCircle === true }),
     '.song-body': new FakeElement(),
+    '.song-chords': new FakeElement(),
     '#background': new FakeBackground(),
     '#status': new FakeElement(),
     '.options-toggle': new FakeElement(),
@@ -272,9 +273,20 @@ test('app.js loads the YAML library and renders the collapsed option sections, r
     assert.ok(app.elements['#song-circle'].innerHTML.includes('<svg class="circle"'));
     assert.ok(app.elements['#option-list'].innerHTML.includes('<span class="section-title">Progressions</span>'));
     assert.equal(app.elements['#options'].hidden, false);
-    assert.equal(rowCount(app.elements['#song-rows'].innerHTML), 2);
+    assert.equal(rowCount(app.elements['#song-rows'].innerHTML), 4);
     assert.equal(app.elements['.options-toggle'].attributes['aria-expanded'], 'true');
     assert.ok(app.document.cookie.startsWith('chordice_state='));
+  } finally {
+    uninstall();
+  }
+});
+
+test('app.js zooms the chords only, not the body with the circle of fifths', async () => {
+  try {
+    const app = await loadApp();
+    // Without a layout to measure, the chords show the default zoom.
+    assert.equal(app.elements['.song-chords'].style['--zoom'], '1.2');
+    assert.equal(app.elements['.song-body'].style['--zoom'], undefined);
   } finally {
     uninstall();
   }
@@ -363,10 +375,10 @@ test('app.js re-renders and stores the state when a click dispatches an action',
   try {
     const app = await loadApp();
     app.dispatch({ action: 'cycle-count' });
-    assert.equal(rowCount(app.elements['#song-rows'].innerHTML), 4);
-    assert.match(app.elements['#option-list'].innerHTML, /class="chip count-toggle"[^>]*>4<\/button>/);
+    assert.equal(rowCount(app.elements['#song-rows'].innerHTML), 8);
+    assert.match(app.elements['#option-list'].innerHTML, /class="chip count-toggle"[^>]*>8<\/button>/);
     assert.ok(app.document.cookie.includes('chordice_state='));
-    assert.ok(decodeURIComponent(app.document.cookie).includes('"count":4'));
+    assert.ok(decodeURIComponent(app.document.cookie).includes('"count":8'));
   } finally {
     uninstall();
   }
@@ -697,7 +709,7 @@ test('app.js keeps the piano when the guitar shapes cannot be loaded, and does n
     assert.equal(guitar.attributes['aria-pressed'], 'false');
     assert.ok(!decodeURIComponent(app.document.cookie).includes('"instrument":"guitar"'));
     // The rows still show, so the page works without the guitar.
-    assert.equal(rowCount(app.elements['#song-rows'].innerHTML), 2);
+    assert.equal(rowCount(app.elements['#song-rows'].innerHTML), 4);
     assert.ok(logged.some((message) => message.includes('could not load the guitar shapes')));
     // The page says so, in a message above the chords.
     assert.equal(app.elements['#status'].hidden, false);
@@ -716,7 +728,7 @@ test('app.js starts on the piano when the stored guitar cannot be loaded, and th
     const app = await loadApp({ cookie, guitarOk: false });
     assert.equal(app.instrumentTabs[0].attributes['aria-pressed'], 'true');
     assert.equal(app.instrumentTabs[1].attributes['aria-pressed'], 'false');
-    assert.equal(rowCount(app.elements['#song-rows'].innerHTML), 2);
+    assert.equal(rowCount(app.elements['#song-rows'].innerHTML), 4);
     assert.equal(app.elements['#status'].hidden, false);
   } finally {
     console.error = error;
@@ -790,7 +802,7 @@ test('app.js shows 12 rows, one per key with its key in the heading, while the c
     assert.ok(html.indexOf('C (A<span') < html.indexOf('F (D<span'));
     assert.match(app.elements['#option-list'].innerHTML, /class="chip count-toggle"[^>]*disabled>12<\/button>/);
     app.dispatch({ action: 'toggle-circle-of-fifths' });
-    assert.equal(rowCount(app.elements['#song-rows'].innerHTML), 2, 'the stored count comes back');
+    assert.equal(rowCount(app.elements['#song-rows'].innerHTML), 4, 'the stored count comes back');
     assert.ok(!app.elements['#song-rows'].innerHTML.includes('C (A<span'));
   } finally {
     uninstall();
@@ -831,7 +843,7 @@ test('app.js keeps a copy of the state in the local storage, next to the cookie'
     const app = await loadApp();
     await app.dispatch({ action: 'cycle-count' });
     const stored = JSON.parse(app.storage.getItem(STORAGE_KEY));
-    assert.equal(stored.count, 4, 'the count after the default of 2');
+    assert.equal(stored.count, 8, 'the count after the default of 4');
     assert.equal(stored.selection, undefined, 'like the cookie, the copy leaves out the selection');
   } finally {
     uninstall();

@@ -33,8 +33,9 @@
   display: block;
 }
 
-/* The circle in the song area, left of the chords: it stays there while the side panel is closed. It zooms
-   with the chords (--zoom, see zoom.js), so where the screen is narrower or lower, both get smaller together.
+/* The circle in the song area, left of the chords: it stays there while the side panel is closed. It is not zoomed with the
+   chords: it has a size of its own (--circle-zoom, see bindSongZoom in zoom.js), which only gets smaller where the screen is
+   too narrow or too low for it.
    It always stands in the vertical middle of the visible song area, not in the middle of the rows: while many rows scroll
    (e.g. the 12 rows of the circle of fifths switch), it stays where it is. Sticky with the same distance from the top and
    the bottom of the visible area (half of it less half the circle, which is as high as it is wide) holds it there. */
@@ -43,9 +44,9 @@
   align-self: flex-start;
   /* Sticky, it is also the frame the button in its middle is placed in. */
   position: sticky;
-  top: calc(50% - var(--zoom) * 9rem);
-  bottom: calc(50% - var(--zoom) * 9rem);
-  width: calc(var(--zoom) * 18rem);
+  top: calc(50% - var(--circle-zoom) * 9rem);
+  bottom: calc(50% - var(--circle-zoom) * 9rem);
+  width: calc(var(--circle-zoom) * 18rem);
 }
 
 /* A narrow song area (a phone, or the iPad in portrait with the side panel open) has no room beside the circle: the circle
@@ -62,7 +63,7 @@
     top: auto;
     bottom: auto;
     align-self: center;
-    width: min(calc(var(--zoom) * 16rem), 85%);
+    width: min(calc(var(--circle-zoom) * 16rem), 85%);
   }
 }
 

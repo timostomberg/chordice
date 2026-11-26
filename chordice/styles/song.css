@@ -12,6 +12,35 @@
   margin-bottom: calc(var(--zoom) * 1.25rem);
 }
 
+/* With many rows the song stands in two columns side by side (see renderSong), each as wide as its widest row, both
+   starting at the top. Where they do not fit side by side even zoomed out, the right one moves below the left one. */
+.song-columns {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  column-gap: calc(var(--zoom) * 2.5rem);
+}
+
+.song-column {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* A column is as wide as its widest row of chords, which zoom.js measures to fit both columns side by side. A heading
+   wider than its chords would widen the column beyond that and push the right column below the left one, so the headings
+   add nothing to the width of a column and wrap inside it instead. */
+.song-column .row h2 {
+  contain: inline-size;
+}
+
+/* A narrow song area (the circle above the chords, see circle-of-fifths.css) has no room for two columns: one below the
+   other. */
+@container (max-width: 34rem) {
+  .song-columns {
+    flex-direction: column;
+  }
+}
+
 /* Headings share the colour of the option section titles. The title and the tags sit on one centre line. */
 /* The heading is written in italics onto the painting; a soft halo of the paper keeps it readable over the hills. */
 .row h2 {

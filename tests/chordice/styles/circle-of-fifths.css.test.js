@@ -68,20 +68,21 @@ test('the keys of the circle are washes of watercolour like the buttons, in the 
   assert.ok(key.includes('vector-effect: non-scaling-stroke'));
 });
 
-test('the circle beside the chords zooms with them, stays in view while the song scrolls, and moves above the chords where it is narrow', () => {
+test('the circle beside the chords has its own size, not the zoom of the chords, stays in view while the song scrolls, and moves above the chords where it is narrow', () => {
   const circle = declarationsOf('.song-circle');
   assert.ok(circle.includes('flex: 0 0 auto'));
+  assert.ok(!circle.includes('--zoom)'), 'the zoom of the chords does not reach the circle');
   assert.ok(circle.includes('position: sticky'));
-  const size = Number(/width: calc\(var\(--zoom\) \* ([\d.]+)rem\)/.exec(circle)?.[1]);
+  const size = Number(/width: calc\(var\(--circle-zoom\) \* ([\d.]+)rem\)/.exec(circle)?.[1]);
   assert.ok(size > 0);
   // Always in the vertical middle of the visible song area, not in the middle of the rows: as far from its top as from its
   // bottom (half the area less half the circle, which is as high as it is wide), while the rows scroll.
-  assert.ok(circle.includes(`top: calc(50% - var(--zoom) * ${size / 2}rem)`));
-  assert.ok(circle.includes(`bottom: calc(50% - var(--zoom) * ${size / 2}rem)`));
+  assert.ok(circle.includes(`top: calc(50% - var(--circle-zoom) * ${size / 2}rem)`));
+  assert.ok(circle.includes(`bottom: calc(50% - var(--circle-zoom) * ${size / 2}rem)`));
   const narrow = /@container \(max-width: [\d.]+rem\) \{([\s\S]*?)\n\}/.exec(CSS);
   assert.ok(narrow, 'a container query for a narrow song area');
   assert.match(narrow[1], /\.song-body \{[^}]*flex-direction: column/);
-  assert.match(narrow[1], /\.song-circle \{[^}]*width: min\(calc\(var\(--zoom\) \* [\d.]+rem\), \d+%\)/);
+  assert.match(narrow[1], /\.song-circle \{[^}]*width: min\(calc\(var\(--circle-zoom\) \* [\d.]+rem\), \d+%\)/);
 });
 
 test('the circle of fifths button is centred in the middle of the circle beside the chords, and round', () => {

@@ -4,6 +4,7 @@ import { renderExercises, renderOptions } from '../../../../chordice/app/options
 import { buildLibrary } from '../../../../chordice/music/data/validate.js';
 import { defaultState, toggleSection } from '../../../../chordice/app/state/state.js';
 import { EXERCISES } from '../../../../chordice/app/state/exercises.js';
+import { VARIATION_NAMES } from '../../../../chordice/music/theory/chords.js';
 import { LIBRARY as APP_DATA_LIBRARY } from '../../../helpers/fixtures.js';
 
 const LIBRARY = buildLibrary({
@@ -83,6 +84,9 @@ test('a collapsed section shows only a muted summary of what is selected', () =>
   const state = {
     ...defaultState(LIBRARY, () => 0.5),
     count: 8,
+    rotation: 2,
+    permutation: 2,
+    bassProbability: 2,
     collapsed: ['progressionVariations', 'variations', 'bass'],
   };
   const html = renderOptions(state, LIBRARY);
@@ -105,7 +109,7 @@ test('the progression summary lists each category on its own line as Category: N
 });
 
 test('the variation summary says all when all are selected', () => {
-  const state = { ...defaultState(LIBRARY, () => 0.5), collapsed: ['variations'] };
+  const state = { ...defaultState(LIBRARY, () => 0.5), variations: [...VARIATION_NAMES], variationProbability: 2, collapsed: ['variations'] };
   // The amount comes first, then the list, which starts with the blue "Variations:" label.
   assert.ok(renderOptions(state, LIBRARY).includes('<span class="section-summary"><span class="summary-label">Amount</span>: <span class="summary-value">2</span><br><span class="summary-label">Variations</span>: all</span>'));
 });
@@ -170,8 +174,8 @@ test('the Progressions heading carries the expanded state, so its arrow can sit 
   assert.ok(closed.includes('<h2 class="section-header">'));
 });
 
-test('renderOptions shows the #b switch beside the Chord variations heading, pressed by default, as a chip', () => {
-  const state = { ...defaultState(LIBRARY, () => 0.5), collapsed: [] };
+test('renderOptions shows the #b switch beside the Chord variations heading, pressed when foreign variations are on, as a chip', () => {
+  const state = { ...defaultState(LIBRARY, () => 0.5), foreignVariations: true, collapsed: [] };
   const html = renderOptions(state, LIBRARY);
   const button = '<button type="button" class="chip is-on" aria-pressed="true" data-action="toggle-foreign-variations" ' +
     'aria-label="Chord variations with tones foreign to the key" title="Chord variations with tones foreign to the key">#b</button>';
@@ -190,7 +194,7 @@ test('renderOptions shows the #b switch as not pressed when foreign variations a
 });
 
 test('the count button and the #b switch are chips, so they share the look of the other buttons', () => {
-  const html = renderOptions({ ...defaultState(LIBRARY, () => 0.5), collapsed: [] }, LIBRARY);
+  const html = renderOptions({ ...defaultState(LIBRARY, () => 0.5), foreignVariations: true, collapsed: [] }, LIBRARY);
   assert.ok(html.includes('<button type="button" class="chip count-toggle" data-action="cycle-count"'));
   assert.ok(html.includes('class="chip is-on" aria-pressed="true" data-action="toggle-foreign-variations"'));
   assert.ok(!html.includes('accidental-toggle'));

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { renderSong } from '../../../../chordice/app/song/song.js';
+import { TWO_COLUMNS_FROM, renderSong } from '../../../../chordice/app/song/song.js';
 
 const ROWS = [{
   index: 0,
@@ -257,4 +257,33 @@ test('renderSong starts each row with its key and relative minor, in the font of
 test('renderSong raises the accidentals of the key at the start of a row', () => {
   const html = renderSong([{ ...ROWS[0], tonic: 'F#' }], PLAIN, { showKey: true });
   assert.ok(html.includes(`<span class="row-title">F${SHARP} (D${SHARP}${MINOR}) · `));
+});
+
+/** `count` copies of the test row, each named after its place. */
+const manyRows = (count) => Array.from({ length: count }, (_, index) => ({ ...ROWS[0], index, name: `Row ${index}` }));
+/** The names of the rows in one column of the rendered song, in their order. */
+const namesIn = (column) => [...column.matchAll(/<span class="row-title">(Row \d+)/g)].map((match) => match[1]);
+const columnsOf = (html) => html.split('<div class="song-column">').slice(1);
+
+test('renderSong shows up to 7 rows in one column, without the columns wrapper', () => {
+  assert.equal(TWO_COLUMNS_FROM, 8);
+  const html = renderSong(manyRows(TWO_COLUMNS_FROM - 1), PLAIN);
+  assert.ok(!html.includes('song-column'));
+  assert.equal(namesIn(html).length, 7);
+});
+
+test('renderSong splits 8 or more rows in half: the first half in the left column, the second in the right one', () => {
+  for (const [count, left] of [[8, 4], [12, 6], [9, 5]]) {
+    const html = renderSong(manyRows(count), PLAIN);
+    assert.ok(html.startsWith('<div class="song-columns"><div class="song-column">'));
+    const [first, second] = columnsOf(html);
+    assert.deepEqual(namesIn(first), manyRows(count).slice(0, left).map((row) => row.name));
+    assert.deepEqual(namesIn(second), manyRows(count).slice(left).map((row) => row.name));
+  }
+});
+
+test('renderSong keeps the place of each row in the whole song for its chords, also in the right column', () => {
+  const [, second] = columnsOf(renderSong(manyRows(12), PLAIN));
+  assert.ok(second.includes('data-row="6" data-chord="0"'));
+  assert.ok(!second.includes('data-row="5"'));
 });

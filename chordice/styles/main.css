@@ -31,6 +31,8 @@
   --chord-soft: var(--text-soft);
   /* The zoom of the chords (set by zoom.js): 1 means 100%. The default is DEFAULT_ZOOM in zoom.js. */
   --zoom: 1.2;
+  /* The size of the circle of fifths beside the chords (set by zoom.js), on the same scale. */
+  --circle-zoom: 1.2;
   --fill: 50%;
   --touch: 44px;
   /* The opacity of everything greyed out: an unavailable option, a disabled header switch, the disabled circle of fifths. */
@@ -101,6 +103,7 @@
   --variation-tone: #a6c4f2;
   --foreign-tone: #f2907a;
   --zoom: 1.2;
+  --circle-zoom: 1.2;
   --fill: 50%;
   --disabled-text: #7e7b75;
   --hover-fill: color-mix(in srgb, var(--icon-blue) 40%, var(--surface));
@@ -297,19 +300,30 @@ button[aria-expanded="true"] {
 
 .song-body {
   display: flex;
-  align-items: center;
-  gap: calc(var(--zoom) * 1.5rem);
+  /* The gap belongs to the circle beside the chords: it takes its size. */
+  gap: calc(var(--circle-zoom) * 1.5rem);
   margin: auto 0;
 }
 
-/* The chords take the room beside the circle; zoom.js fits the circle and the chords together into the song area. */
-.song-chords {
-  flex: 1 1 0;
-  min-width: 0;
+/* The circle's part on the left and the chords' part on the right share the free room one to two, so on a wide screen
+   the circle has about the left third and the chords the right two thirds. Each stands in the middle of its part. Where
+   the room gets less, both parts lose it in the same proportion, so the circle never sticks to the left edge while the
+   chords still have room around them. Only the chords give way where there is no free room left; zoom.js fits the circle
+   and the chords into the song area before that. */
+.song-circle-part {
+  flex: 1 0 auto;
   display: flex;
+  justify-content: center;
 }
 
-/* The chord block is centred in its room, where there is room. */
+.song-chords {
+  flex: 2 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* The chord block is centred in its room, where there is room; its rows start on one common left edge. */
 .song-rows {
   max-width: 100%;
   margin: 0 auto;

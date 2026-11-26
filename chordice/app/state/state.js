@@ -36,8 +36,8 @@ export const SECTION_OPTIONS = {
   melody: 'melodyAmount',
 };
 
-// Default for the probabilities, on the scale from 0 to 5 (2 means 40%).
-const DEFAULT_PROBABILITY = 2;
+// The chord variations selected on start-up: the common ones.
+export const DEFAULT_VARIATIONS = ['7', 'maj7', '6', 'add9', 'sus2', 'sus4'];
 
 export function defaultState(library, random = Math.random) {
   return {
@@ -45,19 +45,21 @@ export function defaultState(library, random = Math.random) {
     // The major key of the rows, chosen on the circle of fifths.
     key: 'C',
     selection: library.map((progression) => progression.id),
-    count: 2,
-    rotation: DEFAULT_PROBABILITY,
-    permutation: DEFAULT_PROBABILITY,
-    variations: [...VARIATION_NAMES],
-    variationProbability: DEFAULT_PROBABILITY,
-    bassProbability: DEFAULT_PROBABILITY,
-    melodyAmount: DEFAULT_PROBABILITY,
+    count: 4,
+    // The probabilities are on the scale from 0 to 5 (1 means 20%).
+    rotation: 1,
+    permutation: 1,
+    variations: [...DEFAULT_VARIATIONS],
+    variationProbability: 4,
+    bassProbability: 1,
+    melodyAmount: 1,
     colour: true,
     roman: true,
     tones: false,
+    // The melody: the inversions of the chords.
     inversions: false,
     // On: every chord variation is used. Off: only variations without tones foreign to the key.
-    foreignVariations: true,
+    foreignVariations: false,
     // On: one row per key, counterclockwise on the circle of fifths from C, so the count is 12. Off: the selected key.
     circleOfFifths: false,
     // The id of the exercise that is on (see exercises.js), or null.

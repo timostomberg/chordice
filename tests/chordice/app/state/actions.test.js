@@ -9,7 +9,7 @@ const LIBRARY = SMALL_LIBRARY;
 test('applyAction dispatches UI actions and ignores unknown ones', () => {
   const state = defaultState(LIBRARY, FIXED);
   assert.equal(applyAction(state, 'set-key', { key: 'D' }, LIBRARY).key, 'D');
-  assert.equal(applyAction(state, 'cycle-count', {}, LIBRARY).count, 4);
+  assert.equal(applyAction(state, 'cycle-count', {}, LIBRARY).count, 8);
   assert.equal(applyAction(state, 'toggle-colour', {}, LIBRARY).colour, false);
   assert.equal(applyAction(state, 'toggle-roman', {}, LIBRARY).roman, false);
   assert.equal(applyAction(state, 'toggle-tones', {}, LIBRARY).tones, true);
@@ -30,7 +30,7 @@ test('applyAction also handles group, progression, variation, foreign-variation 
   assert.deepEqual(applyAction(state, 'toggle-group', { group: 'Pop' }, LIBRARY).selection, ['Pop / A', 'Pop / B', 'Rock / C']);
   assert.deepEqual(applyAction(state, 'toggle-progression', { id: 'Pop / A' }, LIBRARY).selection, ['Pop / A', 'Rock / C']);
   assert.ok(!applyAction(state, 'toggle-variation', { variation: '7' }, LIBRARY).variations.includes('7'));
-  assert.equal(applyAction(state, 'toggle-foreign-variations', {}, LIBRARY).foreignVariations, false);
+  assert.equal(applyAction(state, 'toggle-foreign-variations', {}, LIBRARY).foreignVariations, true);
   assert.equal(applyAction(state, 'toggle-melody', {}, LIBRARY).inversions, true);
 
   let counter = 0;

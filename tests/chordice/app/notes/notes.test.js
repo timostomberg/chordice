@@ -138,6 +138,10 @@ function fakeChordElement() {
   const classes = new Set();
   return {
     classes,
+    blurred: false,
+    blur() {
+      this.blurred = true;
+    },
     classList: {
       add: (name) => classes.add(name),
       remove: (name) => classes.delete(name),
@@ -159,6 +163,29 @@ test('a click outside the notes window closes it and removes the frame from the 
   notes.open(E_OVER_C, element);
   dialog.emit('click', { target: dialog });
   assert.equal(element.classList.contains('is-open'), false);
+});
+
+test('a click outside the notes window takes the focus off the chord, so no focus frame stays behind on the iPad', () => {
+  const { dialog, notes } = setup();
+  const element = fakeChordElement();
+  notes.open(E_OVER_C, element);
+  dialog.emit('click', { target: dialog });
+  assert.equal(element.blurred, true);
+});
+
+test('closing the window with Escape leaves the focus on the chord, so the keyboard goes on from there', () => {
+  const { dialog, notes } = setup();
+  const element = fakeChordElement();
+  notes.open(E_OVER_C, element);
+  dialog.emit('close');
+  assert.equal(element.blurred, false);
+});
+
+test('a click outside the notes window of a chord opened without an element closes it without failing', () => {
+  const { dialog, notes } = setup();
+  notes.open(E_OVER_C);
+  dialog.emit('click', { target: dialog });
+  assert.equal(dialog.isOpen, false);
 });
 
 test('closing the window with Escape also removes the frame, as the browser fires the close event', () => {

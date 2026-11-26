@@ -4,11 +4,17 @@
  * The scale is passed on as the custom property --zoom of the surface; the stylesheet multiplies the sizes of the
  * surface's text and boxes by it, so that the text grows together with the boxes.
  * When the area is too narrow for the scale the user chose, the surface zooms out by itself, just far enough that its
- * widest row of chords fits on one line (but not below MIN_ZOOM). The chosen scale is kept: once there is room again,
- * the surface zooms back in to it.
+ * widest row of chords fits on one line (but not below MIN_ZOOM). While the rows stand in two columns side by side, it
+ * zooms out further, down to COLUMNS_MIN_ZOOM, so that both columns fit beside each other. The chosen scale is kept: once
+ * there is room again, the surface zooms back in to it.
+ * In the song area only the chords zoom (see bindSongZoom): the circle of fifths beside them keeps its own size, which only
+ * gets smaller where the room is too little for it. When the number of rows changes, the chords are fitted so that all of
+ * them can be seen at once, without scrolling (but at most at DEFAULT_ZOOM).
  */
 
 export const MIN_ZOOM = 0.7;
+/** The least scale the surface zooms out to by itself so that two columns of rows fit side by side. */
+export const COLUMNS_MIN_ZOOM = 0.4;
 export const MAX_ZOOM = 2.5;
 /** The zoom of a surface before the first Ctrl + scroll or pinch. The stylesheet's --zoom default must match it. */
 export const DEFAULT_ZOOM = 1.2;
@@ -24,21 +30,22 @@ export function clampZoom(scale) {
 /**
  * The scale to show: the wanted scale, or less when the content would not fit. `needed` is the width the content takes
  * at the scale 1, `available` the width there is room for. Without a measurement (needed of 0) the wanted scale is
- * shown. It never goes below MIN_ZOOM, so on a very narrow area the chords wrap onto further lines instead.
+ * shown. It never goes below `min` (MIN_ZOOM unless the measurement asks for less), so on a very narrow area the chords
+ * wrap onto further lines instead.
  */
-export function fittedZoom(wanted, needed, available) {
+export function fittedZoom(wanted, needed, available, min = MIN_ZOOM) {
   if (!(needed > 0) || !(available > 0)) {
     return wanted;
   }
-  // Rounded down a little, so that rounding in the layout does not wrap the last chord.
-  const fit = Math.floor((available / needed) * 100) / 100;
-  return Math.max(MIN_ZOOM, Math.min(wanted, fit));
+  return Math.max(min, Math.min(wanted, roundDown(available / needed)));
 }
 
 /**
  * Measures the widest row of chords in `surface` and the room for it in `area`, both in pixels. `zoom` is the scale the
  * surface shows now, so the width is divided by it to give the width at the scale 1. The chords of a row may wrap; the
- * width of a row is the sum of its chords and the gaps between them, as on one line. Returns null without a layout.
+ * width of a row is the sum of its chords and the gaps between them, as on one line. While the rows stand in two columns
+ * side by side (see renderSong), the width is that of the widest row of each column, with the gap between the columns,
+ * and the measurement allows zooming out down to COLUMNS_MIN_ZOOM (`min`) to fit them. Returns null without a layout.
  */
 export function measureRows(area, surface, zoom) {
   const view = area.ownerDocument?.defaultView;
@@ -48,44 +55,74 @@ export function measureRows(area, surface, zoom) {
   const px = (value) => Number.parseFloat(value) || 0;
   const areaStyle = view.getComputedStyle(area);
   const available = area.clientWidth - px(areaStyle.paddingLeft) - px(areaStyle.paddingRight);
-  let widest = 0;
-  for (const row of surface.querySelectorAll('.chords')) {
-    const chords = [...row.children];
-    const gap = px(view.getComputedStyle(row).columnGap);
-    const width = chords.reduce((sum, chord) => sum + chord.getBoundingClientRect().width, 0) +
-      gap * Math.max(0, chords.length - 1);
-    widest = Math.max(widest, width);
+  const widestRow = (part) => {
+    let widest = 0;
+    for (const row of part.querySelectorAll('.chords')) {
+      const chords = [...row.children];
+      const gap = px(view.getComputedStyle(row).columnGap);
+      const width = chords.reduce((sum, chord) => sum + chord.getBoundingClientRect().width, 0) +
+        gap * Math.max(0, chords.length - 1);
+      widest = Math.max(widest, width);
+    }
+    return widest;
+  };
+  const columns = surface.querySelector('.song-columns');
+  const columnsStyle = columns && view.getComputedStyle(columns);
+  if (columns && !columnsStyle.flexDirection.startsWith('column')) {
+    const parts = [...columns.querySelectorAll('.song-column')];
+    const width = parts.reduce((sum, part) => sum + widestRow(part), 0) +
+      px(columnsStyle.columnGap) * Math.max(0, parts.length - 1);
+    return { needed: width / zoom, available, min: COLUMNS_MIN_ZOOM };
   }
-  return { needed: widest / zoom, available };
+  return { needed: widestRow(surface) / zoom, available };
 }
 
+/** Rounds a scale down to hundredths, so that rounding in the layout does not wrap the last chord. */
+const roundDown = (scale) => Math.floor(scale * 100) / 100;
+
+/** How far `needed` can be scaled to fit into `available`; Infinity without a measurement. */
+const ratioOf = ({ needed, available }) => (needed > 0 && available > 0 ? available / needed : Infinity);
+
 /**
- * Measures the song as measureRows does, with the circle of fifths beside the chords: while the circle stands left of the
- * chords (the body is laid out in a row), its width and the gap to the chords need room too. Both scale with the zoom, so
- * they are divided by it like the chords. Above the chords (a column), the circle needs no width beside them.
- * Beside the chords, the circle also has to fit into the height of the area (e.g. a phone held sideways), as it stays in
- * its vertical middle: when the height is what limits the scale, that is the measurement returned.
+ * Measures the song: the chords in `rows` (as measureRows does) and the circle of fifths beside them. `zoom` is the scale
+ * the chords show now, `circleZoom` the one the circle shows now. Returns the measurement of the chords for fittedZoom
+ * and `circleZoom`, the size the circle is to take, or null without a layout.
+ * While the circle stands left of the chords (the body is laid out in a row), it keeps the size of DEFAULT_ZOOM, unless
+ * the room is too little for it: it then gets smaller just far enough that it fits into the height of the area (it stays
+ * in its vertical middle, e.g. on a phone held sideways), and that it and the chords at the scale 1 fit side by side, so
+ * on a narrower screen both get smaller together. The chords then have the room beside the circle and the gap to it.
+ * With `whole`, the chords have to fit into the height of the area too, so that every row can be seen at once.
+ * Above the chords (a column), the circle keeps its size and the chords have the whole width; the height is left out.
  */
-export function measureSong(area, body, circle, zoom) {
-  const size = measureRows(area, body, zoom);
+export function measureSong(area, body, circle, rows, zoom, circleZoom, { whole = false } = {}) {
+  const size = measureRows(area, rows, zoom);
   if (!size) {
     return null;
   }
   const view = area.ownerDocument.defaultView;
   const style = view.getComputedStyle(body);
   if (style.flexDirection.startsWith('column')) {
-    return size;
+    return { ...size, circleZoom: DEFAULT_ZOOM };
   }
   const px = (value) => Number.parseFloat(value) || 0;
-  const box = circle.getBoundingClientRect();
-  const width = { needed: size.needed + (box.width + px(style.columnGap)) / zoom, available: size.available };
   const areaStyle = view.getComputedStyle(area);
-  const height = {
-    needed: (box.height ?? box.width) / zoom,
-    available: area.clientHeight - px(areaStyle.paddingTop) - px(areaStyle.paddingBottom),
-  };
-  const ratio = ({ needed, available }) => (needed > 0 && available > 0 ? available / needed : Infinity);
-  return ratio(height) < ratio(width) ? height : width;
+  const roomHeight = area.clientHeight - px(areaStyle.paddingTop) - px(areaStyle.paddingBottom);
+  // The circle and the gap beside it at the scale 1; both take the size of the circle.
+  const box = circle.getBoundingClientRect();
+  const circleWidth = box.width / circleZoom;
+  const circleHeight = (box.height ?? box.width) / circleZoom;
+  const gap = px(style.columnGap) / circleZoom;
+  const nextCircle = Math.max(COLUMNS_MIN_ZOOM, roundDown(Math.min(
+    DEFAULT_ZOOM,
+    ratioOf({ needed: circleHeight, available: roomHeight }),
+    ratioOf({ needed: size.needed + circleWidth + gap, available: size.available }),
+  )));
+  const width = { ...size, available: size.available - (circleWidth + gap) * nextCircle };
+  if (!whole) {
+    return { ...width, circleZoom: nextCircle };
+  }
+  const height = { ...size, needed: rows.getBoundingClientRect().height / zoom, available: roomHeight };
+  return { ...(ratioOf(height) < ratioOf(width) ? height : width), circleZoom: nextCircle };
 }
 
 /** New scale after one wheel event. Scrolling up (negative deltaY) zooms in. */
@@ -112,8 +149,13 @@ function touchDistance(touches) {
  * the surface is the element that is scaled (through its CSS zoom). Returns the scale the user chose, the scale shown
  * and fit(), which fits the shown scale to the room again, e.g. after the chords are rendered anew. A change of the
  * area's size fits it too. `measure` gives the width the content needs at the scale 1 and the room for it (see measureRows).
+ * fitAll() forgets the chosen scale and fits the content as `measureAll` measures it (e.g. also into the height), at most
+ * at DEFAULT_ZOOM; that scale is then the chosen one.
  */
-export function bindZoom(area, surface, { measure = (zoom) => measureRows(area, surface, zoom) } = {}) {
+export function bindZoom(area, surface, {
+  measure = (zoom) => measureRows(area, surface, zoom),
+  measureAll = measure,
+} = {}) {
   let scale = DEFAULT_ZOOM;
   let shown = DEFAULT_ZOOM;
   let pinch = null;
@@ -125,12 +167,27 @@ export function bindZoom(area, surface, { measure = (zoom) => measureRows(area, 
 
   const fit = () => {
     const size = measure(shown);
-    show(size ? fittedZoom(scale, size.needed, size.available) : scale);
+    show(size ? fittedZoom(scale, size.needed, size.available, size.min) : scale);
   };
 
   const apply = (next) => {
     scale = next;
     fit();
+  };
+
+  // The rows may wrap at the scale shown before, which makes them taller than they are once fitted; so the fit is measured
+  // again at the new scale, a few times, until it no longer changes.
+  const fitAll = () => {
+    show(DEFAULT_ZOOM);
+    for (let step = 0; step < 4; step += 1) {
+      const size = measureAll(shown);
+      const next = size ? fittedZoom(DEFAULT_ZOOM, size.needed, size.available, size.min) : shown;
+      if (next === shown) {
+        break;
+      }
+      show(next);
+    }
+    scale = shown;
   };
 
   if (typeof globalThis.ResizeObserver === 'function') {
@@ -172,6 +229,39 @@ export function bindZoom(area, surface, { measure = (zoom) => measureRows(area, 
     get scale() { return scale; },
     get shown() { return shown; },
     fit,
+    fitAll,
+  };
+}
+
+/**
+ * The zoom of the song area (see bindZoom): Ctrl + scroll and pinch anywhere in `area` zoom the chords (`chords`, which
+ * holds the rows `rows`) only. The circle of fifths (`circle`, in `body` beside the chords) takes the size measureSong
+ * gives it at every fit, as --circle-zoom of the body. fitAll() fits every row into the area at once, as long as the
+ * circle stands beside the chords; above them (a narrow screen), it keeps the chosen scale and fits the width only, as
+ * fit() does.
+ */
+export function bindSongZoom(area, body, circle, chords, rows) {
+  let circleZoom = DEFAULT_ZOOM;
+  const measure = (whole) => (zoom) => {
+    const size = measureSong(area, body, circle, rows, zoom, circleZoom, { whole });
+    if (size) {
+      circleZoom = size.circleZoom;
+      body.style.setProperty('--circle-zoom', String(circleZoom));
+    }
+    return size;
+  };
+  const zoom = bindZoom(area, chords, { measure: measure(false), measureAll: measure(true) });
+  const besideChords = () => {
+    const view = area.ownerDocument?.defaultView;
+    return Boolean(view?.getComputedStyle) && !view.getComputedStyle(body).flexDirection.startsWith('column');
+  };
+  return {
+    get scale() { return zoom.scale; },
+    get shown() { return zoom.shown; },
+    get circleZoom() { return circleZoom; },
+    fit: zoom.fit,
+    // Above the chords (a narrow screen), the chosen scale is kept.
+    fitAll: () => (besideChords() ? zoom.fitAll() : zoom.fit()),
   };
 }
 

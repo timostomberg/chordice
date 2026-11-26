@@ -28,19 +28,22 @@ import { FIXED, SMALL_LIBRARY } from '../../../helpers/fixtures.js';
 const LIBRARY = SMALL_LIBRARY;
 const IDS = LIBRARY.map((progression) => progression.id);
 
-test('defaults select everything, show colours and extended information, and rotate and permute 3 of 5 of the rows', () => {
+test('defaults select everything, show colours and extended information, and use four progressions, the common chord variations and no melody', () => {
   const state = defaultState(LIBRARY, FIXED);
   assert.equal(state.key, 'C');
   assert.deepEqual(state.selection, IDS);
-  assert.equal(state.count, 2);
-  assert.deepEqual(state.variations, VARIATION_NAMES);
+  assert.equal(state.count, 4);
+  assert.deepEqual(state.variations, ['7', 'maj7', '6', 'add9', 'sus2', 'sus4']);
+  assert.equal(state.foreignVariations, false);
+  assert.equal(state.inversions, false);
   assert.equal(state.colour, true);
   assert.equal(state.roman, true);
   assert.equal(state.tones, false);
-  assert.equal(state.permutation, 2);
-  assert.equal(state.rotation, 2);
-  assert.equal(state.variationProbability, 2);
-  assert.equal(state.bassProbability, 2);
+  assert.equal(state.permutation, 1);
+  assert.equal(state.rotation, 1);
+  assert.equal(state.variationProbability, 4);
+  assert.equal(state.bassProbability, 1);
+  assert.equal(state.melodyAmount, 1);
   assert.equal(state.theme, 'light');
   assert.equal(state.showOptions, true);
   assert.equal(state.panel, 'options');
@@ -256,13 +259,13 @@ test('unknown groups, progressions, variations, flags, sections, keys and probab
   assert.equal(setProbability(state, 'rotation', 'abc'), state);
 });
 
-test('the foreign variations switch is on by default, toggles on and off, and changes nothing else', () => {
+test('the foreign variations switch is off by default, toggles on and off, and changes nothing else', () => {
   const state = { ...defaultState(LIBRARY, FIXED), variations: ['7'] };
-  assert.equal(state.foreignVariations, true);
-  const off = toggleFlag(state, 'foreignVariations');
-  assert.equal(off.foreignVariations, false);
-  assert.deepEqual({ ...off, foreignVariations: true }, state);
-  assert.equal(toggleFlag(off, 'foreignVariations').foreignVariations, true);
+  assert.equal(state.foreignVariations, false);
+  const on = toggleFlag(state, 'foreignVariations');
+  assert.equal(on.foreignVariations, true);
+  assert.deepEqual({ ...on, foreignVariations: false }, state);
+  assert.equal(toggleFlag(on, 'foreignVariations').foreignVariations, false);
 });
 
 test('the circle of fifths switch is off by default and toggles on and off', () => {
@@ -273,9 +276,9 @@ test('the circle of fifths switch is off by default and toggles on and off', () 
   assert.equal(toggleFlag(on, 'circleOfFifths').circleOfFifths, false);
 });
 
-test('the melody amount starts at 2 and is clamped to the scale from 0 to 5', () => {
+test('the melody amount starts at 1 and is clamped to the scale from 0 to 5', () => {
   const state = defaultState(LIBRARY, FIXED);
-  assert.equal(state.melodyAmount, 2);
+  assert.equal(state.melodyAmount, 1);
   assert.equal(setProbability(state, 'melodyAmount', 9).melodyAmount, 5);
   assert.equal(setProbability(state, 'melodyAmount', -1).melodyAmount, 0);
 });

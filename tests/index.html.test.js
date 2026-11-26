@@ -331,4 +331,5 @@ test('the song area holds the circle of fifths left of the chords', () => {
   const rows = html.indexOf('id="song-rows"');
   assert.ok(circle > html.indexOf('class="song"') && circle < rows, 'the circle comes first, so it is on the left');
   assert.ok(/class="song-chords">\s*<div id="song-rows"/.test(html), 'the chords sit in their own room beside the circle');
+  assert.ok(/class="song-circle-part">\s*<div id="song-circle"/.test(html), 'the circle sits in its own part');
 });

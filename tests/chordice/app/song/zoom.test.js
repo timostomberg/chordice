@@ -5,7 +5,9 @@ import { JSDOM } from 'jsdom';
 import {
   DEFAULT_ZOOM,
   MAX_ZOOM,
+  COLUMNS_MIN_ZOOM,
   MIN_ZOOM,
+  bindSongZoom,
   bindZoom,
   blockZoom,
   clampZoom,
@@ -173,6 +175,13 @@ test('fittedZoom keeps the wanted scale while the content fits, and zooms out ju
   assert.equal(fittedZoom(0.8, 500, 500), 0.8);
 });
 
+test('fittedZoom zooms out below MIN_ZOOM where the measurement allows it, e.g. for two columns side by side', () => {
+  assert.ok(COLUMNS_MIN_ZOOM < MIN_ZOOM);
+  assert.equal(fittedZoom(1.2, 1000, 500, COLUMNS_MIN_ZOOM), 0.5);
+  assert.equal(fittedZoom(1.2, 1000, 100, COLUMNS_MIN_ZOOM), COLUMNS_MIN_ZOOM);
+  assert.equal(fittedZoom(1.2, 1000, 500), MIN_ZOOM, 'without one, MIN_ZOOM holds');
+});
+
 test('fittedZoom shows the wanted scale without a measurement', () => {
   assert.equal(fittedZoom(1.2, 0, 500), 1.2);
   assert.equal(fittedZoom(1.2, 500, 0), 1.2);
@@ -225,53 +234,177 @@ test('measureRows takes the widest row of chords, as on one line, at the scale 1
   assert.deepEqual(measureRows(area, surface, 2), { needed: 160, available: 568 });
 });
 
+/** A song area with its rows in two columns, the left one with rows of 2 and 3 chords, the right one with 1 chord. */
+function twoColumns(direction) {
+  const dom = new JSDOM('<!DOCTYPE html><section id="area"><div id="surface"><div class="song-columns">' +
+    '<div class="song-column"><ol class="chords"><li></li><li></li></ol><ol class="chords"><li></li><li></li><li></li></ol></div>' +
+    '<div class="song-column"><ol class="chords"><li></li></ol></div></div></div></section>');
+  const { document } = dom.window;
+  const area = document.getElementById('area');
+  const surface = document.getElementById('surface');
+  Object.defineProperty(area, 'clientWidth', { value: 1000 });
+  const columns = surface.querySelector('.song-columns');
+  columns.style.flexDirection = direction;
+  columns.style.columnGap = '40px';
+  for (const chord of surface.querySelectorAll('.chords li')) {
+    chord.getBoundingClientRect = () => ({ width: 100 });
+  }
+  return { area, surface };
+}
+
+test('measureRows adds the widest rows of two columns side by side and the gap between them', () => {
+  const { area, surface } = twoColumns('row');
+  // The left column 300px wide, the right one 100px, and the gap 40px, at the scale 2.
+  assert.deepEqual(measureRows(area, surface, 2), { needed: 220, available: 1000, min: COLUMNS_MIN_ZOOM });
+});
+
+test('measureRows takes the widest row only while the columns stand one below the other', () => {
+  const { area, surface } = twoColumns('column');
+  assert.deepEqual(measureRows(area, surface, 2), { needed: 150, available: 1000 });
+});
+
+test('measureSong keeps the least scale of two columns, so they zoom out further to fit beside the circle', () => {
+  const { area, surface } = twoColumns('row');
+  const body = surface.ownerDocument.createElement('div');
+  const circle = surface.ownerDocument.createElement('div');
+  body.append(circle);
+  area.append(body);
+  body.style.columnGap = '20px';
+  circle.getBoundingClientRect = () => ({ width: 300, height: 300 });
+  Object.defineProperty(area, 'clientHeight', { value: 2000 });
+  // The circle and the gap: 320px at the scale 1, shown at DEFAULT_ZOOM, as there is room.
+  assert.deepEqual(measureSong(area, body, circle, surface, 2, 1),
+    { needed: 220, available: 1000 - 320 * DEFAULT_ZOOM, min: COLUMNS_MIN_ZOOM, circleZoom: DEFAULT_ZOOM });
+});
+
+test('bindZoom zooms two columns out below MIN_ZOOM until they fit side by side', () => {
+  const surface = fakeSurface();
+  const zoom = bindZoom(fakeArea(), surface, { measure: () => ({ needed: 2000, available: 1000, min: COLUMNS_MIN_ZOOM }) });
+  zoom.fit();
+  assert.equal(zoom.shown, 0.5);
+  assert.equal(surface.style['--zoom'], '0.5');
+});
+
 test('measureRows gives nothing without a page to measure', () => {
   assert.equal(measureRows(fakeArea(), fakeSurface(), 1), null);
 });
 
-/** A song area with two rows of chords and the circle of fifths beside them, as jsdom has no layout: the sizes are given. */
-function songPage(direction, areaHeight = 2000) {
+/**
+ * A song area with the circle of fifths beside a row of three chords, as jsdom has no layout: the sizes are given. The
+ * chords show the scale 2 (3 × 100px, 150px at the scale 1), the circle the scale 1.2 (216px, 180px at the scale 1, and the
+ * gap 24px, 20px at the scale 1). The rows are 400px high (200px at the scale 1).
+ */
+function songPage(direction, { width = 1000, height = 2000 } = {}) {
   const dom = new JSDOM('<!DOCTYPE html><section id="area"><div id="body"><div id="circle"></div>' +
-    '<ol class="chords"><li></li><li></li><li></li></ol></div></section>');
+    '<div id="chords"><div id="rows"><ol class="chords"><li></li><li></li><li></li></ol></div></div></div></section>');
   const { document } = dom.window;
   const area = document.getElementById('area');
   const body = document.getElementById('body');
   const circle = document.getElementById('circle');
-  Object.defineProperty(area, 'clientWidth', { value: 1000 });
-  Object.defineProperty(area, 'clientHeight', { value: areaHeight });
+  const chords = document.getElementById('chords');
+  const rows = document.getElementById('rows');
+  Object.defineProperty(area, 'clientWidth', { value: width });
+  Object.defineProperty(area, 'clientHeight', { value: height });
   body.style.flexDirection = direction;
-  body.style.columnGap = '20px';
-  circle.getBoundingClientRect = () => ({ width: 300, height: 300 });
-  for (const chord of body.querySelectorAll('.chords li')) {
-    chord.getBoundingClientRect = () => ({ width: 100 });
+  body.style.columnGap = '24px';
+  // The sizes follow the scales that are set, as in a browser: until one is set, the chords show 2 and the circle 1.2.
+  const chordZoom = () => Number(chords.style.getPropertyValue('--zoom')) || 2;
+  const circleZoom = () => Number(body.style.getPropertyValue('--circle-zoom')) || 1.2;
+  circle.getBoundingClientRect = () => ({ width: 180 * circleZoom(), height: 180 * circleZoom() });
+  body.style.columnGap = '24px';
+  rows.getBoundingClientRect = () => ({ width: 150 * chordZoom(), height: 200 * chordZoom() });
+  for (const chord of rows.querySelectorAll('.chords li')) {
+    chord.getBoundingClientRect = () => ({ width: 50 * chordZoom() });
   }
-  return { area, body, circle };
+  return { area, body, circle, chords, rows };
 }
 
-test('measureSong counts the circle beside the chords and the gap to it, at the scale 1, so both zoom out together', () => {
-  const { area, body, circle } = songPage('row');
-  // The chords: 3 × 100px; the circle 300px and the gap 20px, all at the scale 2.
-  assert.deepEqual(measureSong(area, body, circle, 2), { needed: 150 + 160, available: 1000 });
+const measure = ({ area, body, circle, rows }, options) => measureSong(area, body, circle, rows, 2, 1.2, options);
+
+test('measureSong keeps the size of the circle where there is room, and gives the chords the room beside it and the gap', () => {
+  // The circle and the gap: 200px at the scale 1, 240px at DEFAULT_ZOOM.
+  assert.deepEqual(measure(songPage('row')), { needed: 150, available: 760, circleZoom: 1.2 });
 });
 
-test('measureSong fits the circle beside the chords into the height of a low, wide area, e.g. a phone held sideways', () => {
-  // The circle is 150px high at the scale 1 and the area 120px: the height, not the width, limits the scale.
-  const { area, body, circle } = songPage('row', 120);
-  const size = measureSong(area, body, circle, 2);
-  assert.deepEqual(size, { needed: 150, available: 120 });
-  assert.equal(fittedZoom(1.2, size.needed, size.available), 0.8);
+test('measureSong makes the circle smaller where it and the chords at the scale 1 do not fit side by side', () => {
+  // 150 + 180 + 20 = 350px at the scale 1 into 300px: 0.85, and the chords have what is left beside the circle.
+  assert.deepEqual(measure(songPage('row', { width: 300 })), { needed: 150, available: 300 - 200 * 0.85, circleZoom: 0.85 });
 });
 
-test('measureSong leaves the height out while the circle stands above the chords', () => {
-  const { area, body, circle } = songPage('column', 120);
-  assert.deepEqual(measureSong(area, body, circle, 2), { needed: 150, available: 1000 });
+test('measureSong fits the circle into the height of a low, wide area, e.g. a phone held sideways', () => {
+  // The circle is 180px high at the scale 1 and the area 120px.
+  assert.deepEqual(measure(songPage('row', { height: 120 })), { needed: 150, available: 1000 - 200 * 0.66, circleZoom: 0.66 });
 });
 
-test('measureSong leaves the circle out while it stands above the chords', () => {
-  const { area, body, circle } = songPage('column');
-  assert.deepEqual(measureSong(area, body, circle, 2), { needed: 150, available: 1000 });
+test('measureSong fits the whole song into the height of the area as well, where that limits the scale more', () => {
+  // The rows are 200px high at the scale 1 and the area 300px: 1.5, less than the 760 / 150 of the width.
+  assert.deepEqual(measure(songPage('row', { height: 300 }), { whole: true }), { needed: 200, available: 300, circleZoom: 1.2 });
+  // In a high area the width limits it.
+  assert.deepEqual(measure(songPage('row'), { whole: true }), { needed: 150, available: 760, circleZoom: 1.2 });
+});
+
+test('measureSong leaves the circle and the height out while the circle stands above the chords', () => {
+  const page = songPage('column', { height: 120 });
+  assert.deepEqual(measure(page), { needed: 150, available: 1000, circleZoom: DEFAULT_ZOOM });
+  assert.deepEqual(measure(page, { whole: true }), { needed: 150, available: 1000, circleZoom: DEFAULT_ZOOM });
+});
+
+test('bindZoom fitAll forgets the chosen scale and fits the content at most at DEFAULT_ZOOM', () => {
+  const area = fakeArea();
+  const surface = fakeSurface();
+  const zoom = bindZoom(area, surface, { measure: () => null, measureAll: () => ({ needed: 1000, available: 5000 }) });
+  area.fire('wheel', { ctrlKey: true, deltaY: -300, deltaMode: 0 });
+  assert.ok(zoom.scale > DEFAULT_ZOOM);
+  zoom.fitAll();
+  assert.equal(zoom.shown, DEFAULT_ZOOM, 'not zoomed in beyond the default, although there is room');
+  assert.equal(zoom.scale, DEFAULT_ZOOM);
+});
+
+test('bindZoom fitAll measures again at the new scale, as rows wrapped at the old one are taller than once fitted', () => {
+  const surface = fakeSurface();
+  // At the default scale the rows wrap and need 1000px at the scale 1; once smaller, they need 600px.
+  const measureAll = (zoom) => ({ needed: zoom >= DEFAULT_ZOOM ? 1000 : 600, available: 600, min: COLUMNS_MIN_ZOOM });
+  const zoom = bindZoom(fakeArea(), surface, { measure: () => null, measureAll });
+  zoom.fitAll();
+  assert.equal(zoom.shown, 1);
+  assert.equal(zoom.scale, 1, 'the fitted scale is the chosen one from now on');
+  assert.equal(surface.style['--zoom'], '1');
+});
+
+test('bindSongZoom zooms the chords only, and gives the circle its own size on the body', () => {
+  const page = songPage('row', { width: 300 });
+  // The chords show DEFAULT_ZOOM, as before the first fit.
+  page.chords.style.setProperty('--zoom', String(DEFAULT_ZOOM));
+  const zoom = bindSongZoom(page.area, page.body, page.circle, page.chords, page.rows);
+  zoom.fit();
+  // The circle: 0.85, as in the measurement above; the chords: the 130px left beside it for 150px at the scale 1.
+  assert.equal(zoom.shown, 0.86);
+  assert.equal(page.chords.style.getPropertyValue('--zoom'), '0.86');
+  assert.equal(page.body.style.getPropertyValue('--zoom'), '', 'the circle is not zoomed with the chords');
+  assert.equal(page.body.style.getPropertyValue('--circle-zoom'), '0.85');
+  assert.equal(zoom.circleZoom, 0.85);
+});
+
+test('bindSongZoom fits every row at once beside the circle, but keeps the chosen scale above it', () => {
+  const beside = songPage('row', { height: 300 });
+  const besideZoom = bindSongZoom(beside.area, beside.body, beside.circle, beside.chords, beside.rows);
+  besideZoom.fitAll();
+  // The rows: 200px high at the scale 1, into 300px of height: room enough for DEFAULT_ZOOM.
+  assert.equal(besideZoom.shown, 1.2);
+  const tooLow = songPage('row', { height: 160 });
+  const lowZoom = bindSongZoom(tooLow.area, tooLow.body, tooLow.circle, tooLow.chords, tooLow.rows);
+  lowZoom.fitAll();
+  assert.equal(lowZoom.shown, 0.8, 'zoomed out so that every row fits into the 160px of height');
+  const above = songPage('column', { height: 160 });
+  const aboveZoom = bindSongZoom(above.area, above.body, above.circle, above.chords, above.rows);
+  above.area.dispatchEvent(Object.assign(new above.area.ownerDocument.defaultView.Event('wheel', { cancelable: true }),
+    { ctrlKey: true, deltaY: -300, deltaMode: 0 }));
+  const chosen = aboveZoom.scale;
+  assert.ok(chosen > DEFAULT_ZOOM);
+  aboveZoom.fitAll();
+  assert.equal(aboveZoom.scale, chosen, 'above the chords, a change of the rows keeps the chosen scale');
 });
 
 test('measureSong gives nothing without a page to measure', () => {
-  assert.equal(measureSong(fakeArea(), fakeSurface(), {}, 1), null);
+  assert.equal(measureSong(fakeArea(), fakeSurface(), {}, fakeSurface(), 1, 1), null);
 });

@@ -139,15 +139,19 @@ export function createNotesDialog(dialog, drawStaff = renderScore, drawChord = c
     swipeStart = null;
   });
 
-  // A click on the backdrop, which is the dialog element itself, closes the window. Any other click inside the window steps
-  // back when it lands in the left half, and forward in the right half.
+  // A click on the backdrop, which is the dialog element itself, closes the window. Closing hands the focus back to the
+  // chord, and Safari on the iPad then frames it as focused, so after a click or tap the chord loses the focus again; after
+  // Escape it keeps it, so the keyboard goes on from there. Any other click inside the window steps back when it lands in
+  // the left half, and forward in the right half.
   dialog.addEventListener('click', (event) => {
     if (swiped) {
       swiped = false;
       return;
     }
     if (event.target === dialog) {
+      const element = framed;
       dialog.close();
+      element?.blur?.();
       return;
     }
     const { left, width } = dialog.getBoundingClientRect();
