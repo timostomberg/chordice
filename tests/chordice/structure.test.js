@@ -20,13 +20,14 @@ import { fileURLToPath } from 'node:url';
 const JS = fileURLToPath(new URL('../../chordice/', import.meta.url));
 const MUSIC_FOLDERS = ['theory', 'data', 'generator', 'instruments'];
 // The windows of the app: a window of one file is that file in app/, a window of several files a folder.
-const WINDOWS = { header: 'header.js', options: 'options', song: 'song', notes: 'notes', help: 'help', background: 'background', songs: 'songs.js' };
+const WINDOWS = { header: 'header.js', options: 'options', song: 'song', notes: 'notes', help: 'help', background: 'background', songs: 'songs.js', account: 'account-panel.js' };
 // The files that several windows share: the escaping, and the chord box that the rows and the notes window both show.
 const SHARED = ['app/escape.js', 'app/names.js', 'app/chord.js'];
 // device.js is what main.js asks of the device (the screen kept on, the service worker); it belongs to no window.
 // panel.js makes the side panel a screen of its own (back button, swipes) for app.js; it belongs to no window either.
 // account.js connects app.js to the account of the person who is signed in (Firebase); it belongs to no window either.
-const APP_ENTRIES = ['app.js', 'main.js', 'device.js', 'panel.js', 'account.js', 'state', ...Object.values(WINDOWS), ...SHARED.map((path) => path.slice('app/'.length))];
+// tooltip.js shows the hints of the buttons of every window; it belongs to no window either.
+const APP_ENTRIES = ['app.js', 'main.js', 'device.js', 'panel.js', 'account.js', 'tooltip.js', 'state', ...Object.values(WINDOWS), ...SHARED.map((path) => path.slice('app/'.length))];
 
 function sourceFiles(dir = JS) {
   return readdirSync(dir).flatMap((name) => {

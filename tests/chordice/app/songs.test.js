@@ -1,8 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
-import { NAME_FIELD_ID, PRIVACY_PATH, RENAME_FIELD_ID, renderFrozenNote, renderSongs } from '../../../chordice/app/songs.js';
-import { existsSync } from 'node:fs';
+import { NAME_FIELD_ID, RENAME_FIELD_ID, renderFrozenNote, renderSongs } from '../../../chordice/app/songs.js';
 import { SONG_LIMIT, saveSong } from '../../../chordice/app/state/songs.js';
 import { defaultState } from '../../../chordice/app/state/state.js';
 import { BASS_PATTERNS, LIBRARY } from '../../helpers/fixtures.js';
@@ -136,70 +135,12 @@ test('a saved song with a key the page does not know is listed, without breaking
 
 const ADA = { name: 'Ada <L>', email: 'ada@example.org' };
 
-test('without an account, the songs panel offers none', () => {
-  for (const account of [undefined, null]) {
-    const document = dom(renderSongs(withSongs([]), '', {}, account));
+test('the songs panel has no account section, with an account or without one (it is in the account panel)', () => {
+  for (const account of [undefined, null, { person: null, loading: false }, { person: ADA, loading: false }]) {
+    const document = dom(renderSongs(withSongs(['Song']), '', { deletingAccount: true }, account));
     assert.equal(document.querySelector('.account'), null);
+    assert.equal(document.querySelector('[data-action="sign-in"]'), null);
   }
-});
-
-test('with an account, the songs panel invites to sign in with Google, the only way to sign in, at the bottom under Account', () => {
-  const html = renderSongs(withSongs(['Song']), '', {}, { person: null, loading: false });
-  const document = dom(html);
-  const section = document.querySelector('section.account');
-  assert.ok(section);
-  // The section is the last part of the panel, after the saved songs, under its own heading.
-  assert.equal(document.body.lastElementChild, section);
-  assert.equal(section.previousElementSibling.tagName, 'H2');
-  assert.equal(section.previousElementSibling.textContent, 'Account');
-  assert.ok(html.indexOf('class="saved-songs"') < html.indexOf('>Account</h2>'));
-  // Before signing in, the privacy policy is a click away.
-  assert.equal(section.querySelector('a').getAttribute('href'), PRIVACY_PATH);
-  assert.equal(section.querySelector('a').dataset.action, 'show-help-page');
-  assert.equal(section.querySelector('a').dataset.page, 'privacy');
-  assert.ok(existsSync(new URL(`../../../${PRIVACY_PATH}`, import.meta.url)));
-  const button = section.querySelector('[data-action="sign-in"]');
-  assert.equal(button.textContent, 'Sign in with Google');
-  assert.ok(button.querySelector('svg'));
-  assert.equal(section.querySelector('[data-action="sign-out"]'), null);
-  assert.equal(section.querySelector('form'), null, 'no email and password');
-  assert.equal(section.querySelector('input'), null);
-  // The button comes first, above the note of what signing in is for.
-  assert.equal(section.firstElementChild, button);
-  assert.ok(button.nextElementSibling.classList.contains('account-hint'));
-});
-
-test('signed in, the panel names the person, escaped, with Sign out and Delete account', () => {
-  const document = dom(renderSongs(withSongs(['Song']), '', {}, { person: ADA, loading: false }));
-  const section = document.querySelector('section.account');
-  assert.equal(section.querySelector('.account-text').textContent, 'Signed in as Ada <L> (ada@example.org).');
-  assert.doesNotMatch(section.textContent, /kept in your account/);
-  assert.equal(document.body.lastElementChild, section);
-  assert.equal(section.previousElementSibling.textContent, 'Account');
-  assert.equal(section.querySelector('strong').textContent, 'Ada <L>');
-  assert.ok(section.querySelector('[data-action="sign-out"]'));
-  assert.ok(section.querySelector('[data-action="delete-account"]'));
-  assert.equal(section.querySelector('[data-action="sign-in"]'), null);
-  assert.equal(document.querySelectorAll('.saved-song').length, 1);
-});
-
-test('a person without a name or an email address is named by what there is', () => {
-  const text = (person) => dom(renderSongs(withSongs([]), '', {}, { person, loading: false })).querySelector('.account-text').textContent;
-  assert.match(text({ name: '', email: 'ada@example.org' }), /Signed in as ada@example\.org\./);
-  assert.match(text({ name: 'Ada', email: '' }), /Signed in as Ada\./);
-  assert.match(text({ name: '', email: '' }), /Signed in as your Google account\./);
-});
-
-test('deleting the account asks first, in the account section, with Delete account and Keep it', () => {
-  const document = dom(renderSongs(withSongs([]), '', { deletingAccount: true }, { person: ADA, loading: false }));
-  const section = document.querySelector('section.account.is-deleting');
-  assert.match(section.textContent, /Delete your account and every song saved in it\? This cannot be undone\./);
-  assert.ok(section.querySelector('[data-action="confirm-delete-account"]'));
-  assert.ok(section.querySelector('[data-action="cancel-delete-account"]'));
-  assert.equal(section.querySelector('[data-action="sign-out"]'), null);
-  // Signed out, there is no account to delete.
-  const signedOut = dom(renderSongs(withSongs([]), '', { deletingAccount: true }, { person: null, loading: false }));
-  assert.equal(signedOut.querySelector('.is-deleting'), null);
 });
 
 test('while the songs of the account load, the panel says so and the Save button is greyed out', () => {
@@ -222,10 +163,13 @@ test('once the songs are full, the Save button is greyed out and a note says why
   assert.equal(room.querySelector('.songs-full'), null);
 });
 
-test('a message of the account shows in its section, escaped, signed in or out', () => {
-  const out = dom(renderSongs(withSongs([]), '', {}, { person: null, loading: false, notice: 'No <connection>' }));
-  assert.equal(out.querySelector('.account-notice').textContent, 'No <connection>');
-  assert.equal(out.querySelector('.account-notice').getAttribute('role'), 'status');
-  const signedIn = dom(renderSongs(withSongs([]), '', {}, { person: ADA, loading: false, notice: 'No connection' }));
-  assert.equal(signedIn.querySelector('.account-notice').textContent, 'No connection');
+test('a short note stands under the Save button, and under the saved songs while there are any', () => {
+  const empty = dom(renderSongs(withSongs([])));
+  const notes = () => [...empty.querySelectorAll('.songs-hint')];
+  assert.deepEqual(notes().map((note) => note.textContent), ['Saves the song shown.']);
+  assert.equal(notes()[0].previousElementSibling.dataset.form, 'save-song');
+  const full = dom(renderSongs(withSongs(['Song'])));
+  const [, list] = full.querySelectorAll('.songs-hint');
+  assert.equal(list.textContent, 'Click a song to load it with its options.');
+  assert.ok(list.previousElementSibling.classList.contains('saved-songs'));
 });

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { FIREBASE_CONFIG, FIREBASE_SDK, PENDING_WAIT, UNSENT, USERS, connectAccount, messageOf, personOf } from '../../../chordice/app/account.js';
+import { FIREBASE_CONFIG, FIREBASE_SDK, PENDING_WAIT, SETTINGS_WAIT, UNSENT, USERS, connectAccount, messageOf, personOf } from '../../../chordice/app/account.js';
 
 // account.js runs here against a stand-in for the Firebase SDK, which records what the account asks of it: who is signed
 // in, the document of each account, and the writes.
@@ -119,9 +119,15 @@ function fakeSdk({ fail = {} } = {}) {
       setDoc: async (ref, data, options) => {
         calls.push(['setDoc', ref.path, data, options]);
         failing('setDoc');
-        // Only the fields named in mergeFields change, as Firestore does it.
-        const songs = { ...(documents.get(ref.path)?.songs ?? {}) };
+        // Only the fields named in mergeFields change, as Firestore does it: a song by its FieldPath, the settings by name.
+        const before = documents.get(ref.path) ?? {};
+        const songs = { ...(before.songs ?? {}) };
+        const next = { ...before };
         for (const field of options.mergeFields) {
+          if (field === 'settings') {
+            next.settings = data.settings;
+            continue;
+          }
           const [, id] = field.segments;
           if (data.songs[id] === DELETE) {
             delete songs[id];
@@ -129,7 +135,10 @@ function fakeSdk({ fail = {} } = {}) {
             songs[id] = data.songs[id];
           }
         }
-        documents.set(ref.path, { songs });
+        if (options.mergeFields.some((field) => field !== 'settings') || before.songs) {
+          next.songs = songs;
+        }
+        documents.set(ref.path, next);
         emit(ref.path);
       },
       deleteDoc: async (ref) => {
@@ -145,15 +154,16 @@ function fakeSdk({ fail = {} } = {}) {
 
 /**
  * Connects an account to the fake SDK; returns it with what it reported to the page: the person, the records of the songs
- * (and in `confirmed` whether the account had confirmed each), and the messages.
+ * (and in `confirmed` whether the account had confirmed each, in `settings` the settings with each), and the messages.
  */
 async function connect(fake = fakeSdk(), options = {}) {
-  const reported = { persons: [], songs: [], confirmed: [], errors: [] };
+  const reported = { persons: [], songs: [], confirmed: [], settings: [], errors: [] };
   const account = connectAccount({
     onPerson: (person) => reported.persons.push(person),
-    onSongs: (record, { confirmed }) => {
+    onSongs: (record, { confirmed, settings }) => {
       reported.songs.push(record);
       reported.confirmed.push(confirmed);
+      reported.settings.push(settings);
     },
     onError: (message) => reported.errors.push(message),
   }, { config: CONFIG, load: async () => fake.sdk, ...options });
@@ -395,6 +405,90 @@ test('an SDK that cannot be loaded is reported once, and then signing in and the
   await account.write({ put: [{ id: 'a' }] });
   assert.equal(await account.deleteAccount(), 'Something went wrong with the account.');
   assert.equal(errors.length, 1);
+});
+
+/** Waits `ms` milliseconds. */
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** The writes of the settings to the account, as the fake SDK recorded them. */
+const settingsWrites = (calls) => calls.filter(([name, , data]) => name === 'setDoc' && Object.hasOwn(data, 'settings'));
+
+test('the settings of the account are reported with its songs, and null while it has none', async () => {
+  const fake = fakeSdk();
+  fake.documents.set('users/u1', { songs: {}, settings: '{"key":"D"}' });
+  const { account, reported, documents } = await connect(fake);
+  await signedIn(account);
+  assert.deepEqual(reported.settings, ['{"key":"D"}']);
+  // Settings that are not text (e.g. written by hand) count as none.
+  documents.set('users/u1', { songs: {}, settings: { key: 'D' } });
+  fake.emit('users/u1');
+  assert.equal(reported.settings.at(-1), null);
+  documents.delete('users/u1');
+  fake.emit('users/u1');
+  assert.equal(reported.settings.at(-1), null);
+});
+
+test('a change of the settings is written once no other has followed, by its own field, beside the songs', async () => {
+  assert.ok(SETTINGS_WAIT > 0);
+  const fake = fakeSdk();
+  fake.documents.set('users/u1', { songs: { a: { id: 'a' } } });
+  const { account, calls, documents, reported } = await connect(fake, { settingsWait: 10 });
+  account.writeSettings('{"key":"C"}');
+  await wait(20);
+  assert.deepEqual(settingsWrites(calls), [], 'no one is signed in');
+  await signedIn(account);
+  account.writeSettings('{"key":"D"}');
+  account.writeSettings('{"key":"E"}');
+  assert.deepEqual(settingsWrites(calls), [], 'not at once');
+  // Until they are written, the songs come with the settings that wait, as the newest.
+  fake.emit('users/u1');
+  assert.equal(reported.settings.at(-1), '{"key":"E"}');
+  await wait(20);
+  const writes = settingsWrites(calls);
+  assert.equal(writes.length, 1, 'only the last of the changes that followed each other');
+  const [, path, data, options] = writes[0];
+  assert.equal(path, 'users/u1');
+  assert.deepEqual(data, { settings: '{"key":"E"}' });
+  assert.deepEqual(options, { mergeFields: ['settings'] });
+  assert.deepEqual(documents.get('users/u1'), { songs: { a: { id: 'a' } }, settings: '{"key":"E"}' });
+  assert.equal(reported.settings.at(-1), '{"key":"E"}');
+});
+
+test('flushSettings writes the settings that wait at once, and nothing when none wait', async () => {
+  const fake = await connect(fakeSdk(), { settingsWait: 60000 });
+  await signedIn(fake.account);
+  await fake.account.flushSettings();
+  assert.deepEqual(settingsWrites(fake.calls), []);
+  fake.account.writeSettings('{"key":"F"}');
+  await fake.account.flushSettings();
+  assert.equal(settingsWrites(fake.calls).length, 1);
+  assert.equal(fake.documents.get('users/u1').settings, '{"key":"F"}');
+});
+
+test('signing out writes the settings that wait first; settings of someone who has signed out are dropped', async () => {
+  const fake = await connect(fakeSdk(), { settingsWait: 60000 });
+  await signedIn(fake.account);
+  fake.account.writeSettings('{"key":"G"}');
+  await fake.account.signOut();
+  const names = fake.calls.map(([name, , data]) => (name === 'setDoc' ? `setDoc ${Object.keys(data)}` : name));
+  assert.ok(names.indexOf('setDoc settings') < names.indexOf('signOut'));
+  assert.equal(fake.documents.get('users/u1').settings, '{"key":"G"}');
+  // Signed in again, then out on another device: what waited is not written.
+  await signedIn(fake.account);
+  fake.account.writeSettings('{"key":"H"}');
+  fake.signIn(null);
+  await fake.account.flushSettings();
+  assert.equal(fake.documents.get('users/u1').settings, '{"key":"G"}');
+});
+
+test('deleting the account drops the settings that wait, so they do not create its document again', async () => {
+  const fake = await connect(fakeSdk(), { settingsWait: 5 });
+  await signedIn(fake.account);
+  fake.account.writeSettings('{"key":"A"}');
+  assert.equal(await fake.account.deleteAccount(), null);
+  await wait(15);
+  assert.deepEqual(settingsWrites(fake.calls), []);
+  assert.equal(fake.documents.has('users/u1'), false);
 });
 
 test('the person is shown by name and email address; the messages name what went wrong', () => {

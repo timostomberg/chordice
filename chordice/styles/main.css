@@ -433,3 +433,23 @@ span.minor-sign {
     border-right: none;
   }
 }
+
+/* The quick hint of a button (see app/tooltip.js): a small card of paper beside it, which lets the pointer through. */
+.tooltip {
+  position: fixed;
+  z-index: 100;
+  max-width: min(18rem, calc(100vw - 16px));
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: 0.8rem;
+  line-height: 1.35;
+  pointer-events: none;
+}
+
+.tooltip[hidden] {
+  display: none;
+}

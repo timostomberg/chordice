@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { SONGS_FAILED, THEME_COLOURS, startApp } from '../../../chordice/app/app.js';
 import { BASS_PATTERNS, BASS_TEXT, LIBRARY, PROGRESSIONS_TEXT as YAML_TEXT } from '../../helpers/fixtures.js';
 import { defaultState } from '../../../chordice/app/state/state.js';
-import { STORAGE_KEY, serializeCookie, serializeStored } from '../../../chordice/app/state/persistence.js';
+import { STORAGE_KEY, serializeCookie, serializeSettings, serializeStored } from '../../../chordice/app/state/persistence.js';
 import { SONGS_KEY, parseSongs, saveSong, songsRecord } from '../../../chordice/app/state/songs.js';
 
 // app.js has no side effects on import; startApp runs against the minimal fake DOM installed by loadApp below.
@@ -145,6 +145,7 @@ async function loadApp({ cookie = '', stored = null, storage = fakeStorage(store
     '.options-toggle': new FakeElement(),
     '.exercises-toggle': new FakeElement(),
     '.songs-toggle': new FakeElement(),
+    '.account-toggle': new FakeElement(),
     '.help-toggle': new FakeElement(),
     '.song': new FakeElement(),
     '[data-action="toggle-theme"]': new FakeElement(),
@@ -505,7 +506,7 @@ test('the help button loads the help page once and shows its main part in the si
     await settle();
     const list = app.elements['#option-list'].innerHTML;
     assert.ok(list.startsWith('<div class="help">'));
-    assert.ok(list.includes('<h2>What Chordice does</h2>'));
+    assert.ok(list.includes('<h2>Help</h2>'));
     assert.ok(!list.includes('Back to Chordice'));
     assert.equal(app.elements['.help-toggle'].attributes['aria-expanded'], 'true');
     assert.equal(app.elements['.options-toggle'].attributes['aria-expanded'], 'false');
@@ -515,7 +516,7 @@ test('the help button loads the help page once and shows its main part in the si
     app.dispatch({ action: 'toggle-help' });
     await settle();
     assert.equal(app.fetched.filter((url) => url.endsWith('/help.html')).length, 1);
-    assert.ok(app.elements['#option-list'].innerHTML.includes('<h2>What Chordice does</h2>'));
+    assert.ok(app.elements['#option-list'].innerHTML.includes('<h2>Help</h2>'));
   } finally {
     uninstall();
   }
@@ -558,7 +559,7 @@ test('a stored help panel is shown again at start-up', async () => {
     const cookie = serializeCookie({ ...defaultState(LIBRARY, () => 0.5), panel: 'help' });
     const app = await loadApp({ cookie });
     await settle();
-    assert.ok(app.elements['#option-list'].innerHTML.includes('<h2>What Chordice does</h2>'));
+    assert.ok(app.elements['#option-list'].innerHTML.includes('<h2>Help</h2>'));
     assert.equal(app.elements['.help-toggle'].attributes['aria-expanded'], 'true');
   } finally {
     uninstall();
@@ -1384,9 +1385,15 @@ function fakeAccount() {
           throw new Error('permission-denied');
         }
       },
+      writeSettings: (settings) => fake.calls.push(['writeSettings', settings]),
+      flushSettings: async () => fake.calls.push(['flushSettings']),
     };
   };
   fake.writes = () => fake.calls.filter(([name]) => name === 'write').map(([, changes]) => changes);
+  // The settings the page wrote to the account, each parsed, in order.
+  fake.settings = () => fake.calls.filter(([name]) => name === 'writeSettings').map(([, settings]) => JSON.parse(settings));
+  // The calls but those of the settings, which the page makes with nearly every render.
+  fake.accountCalls = () => fake.calls.filter(([name]) => name !== 'writeSettings' && name !== 'flushSettings');
   return fake;
 }
 
@@ -1399,21 +1406,28 @@ function accountSong(id, name) {
 const ADA = { name: 'Ada', email: 'ada@example.org' };
 const settleWrites = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-test('without an account the songs panel offers none, and the songs stay in the browser', async () => {
+test('without an account neither the songs panel nor the account panel offers one', async () => {
   try {
     const app = await loadApp();
     await app.dispatch({ action: 'toggle-songs' });
     assert.ok(!app.elements['#option-list'].innerHTML.includes('class="account'));
+    await app.dispatch({ action: 'toggle-account' });
+    assert.ok(!app.elements['#option-list'].innerHTML.includes('data-action="sign-in"'));
+    assert.ok(app.elements['#option-list'].innerHTML.includes('data-action="reset-settings"'));
   } finally {
     uninstall();
   }
 });
 
-test('with an account, the songs panel invites to sign in, and the button signs in', async () => {
+test('with an account, the account panel invites to sign in, and the button signs in; the songs panel does not', async () => {
   try {
     const account = fakeAccount();
     const app = await loadApp({ connect: account.connect });
     await app.dispatch({ action: 'toggle-songs' });
+    assert.ok(!app.elements['#option-list'].innerHTML.includes('data-action="sign-in"'));
+    await app.dispatch({ action: 'toggle-account' });
+    assert.equal(app.elements['#options'].attributes['aria-label'], 'Account');
+    assert.equal(app.elements['.account-toggle'].attributes['aria-expanded'], 'true');
     assert.ok(app.elements['#option-list'].innerHTML.includes('data-action="sign-in"'));
     await app.dispatch({ action: 'sign-in' });
     assert.deepEqual(account.calls, [['signIn']]);
@@ -1439,7 +1453,6 @@ test('signing in shows the songs of the account, and the songs of the browser mo
     assert.deepEqual(account.writes(), []);
     const remote = accountSong('remote', 'From the account');
     account.callbacks.onSongs(songsRecord([remote]));
-    assert.ok(list().includes('Signed in as <strong>Ada</strong>'));
     assert.ok(list().includes('From the account'));
     assert.ok(list().includes('From this browser'));
     assert.deepEqual(account.writes(), [{ put: [local] }]);
@@ -1568,19 +1581,19 @@ test('signing out and deleting the account go through the account; deleting asks
   try {
     const account = fakeAccount();
     const app = await loadApp({ connect: account.connect });
-    await app.dispatch({ action: 'toggle-songs' });
+    await app.dispatch({ action: 'toggle-account' });
     account.callbacks.onPerson(ADA);
     account.callbacks.onSongs({});
     await app.dispatch({ action: 'delete-account' });
     assert.ok(app.elements['#option-list'].innerHTML.includes('data-action="confirm-delete-account"'));
-    assert.deepEqual(account.calls, [], 'the question alone deletes nothing');
+    assert.deepEqual(account.accountCalls(), [], 'the question alone deletes nothing');
     await app.dispatch({ action: 'cancel-delete-account' });
     assert.ok(!app.elements['#option-list'].innerHTML.includes('confirm-delete-account'));
     await app.dispatch({ action: 'delete-account' });
     await app.dispatch({ action: 'confirm-delete-account' });
-    assert.deepEqual(account.calls, [['deleteAccount']]);
+    assert.deepEqual(account.accountCalls(), [['deleteAccount']]);
     await app.dispatch({ action: 'sign-out' });
-    assert.deepEqual(account.calls.at(-1), ['signOut']);
+    assert.deepEqual(account.accountCalls().at(-1), ['signOut']);
     account.callbacks.onPerson(null);
     assert.ok(app.elements['#option-list'].innerHTML.includes('data-action="sign-in"'));
   } finally {
@@ -1605,6 +1618,234 @@ test('a song saved in another tab does not replace the songs of the account', as
     assert.ok(app.elements['#option-list'].innerHTML.includes('From the account'));
   } finally {
     delete globalThis.addEventListener;
+    uninstall();
+  }
+});
+
+test('signed in, the account panel names the person', async () => {
+  try {
+    const account = fakeAccount();
+    const app = await loadApp({ connect: account.connect });
+    await app.dispatch({ action: 'toggle-account' });
+    account.callbacks.onPerson(ADA);
+    account.callbacks.onSongs({});
+    assert.ok(app.elements['#option-list'].innerHTML.includes('Signed in as <strong>Ada</strong>'));
+  } finally {
+    uninstall();
+  }
+});
+
+/** The state the page keeps in its cookie, parsed. */
+const cookieState = (app) => JSON.parse(decodeURIComponent(app.document.cookie.split(';')[0].slice('chordice_state='.length)));
+
+test('Reset Settings asks first, and Reset sets every setting back to its default but keeps the saved songs', async () => {
+  try {
+    const app = await loadApp();
+    await app.dispatch({ action: 'toggle-songs' });
+    nameField(app, 'Kept');
+    submitSave(app);
+    await app.dispatch({ action: 'toggle-theme' });
+    await app.dispatch({ action: 'set-key', key: 'D' });
+    await app.dispatch({ action: 'toggle-painting' });
+    await app.dispatch({ action: 'set-instrument', instrument: 'guitar' });
+    await app.dispatch({ action: 'toggle-section', section: 'bass' });
+    const seeds = cookieState(app).seeds;
+    await app.dispatch({ action: 'toggle-account' });
+    const list = () => app.elements['#option-list'].innerHTML;
+    await app.dispatch({ action: 'reset-settings' });
+    assert.ok(list().includes('data-action="confirm-reset-settings"'));
+    assert.equal(cookieState(app).theme, 'dark', 'the question alone resets nothing');
+    // The cross, or any other action, keeps the settings.
+    await app.dispatch({ action: 'cancel-reset-settings' });
+    assert.ok(!list().includes('confirm-reset-settings'));
+    await app.dispatch({ action: 'reset-settings' });
+    await app.dispatch({ action: 'toggle-roman' });
+    assert.ok(!list().includes('confirm-reset-settings'));
+    await app.dispatch({ action: 'toggle-roman' });
+    await app.dispatch({ action: 'reset-settings' });
+    await app.dispatch({ action: 'confirm-reset-settings' });
+    const reset = cookieState(app);
+    const fresh = defaultState(LIBRARY);
+    for (const name of ['key', 'theme', 'painting', 'instrument', 'collapsed', 'selection', 'variations', 'exercise', 'roman']) {
+      assert.deepEqual(reset[name], fresh[name], `${name} is back to its default`);
+    }
+    assert.notDeepEqual(reset.seeds, seeds, 'a new song');
+    assert.equal(app.document.documentElement.dataset.theme, 'light');
+    assert.equal(app.instrumentTabs[0].attributes['aria-pressed'], 'true');
+    // The side panel stays on the account panel, and the saved song stays.
+    assert.equal(reset.panel, 'account');
+    assert.equal(app.elements['#options'].hidden, false);
+    assert.ok(!list().includes('confirm-reset-settings'));
+    assert.deepEqual(parseSongs(app.storage.getItem(SONGS_KEY)).map((song) => song.name), ['Kept']);
+    await app.dispatch({ action: 'toggle-songs' });
+    assert.ok(list().includes('Kept'));
+  } finally {
+    uninstall();
+  }
+});
+
+test('signed in, the settings of an account without any are taken from the browser once the account has confirmed it', async () => {
+  try {
+    const account = fakeAccount();
+    const app = await loadApp({ connect: account.connect });
+    await app.dispatch({ action: 'toggle-theme' });
+    account.callbacks.onPerson(ADA);
+    // The copy in the browser may be behind: it says nothing of the settings of the account.
+    account.callbacks.onSongs({}, { confirmed: false, settings: null });
+    await app.dispatch({ action: 'set-key', key: 'E' });
+    assert.deepEqual(account.settings(), []);
+    account.callbacks.onSongs({}, { confirmed: true, settings: null });
+    const [written] = account.settings();
+    assert.equal(written.theme, 'dark');
+    assert.equal(written.key, 'E');
+    // The songs and the side panel are not part of them.
+    assert.ok(!Object.hasOwn(written, 'songs') && !Object.hasOwn(written, 'showOptions') && !Object.hasOwn(written, 'panel'));
+  } finally {
+    uninstall();
+  }
+});
+
+test('signed in, every change of the settings is written to the account, and only a change', async () => {
+  try {
+    const account = fakeAccount();
+    const app = await loadApp({ connect: account.connect });
+    account.callbacks.onPerson(ADA);
+    account.callbacks.onSongs({}, { confirmed: true, settings: null });
+    assert.equal(account.settings().length, 1);
+    await app.dispatch({ action: 'toggle-colour' });
+    assert.equal(account.settings().length, 2);
+    assert.equal(account.settings()[1].colour, false);
+    // New Song too: the song that is shown is synced across the devices.
+    await app.dispatch({ action: 'reroll' });
+    assert.equal(account.settings().length, 3);
+    // Opening and closing the side panel belongs to the device.
+    await app.dispatch({ action: 'toggle-help' });
+    await app.dispatch({ action: 'toggle-panel' });
+    assert.equal(account.settings().length, 3);
+    // Settings that come back as they were written are not taken again, nor written back.
+    account.callbacks.onSongs({}, { confirmed: true, settings: account.calls.filter(([name]) => name === 'writeSettings').at(-1)[1] });
+    assert.equal(account.settings().length, 3);
+    // Signed out, the settings stay in the browser and are no longer written to the account.
+    account.callbacks.onPerson(null);
+    await app.dispatch({ action: 'toggle-colour' });
+    assert.equal(account.settings().length, 3);
+    assert.equal(cookieState(app).colour, true);
+  } finally {
+    uninstall();
+  }
+});
+
+test('signing in takes the settings of the account, and a change on another device is taken too', async () => {
+  try {
+    const account = fakeAccount();
+    const app = await loadApp({ connect: account.connect });
+    await app.dispatch({ action: 'toggle-account' });
+    const there = { ...defaultState(LIBRARY, () => 0.9), key: 'A', theme: 'dark', roman: false, showOptions: false, panel: 'help' };
+    account.callbacks.onPerson(ADA);
+    account.callbacks.onSongs({}, { confirmed: false, settings: serializeSettings(there) });
+    const taken = cookieState(app);
+    assert.equal(taken.key, 'A');
+    assert.equal(taken.theme, 'dark');
+    assert.deepEqual(taken.seeds, there.seeds);
+    assert.equal(app.document.documentElement.dataset.theme, 'dark');
+    // The side panel of this device stays.
+    assert.equal(taken.panel, 'account');
+    assert.equal(app.elements['#options'].hidden, false);
+    assert.deepEqual(account.settings(), [], 'what came from the account is not written back');
+    account.callbacks.onSongs({}, { confirmed: true, settings: serializeSettings({ ...there, key: 'B' }) });
+    assert.equal(cookieState(app).key, 'B');
+    assert.deepEqual(account.settings(), []);
+  } finally {
+    uninstall();
+  }
+});
+
+test('settings of the account with the guitar wait for its shapes, with the piano meanwhile', async () => {
+  try {
+    const account = fakeAccount();
+    const app = await loadApp({ connect: account.connect });
+    account.callbacks.onPerson(ADA);
+    const there = { ...defaultState(LIBRARY, () => 0.9), instrument: 'guitar' };
+    account.callbacks.onSongs({}, { confirmed: true, settings: serializeSettings(there) });
+    assert.equal(cookieState(app).instrument, 'piano');
+    await until(() => cookieState(app).instrument === 'guitar');
+    assert.equal(cookieState(app).instrument, 'guitar');
+    assert.ok(app.fetched.some((url) => url.endsWith('guitar.json')));
+    assert.equal(app.instrumentTabs[1].attributes['aria-pressed'], 'true');
+  } finally {
+    uninstall();
+  }
+});
+
+test('a choice of the instrument while the guitar shapes load keeps the piano that the settings of the account wait with', async () => {
+  try {
+    const account = fakeAccount();
+    const app = await loadApp({ connect: account.connect });
+    account.callbacks.onPerson(ADA);
+    const guitarThere = serializeSettings({ ...defaultState(LIBRARY, () => 0.9), instrument: 'guitar' });
+    // A click on the piano tab.
+    account.callbacks.onSongs({}, { confirmed: true, settings: guitarThere });
+    await app.dispatch({ action: 'set-instrument', instrument: 'piano' });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.equal(cookieState(app).instrument, 'piano');
+  } finally {
+    uninstall();
+  }
+});
+
+test('settings of another device with the piano, while the guitar shapes load, keep the piano', async () => {
+  try {
+    const account = fakeAccount();
+    const app = await loadApp({ connect: account.connect });
+    account.callbacks.onPerson(ADA);
+    const there = defaultState(LIBRARY, () => 0.9);
+    account.callbacks.onSongs({}, { confirmed: true, settings: serializeSettings({ ...there, instrument: 'guitar' }) });
+    account.callbacks.onSongs({}, { confirmed: true, settings: serializeSettings({ ...there, instrument: 'piano', key: 'D' }) });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.equal(cookieState(app).instrument, 'piano');
+    assert.equal(cookieState(app).key, 'D');
+  } finally {
+    uninstall();
+  }
+});
+
+test('the same settings of the account are taken once, though the page made other settings of them', async () => {
+  try {
+    const account = fakeAccount();
+    // Without the guitar shapes the page keeps the piano, so what it made of the settings differs from what was sent.
+    const app = await loadApp({ connect: account.connect, guitarOk: false });
+    account.callbacks.onPerson(ADA);
+    const guitarThere = serializeSettings({ ...defaultState(LIBRARY, () => 0.9), instrument: 'guitar' });
+    const guitarFetches = () => app.fetched.filter((url) => url.endsWith('/guitar.json')).length;
+    const before = guitarFetches();
+    account.callbacks.onSongs({}, { confirmed: false, settings: guitarThere });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    account.callbacks.onSongs({}, { confirmed: true, settings: guitarThere });
+    account.callbacks.onSongs({ a: { id: 'a' } }, { confirmed: true, settings: guitarThere });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(guitarFetches(), before + 1);
+    assert.equal(cookieState(app).instrument, 'piano');
+    // After a change on this device, the same settings from another device are taken again.
+    await app.dispatch({ action: 'toggle-theme' });
+    const theme = cookieState(app).theme;
+    account.callbacks.onSongs({}, { confirmed: true, settings: guitarThere });
+    assert.notEqual(cookieState(app).theme, theme);
+  } finally {
+    uninstall();
+  }
+});
+
+test('hiding the page writes the settings that wait to be written to the account at once', async () => {
+  try {
+    const account = fakeAccount();
+    const app = await loadApp({ connect: account.connect });
+    app.document.visibilityState = 'visible';
+    app.listeners.visibilitychange.forEach((listener) => listener());
+    assert.deepEqual(account.calls, []);
+    app.document.visibilityState = 'hidden';
+    app.listeners.visibilitychange.forEach((listener) => listener());
+    assert.deepEqual(account.calls, [['flushSettings']]);
+  } finally {
     uninstall();
   }
 });
@@ -1639,7 +1880,7 @@ test('the links to the imprint and the privacy policy show them in the side pane
     assert.equal(app.elements['#options'].attributes['aria-label'], 'Imprint');
     // The Help button shows the help again, rather than closing the panel; pressed again, it closes it.
     app.dispatch({ action: 'toggle-help' });
-    assert.ok(list().includes('<h2>What Chordice does</h2>'));
+    assert.ok(list().includes('<h2>Help</h2>'));
     assert.equal(app.elements['#options'].hidden, false);
     app.dispatch({ action: 'toggle-help' });
     assert.equal(app.elements['#options'].hidden, true);
@@ -1651,10 +1892,10 @@ test('the links to the imprint and the privacy policy show them in the side pane
   }
 });
 
-test('the privacy policy opens from the songs panel in the side panel, and the help opens at the help again', async () => {
+test('the privacy policy opens from the account panel in the side panel, and the help opens at the help again', async () => {
   try {
     const app = await loadApp();
-    await app.dispatch({ action: 'toggle-songs' });
+    await app.dispatch({ action: 'toggle-account' });
     app.dispatch({ action: 'show-help-page', page: 'privacy' });
     await settle();
     assert.equal(app.elements['.help-toggle'].attributes['aria-expanded'], 'true');
@@ -1663,7 +1904,7 @@ test('the privacy policy opens from the songs panel in the side panel, and the h
     await app.dispatch({ action: 'toggle-options' });
     app.dispatch({ action: 'toggle-help' });
     await settle();
-    assert.ok(app.elements['#option-list'].innerHTML.includes('<h2>What Chordice does</h2>'));
+    assert.ok(app.elements['#option-list'].innerHTML.includes('<h2>Help</h2>'));
   } finally {
     uninstall();
   }
@@ -1691,7 +1932,7 @@ test('when the account cannot be deleted, the account section says why', async (
     const account = fakeAccount();
     account.answer = 'There is no connection to the account right now.';
     const app = await loadApp({ connect: account.connect });
-    await app.dispatch({ action: 'toggle-songs' });
+    await app.dispatch({ action: 'toggle-account' });
     account.callbacks.onPerson(ADA);
     account.callbacks.onSongs({});
     await app.dispatch({ action: 'delete-account' });
@@ -1702,6 +1943,15 @@ test('when the account cannot be deleted, the account section says why', async (
     // Signing out ends the message.
     account.callbacks.onPerson(null);
     assert.ok(!app.elements['#option-list'].innerHTML.includes('account-notice'));
+  } finally {
+    uninstall();
+  }
+});
+
+test('the page shows the quick hints of its buttons', async () => {
+  try {
+    const app = await loadApp();
+    assert.equal(app.listeners.pointermove?.length, 1);
   } finally {
     uninstall();
   }

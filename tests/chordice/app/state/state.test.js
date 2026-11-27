@@ -21,6 +21,7 @@ import {
   toggleTheme,
   setInstrument,
   toggleExercise,
+  resetSettings,
   defaultSelection,
   DEFAULT_GROUP,
 } from '../../../../chordice/app/state/state.js';
@@ -44,7 +45,7 @@ test('defaults select the Pop progressions, show colours and extended informatio
   assert.equal(state.permutation, 1);
   assert.equal(state.rotation, 1);
   assert.equal(state.variationProbability, 4);
-  assert.equal(state.bassProbability, 1);
+  assert.equal(state.bassProbability, 0);
   assert.equal(state.melodyAmount, 1);
   assert.equal(state.theme, 'light');
   assert.equal(state.showOptions, true);
@@ -57,8 +58,8 @@ test('the options sections are progressions, progression variations, chord varia
   assert.deepEqual(SECTIONS, ['progressions', 'progressionVariations', 'variations', 'bass', 'melody']);
 });
 
-test('the side panel shows the options, the exercises or the help', () => {
-  assert.deepEqual(PANELS, ['options', 'exercises', 'songs', 'help']);
+test('the side panel shows the options, the exercises, the songs, the help or the account', () => {
+  assert.deepEqual(PANELS, ['options', 'exercises', 'songs', 'help', 'account']);
 });
 
 test('choosePanel shows the other panel in place of the one shown, and closes the side panel for the one shown', () => {
@@ -322,4 +323,29 @@ test('the default selection of the real library is every Pop progression', async
   const pop = REAL.filter((progression) => progression.group === 'Pop').map((progression) => progression.id);
   assert.ok(pop.length > 0);
   assert.deepEqual(defaultState(REAL, FIXED).selection, pop);
+});
+
+test('resetSettings sets every setting back to its default, keeps the saved songs and the panel, and gives new seeds', () => {
+  const songs = [{ id: 'kept' }];
+  const changed = {
+    ...defaultState(LIBRARY, FIXED),
+    key: 'D',
+    count: 8,
+    variations: [],
+    theme: 'dark',
+    instrument: 'guitar',
+    exercise: 'circle-ii-v-i',
+    painting: false,
+    collapsed: [],
+    frozen: 'kept',
+    panel: 'account',
+    songs,
+  };
+  const reset = resetSettings(changed, LIBRARY, () => 0.7);
+  const fresh = defaultState(LIBRARY, () => 0.7);
+  assert.deepEqual(reset, { ...fresh, panel: 'account', songs });
+  assert.equal(reset.songs, songs);
+  assert.notDeepEqual(reset.seeds, changed.seeds);
+  // The side panel stays as it is, closed too.
+  assert.equal(resetSettings({ ...changed, showOptions: false }, LIBRARY).showOptions, false);
 });

@@ -1,7 +1,7 @@
 /**
- * The header bar: the options, exercises and help buttons, the instrument tabs, the view switches (roman numerals, chord
- * tones and colours), the painting switch and the dark mode switch. The melody button sits beside the Melody variations heading in the options.
- * The markup is in index.html; updateHeader shows the state on its buttons.
+ * The header bar: the options, exercises, songs, help and account buttons, the instrument tabs, the view switches (roman
+ * numerals, chord tones and colours), the painting switch and the dark mode switch. The melody button sits beside the
+ * Melody variations heading in the options. The markup is in index.html; updateHeader shows the state on its buttons.
  */
 
 import { exerciseState, isUnavailable } from './state/availability.js';
@@ -20,8 +20,9 @@ export function updateHeader(state, root = document) {
   for (const button of root.querySelectorAll('[data-instrument]')) {
     button.setAttribute('aria-pressed', String(button.dataset.instrument === state.instrument));
   }
-  // The options, exercises and help buttons are one switch, like the instrument tabs: the button of the panel that is shown
-  // is pressed, and none while the side panel is closed. Each button has the class of its panel, e.g. .help-toggle.
+  // The options, exercises, songs, help and account buttons are one switch, like the instrument tabs: the button of the
+  // panel that is shown is pressed, and none while the side panel is closed. Each button has the class of its panel, e.g.
+  // .help-toggle.
   for (const panel of PANELS) {
     root.querySelector(`.${panel}-toggle`).setAttribute('aria-expanded', String(state.showOptions && state.panel === panel));
   }

@@ -2,14 +2,24 @@
  * The page: loads the progression data, holds the state (state/), renders it through the windows (header.js, options/,
  * song/, notes/, help/), wires the events of the page to the state transitions and keeps the state in a cookie and in
  * the local storage. The saved songs are kept in the local storage, or in the account of the person who is signed in
- * (account.js). The music (music/) generates the song; the look of the page is in styles/. main.js starts it.
+ * (account.js), which keeps their settings too. The music (music/) generates the song; the look of the page is in
+ * styles/. main.js starts it.
  */
 
 import { load } from 'js-yaml';
 import { buildBassPatterns, buildLibrary } from '../music/data/validate.js';
 import { applyAction } from './state/actions.js';
-import { choosePanel, setInstrument } from './state/state.js';
-import { STORAGE_KEY, cookiePathOf, readState, sanitizeState, serializeCookie, serializeStored } from './state/persistence.js';
+import { choosePanel, resetSettings, setInstrument } from './state/state.js';
+import {
+  STORAGE_KEY,
+  cookiePathOf,
+  readState,
+  sanitizeState,
+  serializeCookie,
+  serializeSettings,
+  serializeStored,
+  withSettings,
+} from './state/persistence.js';
 import { displaySwitches } from './state/availability.js';
 import {
   SONGS_KEY,
@@ -28,6 +38,7 @@ import {
   withSongs,
 } from './state/songs.js';
 import { NAME_FIELD_ID, RENAME_FIELD_ID, renderFrozenNote, renderSongs } from './songs.js';
+import { renderAccount } from './account-panel.js';
 import { updateHeader } from './header.js';
 import { renderExercises, renderOptions } from './options/options.js';
 import { renderKeyCircle } from './options/circle-of-fifths.js';
@@ -40,6 +51,7 @@ import { createBackground } from './background/background.js';
 import { bindPanelHistory, bindPanelSwipes } from './panel.js';
 import { fingeringOf } from '../music/instruments/guitar.js';
 import { connectAccount } from './account.js';
+import { bindTooltips } from './tooltip.js';
 
 const PROGRESSIONS_URL = new URL('../music/data/chord_progressions.yaml', import.meta.url);
 const BASS_URL = new URL('../music/data/bass_patterns.yaml', import.meta.url);
@@ -124,7 +136,7 @@ const GUITAR_FAILED = 'The guitar shapes could not be loaded, so the piano stays
 export const THEME_COLOURS = { light: '#f1ebdf', dark: '#141824' };
 
 /** The accessible name of the side panel for each of its panels. */
-const PANEL_LABELS = { options: 'Options', exercises: 'Exercises', songs: 'Songs', help: 'Help' };
+const PANEL_LABELS = { options: 'Options', exercises: 'Exercises', songs: 'Songs', account: 'Account', help: 'Help' };
 
 /** The accessible name of the side panel for each page of the help window (see help/help.js). */
 const HELP_LABELS = { help: 'Help', imprint: 'Imprint', privacy: 'Privacy policy' };
@@ -134,6 +146,7 @@ const PANEL_MARKUP = {
   options: (state, library) => renderOptions(state, library),
   exercises: (state, library) => renderExercises(state, library),
   songs: (state, library, draft, editing, account) => renderSongs(state, draft, editing, account),
+  account: (state, library, draft, editing, account) => renderAccount(account, editing),
 };
 
 function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, guitarError = false, connect }) {
@@ -178,8 +191,10 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
   // null. They belong to the panel, not to the state: any other action ends them.
   let renaming = null;
   let deleting = null;
-  // Whether the songs panel asks whether to delete the account; any other action ends the question.
+  // Whether the account panel asks whether to delete the account, and whether it asks whether to reset the settings; any
+  // other action ends the question.
   let deletingAccount = false;
+  let resettingSettings = false;
   // The message of the account section (e.g. why the account could not be deleted), until the next action of the account
   // or until someone signs in or out.
   let accountNotice = null;
@@ -192,6 +207,18 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
   let person = null;
   let synced = false;
   let merged = false;
+  // The settings of the account (see serializeSettings), as last written to it or taken from it: the settings are written
+  // again only when they change. `settingsReady` tells whether the account has said which settings it keeps since the
+  // person signed in; until then nothing is written, so that settings from another device are not overwritten.
+  let writtenSettings = null;
+  let settingsReady = false;
+  // The settings of the account as last taken from it, as the account sent them: the page may make other settings of them
+  // (see takeSettings), so the same text coming again (e.g. with a change of the songs) is not taken again. A change on
+  // this device clears it, so that the settings of another device are taken even if they are those taken before.
+  let takenSettings = null;
+  // Counts each turn of the instrument: settings of the account with the guitar switch to it once its shapes are loaded
+  // only if nothing has chosen the instrument since (a click on a tab, Reset Settings, other settings of the account).
+  let instrumentTurn = 0;
   // The account (see account.js), connected once the page is set up; null where the page has none.
   let account = null;
 
@@ -242,7 +269,7 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
       // The name typed into the field of the songs panel is kept over a re-render, until the song is saved.
       const draft = optionList.querySelector(`#${NAME_FIELD_ID}`)?.value ?? '';
       keepFocus(optionList, () => {
-        const editing = { renaming, deleting, deletingAccount };
+        const editing = { renaming, deleting, deletingAccount, resettingSettings };
         optionList.innerHTML = renderFrozenNote(state) + PANEL_MARKUP[state.panel](state, library, draft, editing, accountView());
       });
     }
@@ -276,6 +303,14 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
     updateHeader(state);
     document.cookie = serializeCookie(state, cookiePath);
     writeStorage(serializeStored(state));
+    if (person && settingsReady) {
+      const settings = serializeSettings(state);
+      if (settings !== writtenSettings) {
+        writtenSettings = settings;
+        takenSettings = null;
+        account.writeSettings(settings);
+      }
+    }
     if (state.songs !== writtenSongs && person) {
       // The account gets only what changed; a write it refuses is undone by the songs it sends back.
       const changes = songChanges(writtenSongs, state.songs);
@@ -356,7 +391,47 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
       return state;
     },
     'cancel-delete-account': () => state,
+    // Reset Settings asks first in the account panel; Reset there sets every setting back to its default, but the songs.
+    'reset-settings': () => {
+      resettingSettings = true;
+      return state;
+    },
+    'confirm-reset-settings': () => {
+      helpPage = 'help';
+      return resetSettings(state, library);
+    },
+    'cancel-reset-settings': () => state,
   };
+
+  /**
+   * Takes the settings of the account (see serializeSettings), e.g. once someone signs in or after they changed them on
+   * another device. Settings with the guitar wait for its shapes, with the piano meanwhile; if the shapes cannot be loaded,
+   * the piano stays.
+   */
+  function takeSettings(settings) {
+    takenSettings = settings;
+    const turn = ++instrumentTurn;
+    const next = withSettings(state, settings, library);
+    if (next.instrument === 'guitar' && !guitar) {
+      state = setInstrument(next, 'piano');
+      loadGuitar()
+        .then((shapes) => {
+          guitar = shapes;
+          if (person && turn === instrumentTurn) {
+            state = setInstrument(state, 'guitar');
+            render();
+          }
+        })
+        .catch((error) => {
+          console.error(`Chordice could not load the guitar shapes: ${error.message}`);
+          showStatus(GUITAR_FAILED);
+        });
+    } else {
+      state = next;
+    }
+    // What the page made of the settings is not written back.
+    writtenSettings = serializeSettings(state);
+  }
 
   /** Shows a message of the account in its section, or none. */
   function showAccountNotice(message) {
@@ -459,6 +534,13 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
     }
     if (action !== 'delete-account') {
       deletingAccount = false;
+    }
+    if (action !== 'reset-settings') {
+      resettingSettings = false;
+    }
+    // A tab or Reset Settings chooses the instrument, so settings of the account that wait for the guitar no longer do.
+    if (action === 'set-instrument' || action === 'confirm-reset-settings') {
+      instrumentTurn += 1;
     }
     state = Object.hasOwn(songActions, action) ? songActions[action](params) : applyAction(state, action, params, library);
     render();
@@ -570,6 +652,10 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
       person = next;
       synced = false;
       merged = false;
+      writtenSettings = null;
+      takenSettings = null;
+      instrumentTurn += 1;
+      settingsReady = false;
       deletingAccount = false;
       accountNotice = null;
       // Signed in, the songs of the browser stay in the state until the songs of the account come (the panel says they are
@@ -581,7 +667,7 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
       writtenSongs = state.songs;
       render();
     },
-    onSongs(record, { confirmed = true } = {}) {
+    onSongs(record, { confirmed = true, settings = null } = {}) {
       if (!person) {
         return;
       }
@@ -602,10 +688,29 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
       }
       state = withSongs(state, songs);
       writtenSongs = state.songs;
+      // The settings of the account count over those of the browser. An account without settings (e.g. a new one) takes
+      // those of the browser, once it has confirmed that it has none.
+      if (settings !== null && settings !== writtenSettings && settings !== takenSettings) {
+        takeSettings(settings);
+      }
+      if (settings !== null || confirmed) {
+        settingsReady = true;
+      }
       render();
     },
     onError: showStatus,
   });
+
+  // The hints of the buttons appear at once when the mouse rests on them (see tooltip.js).
+  bindTooltips(document);
+
+  // Settings that wait to be written to the account are written at once when the page is hidden or closed.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      account?.flushSettings();
+    }
+  });
+  globalThis.addEventListener?.('pagehide', () => account?.flushSettings());
 
   render();
   showStatus(guitarError ? GUITAR_FAILED : null);

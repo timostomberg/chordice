@@ -13,11 +13,14 @@ function element(dataset = {}) {
   return { dataset, attributes: {}, disabled: false, setAttribute(name, value) { this.attributes[name] = value; } };
 }
 
-/** The header of the page: the view switches, the instrument tabs, the options, exercises and help buttons and the dark mode switch. */
+/**
+ * The header of the page: the view switches, the instrument tabs, the options, exercises, songs, account and help buttons
+ * and the dark mode switch.
+ */
 function headerPage() {
   const flags = ['roman', 'tones', 'inversions', 'colour'].map((flag) => element({ flag }));
   const tabs = ['piano', 'guitar'].map((instrument) => element({ instrument }));
-  const elements = { '.options-toggle': element(), '.exercises-toggle': element(), '.songs-toggle': element(), '.help-toggle': element(), '[data-action="toggle-theme"]': element() };
+  const elements = { '.options-toggle': element(), '.exercises-toggle': element(), '.songs-toggle': element(), '.account-toggle': element(), '.help-toggle': element(), '[data-action="toggle-theme"]': element() };
   return {
     flags,
     tabs,
@@ -138,4 +141,13 @@ test('the songs button is pressed while the side panel shows the saved songs', (
   updateHeader({ ...defaultState(LIBRARY), showOptions: true, panel: 'songs' }, page);
   assert.equal(page.elements['.songs-toggle'].attributes['aria-expanded'], 'true');
   assert.equal(page.elements['.options-toggle'].attributes['aria-expanded'], 'false');
+});
+
+test('the account button is pressed while the side panel shows the account panel', () => {
+  const page = headerPage();
+  updateHeader({ ...defaultState(LIBRARY), showOptions: true, panel: 'account' }, page);
+  assert.equal(page.elements['.account-toggle'].attributes['aria-expanded'], 'true');
+  assert.equal(page.elements['.songs-toggle'].attributes['aria-expanded'], 'false');
+  updateHeader({ ...defaultState(LIBRARY), showOptions: false, panel: 'account' }, page);
+  assert.equal(page.elements['.account-toggle'].attributes['aria-expanded'], 'false');
 });

@@ -56,6 +56,7 @@
 .options-toggle,
 .exercises-toggle,
 .songs-toggle,
+.account-toggle,
 .help-toggle,
 .roman-toggle,
 .tones-toggle,
@@ -81,6 +82,7 @@
 .toolbar .options-toggle,
 .toolbar .exercises-toggle,
 .toolbar .songs-toggle,
+.toolbar .account-toggle,
 .toolbar .help-toggle,
 .toolbar .roman-toggle,
 .toolbar .tones-toggle,
@@ -92,13 +94,14 @@
   color: var(--icon-blue);
 }
 
-/* An active options, exercises, help, roman, tones, colour, painting or dark mode toggle is filled with the icon blue, and its
+/* An active options, exercises, songs, account, help, roman, tones, colour, painting or dark mode toggle is filled with the icon blue, and its
    symbol takes the background colour. The dark mode toggle is active in the dark theme, and the exercises toggle also while
    an exercise is on. */
 .toolbar .options-toggle[aria-expanded="true"],
 .toolbar .exercises-toggle[aria-expanded="true"],
 .toolbar .exercises-toggle[data-exercise-active="true"],
 .toolbar .songs-toggle[aria-expanded="true"],
+.toolbar .account-toggle[aria-expanded="true"],
 .toolbar .help-toggle[aria-expanded="true"],
 .toolbar .roman-toggle[aria-pressed="true"],
 .toolbar .tones-toggle[aria-pressed="true"],
@@ -159,6 +162,7 @@
 .options-toggle svg,
 .exercises-toggle svg,
 .songs-toggle svg,
+.account-toggle svg,
 .help-toggle svg,
 .roman-toggle svg,
 .tones-toggle svg,

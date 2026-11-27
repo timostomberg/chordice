@@ -1,9 +1,10 @@
 rules_version = '2';
 
 // The rules of the Firestore database of Chordice (see chordice/app/account.js). Each account has one document,
-// users/{uid}, with one field, `songs`: a map from the id of each saved song to the song. Only the person signed in to
-// an account may read, write and delete its document, and the map holds at most SONG_LIMIT (75) songs, so that the
-// document stays below the 1 MiB that Firestore allows. Everything else is refused.
+// users/{uid}, with two fields, each of which may be missing: `songs`, a map from the id of each saved song to the song,
+// and `settings`, the settings as text. Only the person signed in to an account may read, write and delete its document;
+// the map holds at most SONG_LIMIT (75) songs and the settings at most 10000 characters, so that the document stays
+// below the 1 MiB that Firestore allows. Everything else is refused.
 //
 // They take effect once they are published in the Firebase console (Firestore Database > Rules) or with the Firebase CLI.
 service cloud.firestore {
@@ -11,9 +12,11 @@ service cloud.firestore {
     match /users/{uid} {
       allow read, delete: if request.auth != null && request.auth.uid == uid;
       allow create, update: if request.auth != null && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['songs'])
-        && request.resource.data.songs is map
-        && request.resource.data.songs.size() <= 75;
+        && request.resource.data.keys().hasOnly(['songs', 'settings'])
+        && (!('songs' in request.resource.data)
+          || (request.resource.data.songs is map && request.resource.data.songs.size() <= 75))
+        && (!('settings' in request.resource.data)
+          || (request.resource.data.settings is string && request.resource.data.settings.size() <= 10000));
     }
   }
 }

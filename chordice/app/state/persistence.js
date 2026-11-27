@@ -153,3 +153,36 @@ export function parseStored(text) {
 export function readState(cookieHeader, storedText) {
   return parseCookie(cookieHeader) ?? parseStored(storedText);
 }
+
+/**
+ * The settings that belong to the device and are not kept in the account: whether the side panel is open and which panel it
+ * shows, as a phone and an iPad may well differ in them. Everything else, the song that is shown included, is synced
+ * across the devices.
+ */
+export const DEVICE_SETTINGS = ['showOptions', 'panel'];
+
+/**
+ * The settings as the account of the person who is signed in keeps them (see app/account.js), as text: the stored state
+ * without the saved songs, which the account keeps on their own, and without the DEVICE_SETTINGS.
+ */
+export function serializeSettings(state) {
+  const settings = { ...state, songs: undefined };
+  for (const name of DEVICE_SETTINGS) {
+    settings[name] = undefined;
+  }
+  return JSON.stringify(settings);
+}
+
+/**
+ * The state with the settings that an account keeps (see serializeSettings), made valid as a cookie is. The saved songs and
+ * the DEVICE_SETTINGS of the state stay. Settings that are not an object (e.g. broken text) leave the state as it is.
+ */
+export function withSettings(state, text, library, random = Math.random) {
+  const raw = parseStored(text);
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return state;
+  }
+  const settings = sanitizeState(raw, library, random);
+  const kept = Object.fromEntries(DEVICE_SETTINGS.map((name) => [name, state[name]]));
+  return { ...settings, ...kept, songs: state.songs };
+}

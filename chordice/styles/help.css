@@ -20,6 +20,7 @@
   max-width: 46rem;
   margin: 0 auto;
   padding: 1rem 1.25rem 3rem;
+  font-size: 0.9rem;
   color: var(--text);
   line-height: 1.55;
 }
@@ -50,6 +51,11 @@
   margin-bottom: 0.4rem;
 }
 
+/* The bullets of a list stand a little in from the text above it, not as far as the browser sets them. */
+.help ul {
+  padding-left: 1.1rem;
+}
+
 .help a {
   color: var(--icon-blue);
 }
@@ -78,30 +84,17 @@
   color: var(--icon-blue);
 }
 
+/* In a heading, the icon of the button that opens the panel or window the heading is about stands before its title. */
+.help h2 .help-icon,
+.help h3 .help-icon {
+  margin-right: 0.45rem;
+  vertical-align: -0.2rem;
+}
+
 .help-icon svg {
   display: block;
   width: 100%;
   height: 100%;
-}
-
-.help-table {
-  width: 100%;
-  margin: 0.5rem 0 1rem;
-  border-collapse: collapse;
-  font-size: 0.95rem;
-}
-
-.help-table th,
-.help-table td {
-  padding: 0.35rem 0.5rem;
-  border: 1px solid var(--line);
-  text-align: left;
-  vertical-align: top;
-}
-
-.help-table th {
-  color: var(--muted);
-  font-weight: 600;
 }
 
 /* The link back to the help, above the imprint and the privacy policy in the side panel. */

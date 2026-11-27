@@ -75,7 +75,7 @@ test('the privacy policy names every host the page loads code from', () => {
 test('the privacy policy names the location of the database that the README sets up', () => {
   const readme = readFileSync(new URL('../../../../README.md', import.meta.url), 'utf8');
   assert.match(readme, /The privacy policy assumes the Firestore location `europe-west3`\./);
-  assert.match(document().querySelector('main').textContent, /The songs are stored in the EU \(Frankfurt, Germany\)\./);
+  assert.match(document().querySelector('main').textContent, /The songs and settings are stored in the EU \(Frankfurt, Germany\)\./);
 });
 
 test('the controller is named with a name and an email address only, and the rights point to that address', () => {
@@ -90,4 +90,11 @@ test('the privacy policy says that signing out removes the copy of the songs fro
   const text = document().querySelector('main').textContent.replace(/\s+/g, ' ');
   assert.ok(text.includes('a copy of your songs is also kept in your browser'));
   assert.ok(text.includes('signing out removes it from the browser'));
+});
+
+test('the privacy policy says that the account keeps the settings too, and where to delete it', () => {
+  const text = document().querySelector('main').textContent.replace(/\s+/g, ' ');
+  assert.ok(text.includes('your saved songs and your settings are kept in your account'));
+  assert.ok(text.includes('your settings (the options, the exercise, the view, the instrument and the theme, as in the cookie)'));
+  assert.ok(text.includes('Delete account in the Account panel deletes your account with every song and setting in it'));
 });

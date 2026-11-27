@@ -18,9 +18,10 @@ export const FLAGS = ['showOptions', 'colour', 'roman', 'tones', 'inversions', '
 export const THEMES = ['light', 'dark'];
 // The instrument whose notes window the chords open: notes for the piano, a diagram for the guitar.
 export const INSTRUMENTS = ['piano', 'guitar'];
-// What the side panel shows: the options, the exercises, the saved songs or the help. The Options, Exercises, Songs and Help
-// buttons in the header choose it, like the instrument tabs, so exactly one of them is pressed while the panel is open.
-export const PANELS = ['options', 'exercises', 'songs', 'help'];
+// What the side panel shows: the options, the exercises, the saved songs, the help or the account. The Options, Exercises,
+// Songs, Help and Account buttons in the header choose it, like the instrument tabs, so exactly one of them is pressed while
+// the panel is open.
+export const PANELS = ['options', 'exercises', 'songs', 'help', 'account'];
 // The boxes of the options panel, and those of the exercises panel. Each box opens and closes on its own.
 export const SECTIONS = ['progressions', 'progressionVariations', 'variations', 'bass', 'melody'];
 export const EXERCISE_SECTIONS = ['exercises'];
@@ -77,7 +78,7 @@ export function defaultState(library, random = Math.random) {
     permutation: 1,
     variations: [...DEFAULT_VARIATIONS],
     variationProbability: 4,
-    bassProbability: 1,
+    bassProbability: 0,
     melodyAmount: 1,
     colour: true,
     roman: true,
@@ -239,6 +240,15 @@ export function toggleFlag(state, flag) {
     return state;
   }
   return { ...state, [flag]: !state[flag] };
+}
+
+/**
+ * Every setting back to its default, as on the first visit: the options, the exercise, the view, the instrument, the theme,
+ * the boxes of the panels and new seeds; a frozen song is no longer shown. The saved songs stay, and so does the side panel,
+ * open on the panel it shows, where Reset Settings was pressed.
+ */
+export function resetSettings(state, library, random = Math.random) {
+  return { ...defaultState(library, random), songs: state.songs, showOptions: state.showOptions, panel: state.panel };
 }
 
 /** New random outcomes for every option; all other settings stay as they are. A frozen song is generated again. */

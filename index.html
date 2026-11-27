@@ -28,6 +28,7 @@
   <link rel="stylesheet" href="chordice/styles/circle-of-fifths.css">
   <link rel="stylesheet" href="chordice/styles/song.css">
   <link rel="stylesheet" href="chordice/styles/songs.css">
+  <link rel="stylesheet" href="chordice/styles/account.css">
   <link rel="stylesheet" href="chordice/styles/chord.css">
   <link rel="stylesheet" href="chordice/styles/notes.css">
   <link rel="stylesheet" href="chordice/styles/help.css">
@@ -52,8 +53,8 @@
     <!-- The buttons left of the title are one group, the buttons right of it another: on a narrow screen each group wraps
          to the next row only as a whole. -->
     <div class="toolbar-start">
-      <!-- The panel tabs: the side panel shows the options, the exercises, the saved songs or the help; the pressed one again
-           closes it. -->
+      <!-- The panel tabs: the side panel shows the options, the exercises, the saved songs, the help or the account; the
+           pressed one again closes it. -->
       <div class="panel-tabs" role="group" aria-label="Side panel">
         <button type="button" class="options-toggle panel-tab" data-action="toggle-options" aria-controls="options" aria-label="Options" title="Options">
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -84,10 +85,17 @@
             <circle cx="12" cy="7.5" r="1.3" fill="currentColor"/>
           </svg>
         </button>
+        <button type="button" class="account-toggle panel-tab" data-action="toggle-account" aria-controls="options" aria-label="Account" title="Account">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <!-- A person: the head above the shoulders. -->
+            <circle cx="12" cy="8" r="3.8" fill="none" stroke="currentColor" stroke-width="2"/>
+            <path d="M4.5 20.5c.6-4 3.6-6.3 7.5-6.3s6.9 2.3 7.5 6.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
       </div>
       <!-- The instrument tabs: the piano (left) shows the notes of a chord, the guitar (right) its shape. -->
       <div class="instrument-tabs" role="group" aria-label="Instrument">
-        <button type="button" class="instrument-tab" data-action="set-instrument" data-instrument="piano" aria-pressed="true" aria-label="Piano: notes" title="Piano: notes">
+        <button type="button" class="instrument-tab" data-action="set-instrument" data-instrument="piano" aria-pressed="true" aria-label="Piano: notes" title="Piano: a click on a chord shows its notes">
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <!-- Seven white keys in a frame; the separators run down from the top, and the black keys sit on the five boundaries that have one. -->
             <rect x="2" y="5" width="20" height="14" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
@@ -99,7 +107,7 @@
             <rect x="18.29" y="5" width="1.7" height="8.5" fill="currentColor"/>
           </svg>
         </button>
-        <button type="button" class="instrument-tab" data-action="set-instrument" data-instrument="guitar" aria-pressed="false" aria-label="Guitar: shapes" title="Guitar: shapes">
+        <button type="button" class="instrument-tab" data-action="set-instrument" data-instrument="guitar" aria-pressed="false" aria-label="Guitar: shapes" title="Guitar: a click on a chord shows its shape">
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <!-- An upright guitar: the headstock and the neck on top, the body below. -->
             <rect x="9.8" y="0.8" width="4.4" height="2.6" rx="0.6" fill="currentColor"/>
@@ -112,12 +120,12 @@
     <h1>Chordice</h1>
     <div class="toolbar-end">
       <div class="view-toggles">
-        <button type="button" class="roman-toggle" data-action="toggle-roman" aria-label="Roman numerals" aria-pressed="true" data-flag="roman" title="Roman numerals">
+        <button type="button" class="roman-toggle" data-action="toggle-roman" aria-label="Roman numerals" aria-pressed="true" data-flag="roman" title="Roman numerals: the function of each chord">
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <text x="12" y="17" text-anchor="middle" font-size="14" font-weight="600" fill="currentColor">IV</text>
           </svg>
         </button>
-        <button type="button" class="tones-toggle" data-action="toggle-tones" aria-label="Chord tones" aria-pressed="false" data-flag="tones" title="Chord tones">
+        <button type="button" class="tones-toggle" data-action="toggle-tones" aria-label="Chord tones" aria-pressed="false" data-flag="tones" title="Chord tones: the notes of each chord">
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <!-- A triad as it is engraved: three tilted noteheads a third apart, so they just touch, on one thin stem that meets
                  the right edge of the heads. -->
@@ -127,7 +135,7 @@
             <ellipse cx="12" cy="19" rx="3.2" ry="2.3" transform="rotate(-22 12 19)" fill="currentColor"/>
           </svg>
         </button>
-        <button type="button" class="colour-toggle" data-action="toggle-colour" aria-label="Colours" aria-pressed="true" data-flag="colour" title="Colours">
+        <button type="button" class="colour-toggle" data-action="toggle-colour" aria-label="Colours" aria-pressed="true" data-flag="colour" title="Colours: tonic, subdominant or dominant">
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <circle cx="13.60" cy="12.00" r="0.90"/>
             <circle cx="13.23" cy="14.74" r="1.10"/>
@@ -139,14 +147,14 @@
           </svg>
         </button>
       </div>
-      <button type="button" class="painting-toggle" data-action="toggle-painting" aria-label="Painting" aria-pressed="true" data-flag="painting" title="Painting">
+      <button type="button" class="painting-toggle" data-action="toggle-painting" aria-label="Painting" aria-pressed="true" data-flag="painting" title="Painting: a watercolour behind the chords">
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <!-- Two mountains, the larger one with snow on its peak. -->
           <path d="M2 20 9 7l4.5 7.5L16 11l6 9z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
           <path d="M7.1 10.3 9 7l1.9 3.3-1 .9-.9-.8-.9.8z" fill="currentColor"/>
         </svg>
       </button>
-      <button type="button" class="theme-toggle" data-action="toggle-theme" aria-label="Dark mode" aria-pressed="false">
+      <button type="button" class="theme-toggle" data-action="toggle-theme" aria-label="Dark mode" aria-pressed="false" title="Dark mode: switches the theme">
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
           <path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/>
@@ -174,7 +182,7 @@
       </div>
     </section>
   </main>
-  <button type="button" class="generate" data-action="reroll">New Song</button>
+  <button type="button" class="generate" data-action="reroll" title="New rows with the current settings">New Song</button>
   <dialog id="notes" class="notes" aria-label="Notes" tabindex="-1">
     <div class="notes-body">
       <ol id="notes-chord" class="chords notes-chord"></ol>

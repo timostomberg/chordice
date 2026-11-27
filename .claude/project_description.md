@@ -22,7 +22,12 @@ The user chooses options in a side panel, and the site produces concrete chord p
 - A saved song keeps its **recipe** (the options that make the song and their seeds) and a **snapshot** of its rows. Loading puts the recipe into the state, so the song is generated anew and every option works on it as usual; the view, instrument and panel stay.
 - If the recipe now gives another song (the generator or `chord_progressions.yaml` have changed), the song is **frozen**: the snapshot is shown, the options that make the song are fixed, and a note offers *Generate anew*; New Song ends it too.
 - The songs are kept in the local storage under a key of their own, not in the cookie. At most 75 songs can be saved.
-- **Account (optional):** once a Firebase project is entered in `account.js`, the Songs panel offers *Sign in with Google* (Firebase Authentication), the only way to sign in. While signed in, the songs are kept in the account instead, in one Firestore document per account (`users/{uid}`, a map from song id to song), cached in the browser for offline use and synced across devices. On sign-in the songs of the browser move into the account (those that do not fit stay in the browser). The panel also offers *Sign out*, which removes the songs of the account from the browser (and waits while changes have not reached the account), and *Delete account* (after a confirmation and a fresh sign-in with Google, before anything is deleted). `firestore.rules` lets each account access only its own document. Without a Firebase project the page offers no account.
+
+## Account panel
+
+- An **Account** panel (person button at the right end of the panel buttons in the header, after Help).
+- **Account (optional):** once a Firebase project is entered in `account.js`, the panel offers *Sign in with Google* (Firebase Authentication), the only way to sign in. While signed in, the songs and the settings are kept in the account, in one Firestore document per account (`users/{uid}`: `songs`, a map from song id to song, and `settings`, the state as text), cached in the browser for offline use and synced across devices. On sign-in the songs of the browser move into the account (those that do not fit stay in the browser), and the settings of the account replace those of the browser (an account without settings takes the browser's). Whether the side panel is open and which panel it shows stay with the device. A change of the settings is written once no other has followed for a moment. The panel also offers *Sign out*, which removes the songs of the account from the browser (and waits while changes have not reached the account; the settings stay), and *Delete account* (after a confirmation and a fresh sign-in with Google, before anything is deleted). `firestore.rules` lets each account access only its own document. Without a Firebase project the page offers no account.
+- **Reset Settings:** at the bottom of the panel, a button sets every setting back to its default, as on the first visit, after a confirmation; the saved songs stay, and so does the side panel.
 
 ## Display
 
@@ -38,7 +43,7 @@ The user chooses options in a side panel, and the site produces concrete chord p
 
 ## Persistence and devices
 
-- The state (including instrument, exercise, switches) is kept in cookies, with a copy in local storage because Safari expires script cookies after seven days.
+- The state (including instrument, exercise, switches) is kept in cookies, with a copy in local storage because Safari expires script cookies after seven days, and in the account while signed in.
 - Installable as a home-screen web app (manifest, icons); a service worker (`sw.js`) enables offline use with network-first updates; the screen stays on via Screen Wake Lock.
 
 ## Dependencies

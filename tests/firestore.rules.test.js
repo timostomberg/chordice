@@ -2,7 +2,7 @@ import { after, before, beforeEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { SONG_LIMIT } from '../chordice/app/state/songs.js';
-import { USERS } from '../chordice/app/account.js';
+import { SETTINGS_LIMIT, USERS } from '../chordice/app/account.js';
 
 // The rules are read as text first: they are checked for the parts that guard the songs. Then they are run in the
 // Firestore emulator, which `npm run test:rules` starts (it needs Java and the dev dependencies firebase-tools,
@@ -25,11 +25,13 @@ test('only the person signed in to an account may read, write and delete its doc
   }
 });
 
-test('a document holds only the songs, as a map, and no more songs than the page saves', () => {
+test('a document holds only the songs, as a map of no more songs than the page saves, and the settings, as text', () => {
   const write = /allow create, update:([^;]+);/.exec(withoutComments)[1];
-  assert.match(write, /request\.resource\.data\.keys\(\)\.hasOnly\(\['songs'\]\)/);
+  assert.match(write, /request\.resource\.data\.keys\(\)\.hasOnly\(\['songs', 'settings'\]\)/);
   assert.match(write, /request\.resource\.data\.songs is map/);
   assert.match(write, new RegExp(`request\\.resource\\.data\\.songs\\.size\\(\\) <= ${SONG_LIMIT}\\b`));
+  assert.match(write, /request\.resource\.data\.settings is string/);
+  assert.match(write, new RegExp(`request\\.resource\\.data\\.settings\\.size\\(\\) <= ${SETTINGS_LIMIT}\\b`));
 });
 
 // The emulator, as `firebase emulators:exec` names it to the tests.
@@ -100,10 +102,16 @@ describe('the rules in the Firestore emulator', { skip: EMULATOR ? false : 'need
     await assertFails(nobody.doc(`${USERS}/nobody`).set({ songs: {} }));
   });
 
-  test('a document holds only the songs, as a map', async () => {
+  test('a document holds only the songs, as a map, and the settings, as text', async () => {
     const own = ada.doc(`${USERS}/ada`);
     await assertFails(own.set({ songs: songs(1), other: true }));
     await assertFails(own.set({ other: true }));
+    // The page writes the settings by their own field, also into a document without songs (see account.js).
+    await assertSucceeds(own.set({ settings: '{}' }, { mergeFields: ['settings'] }));
+    await assertSucceeds(own.set({ songs: songs(1), settings: '{"key":"C"}' }));
+    await assertFails(own.set({ settings: { key: 'C' } }));
+    await assertFails(own.set({ settings: 'x'.repeat(SETTINGS_LIMIT + 1) }));
+    await assertSucceeds(own.set({ settings: 'x'.repeat(SETTINGS_LIMIT) }));
     await assertFails(own.set({ songs: [song('s0')] }));
     await assertFails(own.set({ songs: 'none' }));
     await seed({ songs: songs(1) });

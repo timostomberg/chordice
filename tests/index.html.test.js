@@ -76,6 +76,7 @@ const ACTION_PARAMS = {
   'toggle-options': {},
   'toggle-exercises': {},
   'toggle-songs': {},
+  'toggle-account': {},
   'toggle-help': {},
   'toggle-panel': {},
   'toggle-theme': {},
@@ -137,7 +138,7 @@ test('no separator sign stands between the switches of the header', () => {
 
 test('New Song is a floating button after the main content, so it sits at the bottom right', () => {
   const html = readIndex();
-  const generate = html.indexOf('class="generate" data-action="reroll">New Song</button>');
+  const generate = html.indexOf('class="generate" data-action="reroll" title="New rows with the current settings">New Song</button>');
   assert.ok(generate > html.indexOf('</main>'));
   assert.ok(generate < html.indexOf('</body>'));
   assert.ok(!html.slice(0, html.indexOf('</header>')).includes('New Song'));
@@ -183,14 +184,18 @@ test('a click on the header, e.g. the title, opens or closes the side panel, whi
   assert.ok(html.includes('<header class="toolbar" data-action="toggle-panel">'));
 });
 
-test('the exercises, songs and help buttons sit directly right of the options button, the four one switch like the instrument tabs', () => {
+test('the exercises, songs, help and account buttons sit directly right of the options button, the five one switch like the instrument tabs', () => {
   const html = readIndex();
   const toolbar = /<header class="toolbar"[\s\S]*?<\/header>/.exec(html)?.[0] ?? '';
   const tabs = /<div class="panel-tabs"[\s\S]*?<\/div>/.exec(toolbar)?.[0] ?? '';
   assert.ok(toolbar.startsWith('<header class="toolbar" data-action="toggle-panel">\n    <!--'), 'the panel tabs come first');
   assert.ok(toolbar.indexOf('class="panel-tabs"') < toolbar.indexOf('class="instrument-tabs"'));
   const buttons = [...tabs.matchAll(/<button[^>]*data-action="([^"]+)"/g)].map((match) => match[1]);
-  assert.deepEqual(buttons, ['toggle-options', 'toggle-exercises', 'toggle-songs', 'toggle-help']);
+  assert.deepEqual(buttons, ['toggle-options', 'toggle-exercises', 'toggle-songs', 'toggle-help', 'toggle-account']);
+  // The account button, the last of them, right of the help button, shows a person, drawn as an outline.
+  assert.ok(tabs.includes('class="account-toggle panel-tab" data-action="toggle-account" aria-controls="options" aria-label="Account" title="Account"'));
+  const account = /<button[^>]*toggle-account[\s\S]*?<\/button>/.exec(tabs)?.[0] ?? '';
+  assert.ok(account.includes('<svg') && account.includes('<circle') && !account.includes('<text'), 'the button is a symbol, not a word');
   // The songs button shows a heart, drawn as an outline.
   assert.ok(tabs.includes('class="songs-toggle panel-tab" data-action="toggle-songs" aria-controls="options" aria-label="Songs" title="Songs"'));
   const songs = /<button[^>]*toggle-songs[\s\S]*?<\/button>/.exec(tabs)?.[0] ?? '';
@@ -387,4 +392,10 @@ test('the Content-Security-Policy lets in every host the page loads code and dat
   assert.deepEqual(csp.get('worker-src'), ["'self'"]);
   assert.ok(csp.get('img-src').includes('data:'));
   assert.ok(csp.get('font-src').includes('data:'), 'VexFlow loads its music font from the bundle');
+});
+
+test('every button of the page shows a hint when the pointer rests on it', () => {
+  const buttons = [...readIndex().matchAll(/<button[^>]*>/g)].map((match) => match[0]);
+  assert.ok(buttons.length > 0);
+  assert.deepEqual(buttons.filter((button) => !/ title="[^"]+"/.test(button)), []);
 });

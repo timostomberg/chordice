@@ -20,6 +20,7 @@ test('applyAction dispatches UI actions and ignores unknown ones', () => {
   assert.deepEqual(['showOptions', 'panel'].map((key) => applyAction(exercises, 'toggle-options', {}, LIBRARY)[key]), [true, 'options']);
   assert.deepEqual(['showOptions', 'panel'].map((key) => applyAction(exercises, 'toggle-panel', {}, LIBRARY)[key]), [false, 'exercises']);
   assert.deepEqual(['showOptions', 'panel'].map((key) => applyAction(exercises, 'toggle-help', {}, LIBRARY)[key]), [true, 'help']);
+  assert.deepEqual(['showOptions', 'panel'].map((key) => applyAction(exercises, 'toggle-account', {}, LIBRARY)[key]), [true, 'account']);
   assert.equal(applyAction(state, 'toggle-theme', {}, LIBRARY).theme, 'dark');
   assert.equal(applyAction(state, 'set-probability', { option: 'permutation', value: '2' }, LIBRARY).permutation, 2);
   assert.equal(applyAction(state, 'unknown', {}, LIBRARY), state);

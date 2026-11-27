@@ -1,11 +1,10 @@
 /**
  * The songs panel of the side panel: a field to save the song that is shown under a name, and the list of saved songs,
  * each of which loads with a click and can be renamed or deleted. Renaming and the question before deleting happen in the
- * entry of the song itself, without a dialog of the browser, which some browsers block. Where the page has an account, the
- * panel offers to sign in with Google, so that the songs are kept in the account, and to sign out or delete the account.
- * While a saved song is shown frozen (see app/state/songs.js), a note
- * says so above the options, the exercises and the songs, with a button that generates the song anew. Every function
- * returns a string of HTML.
+ * entry of the song itself, without a dialog of the browser, which some browsers block. Signing in, so that the songs are
+ * kept in the account, is in the account panel (see account-panel.js). While a saved song is shown frozen (see
+ * app/state/songs.js), a note says so above the options, the exercises and the songs, with a button that generates the
+ * song anew. Every function returns a string of HTML.
  */
 
 import { escapeHtml } from './escape.js';
@@ -103,77 +102,10 @@ function songItem(song, state, { renaming = null, deleting = null } = {}) {
     `aria-label="Delete ${escapeHtml(song.name)}" title="Delete">×</button></li>`;
 }
 
-// The G of the Sign in with Google button, in the colours of Google's own button.
-const GOOGLE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
-  '<path d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.3z" fill="#4285F4"/>' +
-  '<path d="M12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z" fill="#34A853"/>' +
-  '<path d="M6.4 14a6 6 0 0 1 0-4V7.4H3.1a10 10 0 0 0 0 9z" fill="#FBBC05"/>' +
-  '<path d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A10 10 0 0 0 3.1 7.4L6.4 10C7.2 7.7 9.4 6 12 6z" fill="#EA4335"/></svg>';
-
 /**
- * The privacy policy, from the page (index.html), which the account section links to. A click shows it in the side panel
- * (see help/help.js); the address is there for opening it on its own, e.g. in a new tab.
+ * The list of saved songs with a short note under it, or a note while there are none, or while the songs of the account
+ * have not come yet.
  */
-export const PRIVACY_PATH = 'chordice/app/help/privacy.html';
-
-/** Who is signed in, as the account section names them: their name and email address, or what there is of them. */
-function personLabel(person) {
-  const name = escapeHtml(person.name);
-  const email = escapeHtml(person.email);
-  if (name && email) {
-    return `<strong>${name}</strong> (${email})`;
-  }
-  return name || email ? `<strong>${name || email}</strong>` : 'your Google account';
-}
-
-/** A message of the account section (e.g. why the account could not be deleted), or nothing. */
-function accountNotice(account) {
-  return account.notice ? `<p class="account-notice" role="status">${escapeHtml(account.notice)}</p>` : '';
-}
-
-/** The invitation to sign in with Google: the button in the middle, and under it a quiet note of what it is for. */
-function signInSection(account) {
-  return '<section class="account" aria-label="Account">' +
-    `<button type="button" class="chip account-sign-in" data-action="sign-in">${GOOGLE_ICON}<span>Sign in with Google</span></button>` +
-    '<p class="account-text account-hint">Sign in to keep your songs in your account and find them on every device. ' +
-    `See the <a href="${PRIVACY_PATH}" data-action="show-help-page" data-page="privacy">privacy policy</a> for what ` +
-    'this means for your data.</p>' +
-    accountNotice(account) + '</section>';
-}
-
-/**
- * The account section at the bottom of the songs panel, under the heading Account: an invitation to sign in, or who is
- * signed in, with buttons to sign out and to delete the account. Deleting it asks first, in the section itself. Empty
- * where the page has no account.
- */
-function accountSection(account, deletingAccount) {
-  if (!account) {
-    return '';
-  }
-  return '<h2 class="options-heading">Account</h2>' + accountCard(account, deletingAccount);
-}
-
-/** The card of the account section (see accountSection). */
-function accountCard(account, deletingAccount) {
-  if (!account.person) {
-    return signInSection(account);
-  }
-  if (deletingAccount) {
-    return '<section class="account is-deleting" aria-label="Account">' +
-      '<p class="account-text">Delete your account and every song saved in it? This cannot be undone.</p>' +
-      '<div class="account-buttons">' +
-      '<button type="button" class="chip is-on" data-action="confirm-delete-account">Delete account</button>' +
-      '<button type="button" class="chip" data-action="cancel-delete-account">Keep it</button></div></section>';
-  }
-  return '<section class="account" aria-label="Account">' +
-    `<p class="account-text">Signed in as ${personLabel(account.person)}.</p>` +
-    '<div class="account-buttons">' +
-    '<button type="button" class="chip" data-action="sign-out">Sign out</button>' +
-    '<button type="button" class="chip" data-action="delete-account">Delete account</button></div>' +
-    accountNotice(account) + '</section>';
-}
-
-/** The list of saved songs, or a note while there are none, or while the songs of the account have not come yet. */
 function songList(state, editing, account) {
   if (account?.loading) {
     return '<p class="songs-empty">Loading the songs of your account…</p>';
@@ -181,15 +113,15 @@ function songList(state, editing, account) {
   if (state.songs.length === 0) {
     return '<p class="songs-empty">No saved songs yet. Save the song that is shown to find it here again.</p>';
   }
-  return `<ul class="saved-songs">${state.songs.map((song) => songItem(song, state, editing)).join('')}</ul>`;
+  return `<ul class="saved-songs">${state.songs.map((song) => songItem(song, state, editing)).join('')}</ul>` +
+    '<p class="songs-hint">Click a song to load it with its options.</p>';
 }
 
 /**
  * Renders the songs panel. `draft` is the name typed into the field so far, kept over a re-render; the field is empty
  * after a song is saved. `editing` names the saved song that is being renamed (`renaming`) or is about to be deleted
- * (`deleting`), by its id, and whether the panel asks whether to delete the account (`deletingAccount`). `account` is
- * null where the page has no account, else the person who is signed in (null if no one), whether their songs are still
- * `loading`, and a `notice` of the account section (e.g. why the account could not be deleted). Once SONG_LIMIT songs are saved, or while the songs load, the Save button is greyed out.
+ * (`deleting`), by its id. `account` is null where the page has no account, else whether the songs of the person who is
+ * signed in are still `loading`. Once SONG_LIMIT songs are saved, or while the songs load, the Save button is greyed out.
  */
 export function renderSongs(state, draft = '', editing = {}, account = null) {
   const full = songsFull(state);
@@ -200,7 +132,7 @@ export function renderSongs(state, draft = '', editing = {}, account = null) {
     `placeholder="Name (optional)" aria-label="Name of the song" value="${escapeHtml(draft)}">` +
     `<button type="submit" class="chip is-on save-song-button" aria-label="Save song" title="Save song"${blocked ? ' disabled' : ''}>` +
     `${SAVE_ICON}</button></form>` +
+    '<p class="songs-hint">Saves the song shown.</p>' +
     (full ? `<p class="songs-full">At most ${SONG_LIMIT} songs can be saved. Delete one to save another.</p>` : '');
-  return save + '<h2 class="options-heading">Saved songs</h2>' + songList(state, editing, account) +
-    accountSection(account, editing.deletingAccount === true);
+  return save + '<h2 class="options-heading">Saved songs</h2>' + songList(state, editing, account);
 }

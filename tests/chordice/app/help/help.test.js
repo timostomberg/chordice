@@ -44,8 +44,8 @@ test('the help page sits next to help.js', () => {
 test('renderHelp takes the main part of the help page without the link back to the app', () => {
   const html = renderHelp(help());
   assert.ok(html.startsWith('<div class="help">'));
-  assert.ok(html.includes('<h2>What Chordice does</h2>'));
-  assert.ok(html.includes('<h2 id="exercises">Exercises</h2>'));
+  assert.ok(html.includes('<h2>Help</h2>'));
+  assert.match(html, /<h2 id="exercises"><span class="help-icon"><svg[^]*?<\/svg><\/span>Exercises<\/h2>/);
   assert.ok(!html.includes('help-footer'));
   assert.ok(!html.includes('Back to Chordice'));
   assert.ok(!html.includes('<main'));

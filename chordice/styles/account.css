@@ -1,0 +1,72 @@
+/* The account panel: the account section and the Reset Settings section, each a card in the paper look of the options
+   sections. */
+
+/* The cards of the account panel: the account section, with the invitation to sign in, or who is signed in and the buttons
+   to sign out and to delete the account; and the Reset Settings section with its button. */
+.account {
+  margin-bottom: 1rem;
+  padding: 0.6rem 1rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 16px 12px 18px 13px / 13px 17px 12px 16px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+/* While a card asks whether to delete the account or to reset the settings, it has the accent border. */
+.account.is-deleting,
+.account.is-resetting {
+  border-color: var(--accent);
+}
+
+.account-text {
+  margin: 0 0 0.6rem;
+  overflow-wrap: anywhere;
+  color: var(--text-soft);
+}
+
+/* The link to the privacy policy, in the blue of the links of the help. */
+.account-text a {
+  color: var(--icon-blue);
+}
+
+.account-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* The Sign in with Google button, on the left of the card above its note: the G of Google beside its label. */
+.account-sign-in {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  width: fit-content;
+  margin: 0.2rem 0 0.6rem;
+}
+
+/* The note under a button of a card (e.g. Sign in with Google): smaller and paler than the text of the card, so the
+   button leads. */
+.account-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* Under a row of buttons, the note keeps the gap that the Sign in with Google button keeps below it. */
+.account-buttons + .account-hint {
+  margin-top: 0.6rem;
+}
+
+.account-sign-in svg {
+  display: block;
+  flex: none;
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+/* What went wrong with the account (e.g. why it could not be deleted). */
+.account-notice {
+  margin: 0.6rem 0 0;
+  color: var(--text);
+  font-weight: 600;
+}

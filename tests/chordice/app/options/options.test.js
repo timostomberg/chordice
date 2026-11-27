@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { JSDOM } from 'jsdom';
 import { renderExercises, renderOptions } from '../../../../chordice/app/options/options.js';
 import { buildLibrary } from '../../../../chordice/music/data/validate.js';
 import { defaultState, toggleSection } from '../../../../chordice/app/state/state.js';
@@ -15,14 +16,14 @@ test('renderOptions shows progressions and groups as pressed chips', () => {
   const state = { ...defaultState(LIBRARY, () => 0.5), collapsed: [] };
   const html = renderOptions(state, LIBRARY);
   assert.ok(html.includes('class="chip is-on" aria-pressed="true" data-action="toggle-progression" data-id="Pop / Pop Progression">Pop Progression</button>'));
-  assert.ok(html.includes('class="chip is-on" aria-pressed="true" data-action="toggle-group" data-group="Pop">Pop</button>'));
+  assert.ok(html.includes('class="chip is-on" aria-pressed="true" data-action="toggle-group" data-group="Pop" title="All Pop progressions">Pop</button>'));
 });
 
 test('renderOptions shows unselected progressions and groups as not pressed', () => {
   const state = { ...defaultState(LIBRARY, () => 0.5), selection: [], collapsed: [] };
   const html = renderOptions(state, LIBRARY);
   assert.ok(html.includes('class="chip" aria-pressed="false" data-action="toggle-progression" data-id="Pop / Pop Progression">Pop Progression</button>'));
-  assert.ok(html.includes('class="chip" aria-pressed="false" data-action="toggle-group" data-group="Pop">Pop</button>'));
+  assert.ok(html.includes('class="chip" aria-pressed="false" data-action="toggle-group" data-group="Pop" title="All Pop progressions">Pop</button>'));
 });
 
 test('the sliders sit in their own sections: rotation and permutation in Progression variations, the amount slider above the chord variation chips, and the bass amount alone in Bass variations', () => {
@@ -127,7 +128,7 @@ test('a collapsed section with nothing selected has an empty summary', () => {
 
 test('the progressions section wraps its groups in a list that scrolls on its own', () => {
   const html = renderOptions({ ...defaultState(LIBRARY, () => 0.5), collapsed: [] }, LIBRARY);
-  const list = /<div class="progression-list">([\s\S]*?)<\/div><\/section>/.exec(html)?.[1] ?? '';
+  const list = /<div class="progression-list">([\s\S]*?)<\/div><p class="option-hint">/.exec(html)?.[1] ?? '';
   assert.ok(list.includes('<fieldset class="group">'));
 });
 
@@ -435,4 +436,31 @@ test('while a saved song is shown frozen, its sections can be opened to show the
   // Collapsed, a frozen section can be opened.
   const collapsed = renderOptions({ ...frozen, collapsed: ['progressions'] }, APP_LIBRARY);
   assert.ok(collapsed.includes('data-section="progressions" aria-expanded="false">'));
+});
+
+test('every open section ends with one short note; a collapsed section shows its summary instead', () => {
+  const open = { ...defaultState(LIBRARY), collapsed: [], inversions: true };
+  const document = new JSDOM(`<body>${renderOptions(open, LIBRARY)}${renderExercises(open, LIBRARY)}</body>`).window.document;
+  const sections = [...document.querySelectorAll('section.option')];
+  assert.equal(sections.length, 6);
+  for (const section of sections) {
+    assert.equal(section.querySelectorAll('.option-hint').length, 1);
+    assert.equal(section.lastElementChild.className, 'option-hint');
+  }
+  const notes = sections.map((section) => section.lastElementChild.textContent);
+  assert.deepEqual(notes, [
+    'The rows are drawn from the progressions picked here.',
+    'Rotations: how often a row starts on another chord. Permutations: how often its chords are shuffled.',
+    'Amount: how often a chord gets one of the variations picked here.',
+    'How often a chord gets another bass note.',
+    'How far the melody may jump.',
+    'An exercise fixes some options to practise one thing.',
+  ]);
+  assert.ok(!renderOptions(defaultState(LIBRARY), LIBRARY).includes('option-hint'));
+});
+
+test('the buttons beside the headings say what they do when the pointer rests on them', () => {
+  const html = renderOptions(defaultState(LIBRARY), LIBRARY);
+  assert.ok(html.includes('title="Number of progressions: 1, 2, 4 or 8"'));
+  assert.ok(html.includes('title="Melody: each chord in an inversion by its top note"'));
 });

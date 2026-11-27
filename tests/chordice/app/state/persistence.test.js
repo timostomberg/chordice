@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   COOKIE_NAME,
+  DEVICE_SETTINGS,
   STORAGE_KEY,
   cookiePathOf,
   parseCookie,
@@ -9,7 +10,9 @@ import {
   readState,
   sanitizeState,
   serializeCookie,
+  serializeSettings,
   serializeStored,
+  withSettings,
 } from '../../../../chordice/app/state/persistence.js';
 import { defaultState, SECTIONS } from '../../../../chordice/app/state/state.js';
 import { SEED_NAMES } from '../../../../chordice/music/generator/random.js';
@@ -265,4 +268,36 @@ test('a broken frozen song in the cookie is none', () => {
   assert.equal(sanitizeState({ frozen: 3 }, LIBRARY, FIXED).frozen, null);
   assert.equal(sanitizeState({ frozen: '' }, LIBRARY, FIXED).frozen, null);
   assert.equal(sanitizeState({}, LIBRARY, FIXED).frozen, null);
+});
+
+test('the settings of an account leave out the saved songs and whether the side panel is open and what it shows', () => {
+  const state = { ...defaultState(LIBRARY, FIXED), key: 'E', showOptions: false, panel: 'songs', songs: [{ id: 'a' }] };
+  const settings = JSON.parse(serializeSettings(state));
+  assert.deepEqual(DEVICE_SETTINGS, ['showOptions', 'panel']);
+  for (const name of [...DEVICE_SETTINGS, 'songs']) {
+    assert.ok(!Object.hasOwn(settings, name), `${name} is left out`);
+  }
+  assert.equal(settings.key, 'E');
+  // The song that is shown is synced across the devices.
+  assert.deepEqual(settings.seeds, state.seeds);
+});
+
+test('withSettings takes the settings of an account, and keeps the songs and the side panel of the device', () => {
+  const songs = [{ id: 'a' }];
+  const here = { ...defaultState(LIBRARY, FIXED), showOptions: false, panel: 'account', songs };
+  const there = { ...defaultState(LIBRARY, () => 0.9), key: 'A', theme: 'dark', instrument: 'guitar', showOptions: true, panel: 'help' };
+  const next = withSettings(here, serializeSettings(there), LIBRARY);
+  assert.deepEqual(next, { ...there, showOptions: false, panel: 'account', songs });
+  assert.equal(next.songs, songs);
+});
+
+test('withSettings makes the settings of an account valid, and leaves the state as it is for broken ones', () => {
+  const state = defaultState(LIBRARY, FIXED);
+  const next = withSettings(state, JSON.stringify({ key: 'nowhere', theme: 'dark', count: 3 }), LIBRARY, FIXED);
+  assert.equal(next.key, 'C');
+  assert.equal(next.theme, 'dark');
+  assert.equal(next.count, 4);
+  for (const broken of ['{', '[]', 'null', '7', null]) {
+    assert.equal(withSettings(state, broken, LIBRARY), state);
+  }
 });

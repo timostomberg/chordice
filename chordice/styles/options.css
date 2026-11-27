@@ -301,3 +301,15 @@
 .side-panel .help > :first-child {
   margin-top: 0;
 }
+
+/* The short note at the bottom of an open section: small and pale, like the notes of the songs and the account panel.
+   Under chips it keeps a gap; under a slider, whose label keeps one already, it moves up a little. */
+.option-hint {
+  margin: 0.8rem 0 0.2rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.slider + .option-hint {
+  margin-top: 0;
+}

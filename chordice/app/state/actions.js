@@ -88,10 +88,11 @@ export function applyAction(state, action, params, library, random = Math.random
     'set-probability': () => setProbability(state, params.option, params.value),
     'toggle-exercise': () => toggleExercise(state, params.exercise),
     'clear-exercise': () => clearExercise(state),
-    // The Options, Exercises, Songs and Help buttons: one switch of four, like the instrument tabs (see choosePanel).
+    // The Options, Exercises, Songs, Help and Account buttons: one switch of five, like the instrument tabs (see choosePanel).
     'toggle-options': () => choosePanel(state, 'options'),
     'toggle-exercises': () => choosePanel(state, 'exercises'),
     'toggle-songs': () => choosePanel(state, 'songs'),
+    'toggle-account': () => choosePanel(state, 'account'),
     'toggle-help': () => choosePanel(state, 'help'),
     'toggle-section': () => toggleSection(state, params.section),
     'toggle-theme': () => toggleTheme(state),

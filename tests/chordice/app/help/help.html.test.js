@@ -49,7 +49,7 @@ test('the help page links back to the app', () => {
   assert.ok(existsSync(fileURLToPath(new URL('../../../index.html', SITE))));
 });
 
-test('the help page covers the circle of fifths, every options section, the toolbar and the notes window', () => {
+test('the help page covers the circle of fifths, every options section, the view and the notes window', () => {
   const html = help();
   const topics = [
     'The circle of fifths',
@@ -59,33 +59,28 @@ test('the help page covers the circle of fifths, every options section, the tool
     'Bass variations',
     'Melody variations',
     'Exercises',
-    'The toolbar',
+    'View',
     'New Song',
     'Viewing the chords',
-    'The notes window',
-    'Saved settings',
   ];
   for (const topic of topics) {
-    assert.ok(new RegExp(`<h[23][^>]*>${topic}</h[23]>`).test(html), `a heading for ${topic}`);
+    // A heading may start with the icon of its button.
+    assert.ok(new RegExp(`<h[23][^>]*>(?:<span class="help-icon"><svg[^]*?</svg></span>)*${topic}</h[23]>`).test(html), `a heading for ${topic}`);
   }
 });
 
 test('the help page explains the controls of the page by their labels', () => {
   const html = help();
-  for (const label of ['Rotations', 'Permutations', 'Amount', '#b', 'Options button', 'Exercises button', 'Help button', 'Roman numerals button',
+  for (const label of ['Rotations', 'Permutations', 'Amount', '#b', 'Options button', 'Exercises button', 'Roman numerals button',
     'Chord tones button', 'Colours button', 'Dark mode button', 'Piano', 'Guitar', 'Melody button']) {
     assert.ok(html.includes(label), label);
   }
 });
 
-test('every in-page link on the help page points to an id that exists on the page', () => {
-  const html = help();
-  const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]));
-  const targets = [...html.matchAll(/href="#([^"]+)"/g)].map((match) => match[1]);
-  assert.ok(targets.length >= 2, 'the page links to its own sections');
-  for (const target of targets) {
-    assert.ok(ids.has(target), target);
-  }
+test('the help links only to the imprint, the privacy policy and back to Chordice, not to its own sections', () => {
+  const main = /<main class="help">[\s\S]*?<\/main>/.exec(help())[0];
+  const links = [...main.matchAll(/<a [^>]*href="([^"]+)"/g)].map((match) => match[1]);
+  assert.deepEqual(links, ['imprint.html', 'privacy.html', '../../../index.html']);
 });
 
 test('every local link on the help page and in the app points to a file that exists', () => {
@@ -156,47 +151,21 @@ test('the help page tells how Chordice works on a phone or tablet: the home scre
   }
 });
 
-/**
- * The progression examples of the help page as [name, progression, genre, romans, chords], each cell as plain text, with the raised
- * accidentals written as # and b again, as the library and tonal spell them.
- */
-const exampleRows = () => [...help().matchAll(/<tr data-progression="([^"]+)">([\s\S]*?)<\/tr>/g)].map(([, name, cells]) => [
-  name,
-  ...[...cells.matchAll(/<td>([\s\S]*?)<\/td>/g)].map(([, cell]) => cell.replace(/<[^>]+>/g, '').replaceAll('♯', '#').replaceAll('♭', 'b')),
-]);
-
-test('the accidentals in the progression examples are raised signs, as in the app', () => {
-  const html = help();
-  assert.ok(html.includes('<td>I – <span class="accidental">♭</span>VII – IV</td>'));
-  assert.ok(html.includes('<td>C – B<span class="accidental">♭</span> – F</td>'));
-});
-
-test('every progression example on the help page is a progression of the library, with the same roman numerals', () => {
-  const library = PROGRESSIONS_DATA;
-  const rows = exampleRows().map(([name, , , romans]) => [null, name, romans]);
-  assert.ok(rows.length >= 5);
-  for (const [, name, romans] of rows) {
-    const group = Object.values(library).find((entry) => Object.hasOwn(entry.progressions ?? {}, name));
-    assert.ok(group, `${name} is in the library`);
-    assert.equal(romans, group.progressions[name].join(' – '), name);
-  }
-});
-
-test('the chord symbols in the progression examples are the chords of the key of C, as tonal spells them', async () => {
+test('the help gives one progression example in the text, from the library, with its chords in C as tonal spells them', async () => {
   const { Progression } = await import('tonal');
-  const rows = exampleRows().map(([name, , , romans, chords]) => [null, name, romans, chords]);
-  assert.ok(rows.length >= 5);
-  for (const [, name, romans, chords] of rows) {
-    const numerals = romans.split(' – ');
-    assert.equal(chords, Progression.fromRomanNumerals('C', numerals).join(' – '), name);
-  }
+  const text = new JSDOM(help()).window.document.querySelector('main').textContent.replace(/\s+/g, ' ');
+  assert.equal(new JSDOM(help()).window.document.querySelector('table'), null, 'no table');
+  const [, name, romans, chords] = /e\.g\. the (.+?) (I[^,]+), in C: ([^.]+)\./.exec(text);
+  assert.equal(romans, PROGRESSIONS_DATA.Pop.progressions[name].join(' – '));
+  assert.equal(chords, Progression.fromRomanNumerals('C', romans.split(' – ')).join(' – '));
 });
 
-test('the help page shows the icon of every control in the toolbar list, and the icon is drawn by an svg', () => {
+test('the help page shows the icon of every control in the View list, and the icon is drawn by an svg', () => {
   const html = help();
   const list = /<ul class="help-controls">[\s\S]*?<\/ul>/.exec(html)?.[0] ?? '';
   const items = list.split('<li>').slice(1);
-  assert.equal(items.length, 8);
+  assert.equal(items.length, 6);
+  assert.ok(!list.includes('Help button'), 'the Help button needs no words');
   for (const item of items) {
     assert.match(item, /^<span class="help-icon"><svg /);
   }
@@ -207,8 +176,8 @@ test('the melody icon matches the one on the Melody button in the app', () => {
   // The icon is one JS expression joined over several lines, from its declaration to the semicolon.
   const melody = /const MELODY_ICON = ([^;]+);/.exec(options)?.[1];
   assert.ok(melody);
-  const icon = /<span class="help-icon">(<svg[^]*?<\/svg>)<\/span>\s*The Melody button/.exec(help())?.[1];
-  assert.ok(icon, 'the melody paragraph shows the icon');
+  const icon = /The Melody button <span class="help-icon">(<svg[^]*?<\/svg>)<\/span> shows/.exec(help())?.[1];
+  assert.ok(icon, 'the text shows the icon right after the Melody button');
   // The app's icon is written in a JS string with ' + ' joins; compare its drawing parts.
   for (const part of ['translate(3 0)', 'cx="7" cy="17.5"', 'M9.8 17V4c0 0 .4 3.2 4.2 5.2']) {
     assert.ok(melody.includes(part) && icon.includes(part), part);
@@ -234,8 +203,78 @@ test('the help page explains the circle of fifths beside the chords and its arro
   assert.ok(html.includes('arrow button in the middle of the circle'));
 });
 
-test('the help page says what signing out and deleting the account do', () => {
+test('the help page says briefly what the account, signing out, deleting it and Reset settings do', () => {
   const text = new JSDOM(help()).window.document.querySelector('main').textContent.replace(/\s+/g, ' ');
-  assert.ok(text.includes('Sign out leaves them in your account and removes them from this browser'));
+  assert.ok(text.includes('Sign in with Google keeps your songs and settings in your account, on every device'));
+  assert.ok(text.includes('Sign out leaves them in your account and removes the songs from this browser'));
   assert.ok(text.includes('after Google has asked you to sign in once more'));
+  assert.ok(text.includes('Reset settings sets every setting back to its default. Your saved songs stay.'));
+});
+
+test('the help page is short: no paragraph or list item of it runs over three hundred characters', () => {
+  const document = new JSDOM(help()).window.document;
+  const long = [...document.querySelectorAll('main p, main li')]
+    .map((element) => element.textContent.replace(/\s+/g, ' ').trim())
+    .filter((text) => text.length > 300);
+  assert.deepEqual(long, []);
+});
+
+test('the View list names only the buttons that no section below explains, in the order of the header', () => {
+  const index = readFileSync(new URL('index.html', ROOT), 'utf8');
+  const toolbar = /<header class="toolbar"[\s\S]*?<\/header>/.exec(index)[0];
+  const classes = [...toolbar.matchAll(/<button type="button" class="([\w-]+)/g)].map((match) => match[1]);
+  const names = {
+    'instrument-tab': 'Instrument tabs', 'roman-toggle': 'Roman numerals button', 'tones-toggle': 'Chord tones button',
+    'colour-toggle': 'Colours button', 'painting-toggle': 'Painting button', 'theme-toggle': 'Dark mode button',
+  };
+  // The other buttons open a panel or choose a window that has a section of its own; its heading shows their icon.
+  const inHeadings = {
+    'options-toggle': 'The options panel', 'exercises-toggle': 'Exercises', 'songs-toggle': 'Saved songs',
+    'account-toggle': 'Account',
+  };
+  // The Help button needs no words: it shows the help itself.
+  const unnamed = ['help-toggle'];
+  assert.deepEqual(classes.filter((name) => ![names, inHeadings].some((map) => Object.hasOwn(map, name)) && !unnamed.includes(name)), []);
+  const expected = [...new Set(classes.filter((name) => Object.hasOwn(names, name)).map((name) => names[name]))];
+  const list = /<ul class="help-controls">[\s\S]*?<\/ul>/.exec(help())[0];
+  assert.deepEqual([...list.matchAll(/<strong>([^<]+)<\/strong>/g)].map((match) => match[1]), expected);
+  const drawing = (svg) => [...svg.matchAll(/<(?:path|circle|rect|ellipse) [^>]*?\/>/g)].map((match) => match[0]);
+  for (const [name, heading] of Object.entries(inHeadings)) {
+    const buttons = [...toolbar.matchAll(new RegExp(`<button[^>]*class="${name}[\\s\\S]*?<\\/button>`, 'g'))].map((match) => match[0]);
+    const icons = new RegExp(`<h2[^>]*>((?:<span class="help-icon"><svg(?:(?!<svg|<h2)[^])*?</svg></span>)+)${heading}</h2>`).exec(help())?.[1];
+    assert.ok(icons, `the heading ${heading} shows the icon`);
+    const shown = [...icons.matchAll(/<svg[^]*?<\/svg>/g)].map((match) => drawing(match[0]));
+    assert.deepEqual(shown, buttons.map(drawing), heading);
+  }
+});
+
+test('the help explains the view and the panels of the header first, and the rest after them', () => {
+  const headings = [...help().matchAll(/<h2[^>]*>(?:<span class="help-icon"><svg(?:(?!<svg)[^])*?<\/svg><\/span>)*([^<]+)<\/h2>/g)].map((match) => match[1]);
+  // First the view and the panels of the buttons in the header, then the rest.
+  assert.deepEqual(headings, ['Help', 'View', 'The options panel', 'Exercises', 'Saved songs', 'Account',
+    'The circle of fifths', 'Viewing the chords', 'New Song', 'On a phone or tablet', 'Legal']);
+  assert.ok(!headings.includes('The toolbar') && !headings.includes('What Chordice does'));
+});
+
+test('the help starts with one sentence of what Chordice does', () => {
+  const first = /<h2>Help<\/h2>\s*<p>([^]*?)<\/p>/.exec(help())[1];
+  assert.equal(first, 'Chordice generates chord progressions for practice.');
+});
+
+test('the account part tells where the settings are kept, and Viewing the chords starts with the chord tones and the melody note', () => {
+  const document = new JSDOM(help()).window.document;
+  const after = (id) => {
+    const texts = [];
+    for (let node = document.getElementById(id).nextElementSibling; node && node.tagName !== 'H2'; node = node.nextElementSibling) {
+      texts.push(node.textContent.replace(/\s+/g, ' ').trim());
+    }
+    return texts;
+  };
+  const account = after('account');
+  assert.ok(account.some((text) => text.startsWith('Your settings are kept in this browser and, signed in, in your account.')));
+  assert.ok(account.some((text) => text.startsWith('Reset settings sets every setting back to its default.')));
+  const viewing = after('viewing-chords');
+  assert.match(viewing[0], /^With the Chord tones button on, .* its melody note too\.$/);
+  // The notes window is part of it, without a heading of its own.
+  assert.ok(viewing.some((text) => text.startsWith('Click a chord to open its notes.')));
 });

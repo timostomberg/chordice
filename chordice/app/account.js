@@ -1,9 +1,12 @@
 /**
- * The account: signing in with Google through Firebase Authentication, and the saved songs of the account in Firestore.
+ * The account: signing in with Google through Firebase Authentication, and the saved songs and the settings of the account
+ * in Firestore.
  *
  * The songs of an account are kept in one document, users/{uid}, as a record from the id of each song to the song (see
  * songsRecord in state/songs.js): one read gives every song, and a song is written or removed by its own field, so that
- * two devices that change the songs at once do not undo each other. Firestore keeps a copy of the document in the
+ * two devices that change the songs at once do not undo each other. The settings are a field of their own in the same
+ * document, as text (see serializeSettings in state/persistence.js); as they change with nearly every click, a change is
+ * written only once no other has followed for SETTINGS_WAIT. Firestore keeps a copy of the document in the
  * browser, so the songs are there without a network too, and writes made offline are sent once it is back. Signing out
  * removes that copy from the browser, so that the songs of an account do not stay on a device it has left.
  *
@@ -48,6 +51,12 @@ const NO_POPUP = ['auth/popup-blocked', 'auth/operation-not-supported-in-environ
 /** How long signing out waits for the changes that have not reached the account yet, in milliseconds. */
 export const PENDING_WAIT = 3000;
 
+/** The longest settings (text, see serializeSettings) that firestore.rules lets an account keep. */
+export const SETTINGS_LIMIT = 10000;
+
+/** How long a change of the settings waits for the next one before it is written to the account, in milliseconds. */
+export const SETTINGS_WAIT = 2000;
+
 /** The message when signing out would lose changes that have not reached the account yet. */
 export const UNSENT = 'Some changes have not reached your account yet. Sign out once there is a connection.';
 
@@ -82,17 +91,30 @@ export function messageOf(error, host = globalThis.location?.hostname) {
 /**
  * Connects the page to the account. Returns null without a Firebase project. `onPerson` is called with the person who is
  * signed in (see personOf), or null, at the start and whenever they sign in or out; `onSongs` with the record of their
- * songs (see songsRecord) and whether the account has `confirmed` them (else they come from the copy in the browser, which
- * may be behind), at first and whenever the songs change, on this device or another one; `onError` with a message when
- * something goes wrong that the person should know. `pendingWait` is how long signing out waits for unsent changes.
+ * songs (see songsRecord), their `settings` (text, or null while the account has none) and whether the account has
+ * `confirmed` them (else they come from the copy in the browser, which may be behind), at first and whenever the songs or
+ * the settings change, on this device or another one; `onError` with a message when something goes wrong that the person
+ * should know. `pendingWait` is how long signing out waits for unsent changes, `settingsWait` how long a change of the
+ * settings waits for the next one.
  */
-export function connectAccount({ onPerson, onSongs, onError }, { config = FIREBASE_CONFIG, load = loadFirebase, pendingWait = PENDING_WAIT } = {}) {
+export function connectAccount(
+  { onPerson, onSongs, onError },
+  { config = FIREBASE_CONFIG, load = loadFirebase, pendingWait = PENDING_WAIT, settingsWait = SETTINGS_WAIT } = {},
+) {
   if (!config) {
     return null;
   }
   const report = (error) => {
     console.error('Chordice account:', error);
     onError(messageOf(error));
+  };
+  // The settings that wait to be written (see writeSettings), or null, and the timer that writes them.
+  let pendingSettings = null;
+  let settingsTimer = null;
+  const dropSettings = () => {
+    clearTimeout(settingsTimer);
+    settingsTimer = null;
+    pendingSettings = null;
   };
   const ready = load().then((sdk) => {
     const { app, auth, firestore } = sdk;
@@ -119,6 +141,8 @@ export function connectAccount({ onPerson, onSongs, onError }, { config = FIREBA
     // Each change of the person counts, so that the songs of someone who has signed out since are not followed.
     let turn = 0;
     auth.onAuthStateChanged(session, (user) => {
+      // Settings that wait to be written belong to the person who was signed in.
+      dropSettings();
       stopSongs?.();
       stopSongs = null;
       const current = ++turn;
@@ -133,11 +157,15 @@ export function connectAccount({ onPerson, onSongs, onError }, { config = FIREBA
             return;
           }
           // Also a change of the metadata alone is followed, so that the page learns when the account confirms songs that
-          // first came from the copy in the browser.
+          // first came from the copy in the browser. Settings that wait to be written are newer than those of the document.
           stopSongs = firestore.onSnapshot(
             firestore.doc(db, USERS, user.uid),
             { includeMetadataChanges: true },
-            (snapshot) => onSongs(snapshot.data()?.songs ?? {}, { confirmed: !snapshot.metadata.fromCache }),
+            (snapshot) => {
+              const data = snapshot.data();
+              const settings = pendingSettings ?? (typeof data?.settings === 'string' ? data.settings : null);
+              onSongs(data?.songs ?? {}, { confirmed: !snapshot.metadata.fromCache, settings });
+            },
             report,
           );
         });
@@ -180,6 +208,22 @@ export function connectAccount({ onPerson, onSongs, onError }, { config = FIREBA
     }
   }
 
+  /** Writes the settings that wait to be written, if any, at once. */
+  async function flushSettings() {
+    clearTimeout(settingsTimer);
+    settingsTimer = null;
+    const target = await own();
+    if (pendingSettings === null) {
+      return;
+    }
+    const settings = pendingSettings;
+    pendingSettings = null;
+    if (!target) {
+      return;
+    }
+    await target.sdk.firestore.setDoc(target.ref, { settings }, { mergeFields: ['settings'] }).catch(report);
+  }
+
   return {
     /**
      * Signs in with Google, in a window of its own; where the browser opens none (e.g. some apps on the home screen), the
@@ -208,6 +252,7 @@ export function connectAccount({ onPerson, onSongs, onError }, { config = FIREBA
      * reached the account yet (e.g. without a network) would be lost with it: then the page says so and stays signed in.
      */
     async signOut() {
+      await flushSettings();
       const target = await own();
       if (!target) {
         return;
@@ -244,7 +289,23 @@ export function connectAccount({ onPerson, onSongs, onError }, { config = FIREBA
     },
 
     /**
-     * Deletes the account and every song in it. Google asks the person to sign in again first, in a window of its own,
+     * Keeps the settings (text, see serializeSettings) in the account of the person who is signed in. They are written once
+     * no other settings have followed for `settingsWait`, or at once with flushSettings, e.g. when the page is closed;
+     * until then the songs are reported with these settings, as the newest ones.
+     */
+    writeSettings(settings) {
+      pendingSettings = settings;
+      clearTimeout(settingsTimer);
+      settingsTimer = setTimeout(() => {
+        flushSettings();
+      }, settingsWait);
+    },
+
+    /** Writes the settings that wait to be written at once (see writeSettings). */
+    flushSettings,
+
+    /**
+     * Deletes the account with its songs and settings. Google asks the person to sign in again first, in a window of its own,
      * as deleting an account needs a recent sign-in; only then are the songs deleted, and then the account, so that
      * nothing is deleted when the person closes the window or the browser opens none. Resolves to null once the account
      * is deleted or the person closed the window, else to a message that says what went wrong.
@@ -257,6 +318,8 @@ export function connectAccount({ onPerson, onSongs, onError }, { config = FIREBA
       const { sdk, user, ref } = target;
       try {
         await sdk.auth.reauthenticateWithPopup(user, new sdk.auth.GoogleAuthProvider());
+        // The settings that wait to be written would create the document again.
+        dropSettings();
         await sdk.firestore.deleteDoc(ref);
         await sdk.auth.deleteUser(user);
         return null;

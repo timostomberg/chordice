@@ -29,6 +29,21 @@ const PROBABILITY_LABELS = {
   melodyAmount: 'Strength',
 };
 
+/** The short note at the bottom of each section while it is open, in the small, pale type of the notes of the panels. */
+const SECTION_HINTS = {
+  progressions: 'The rows are drawn from the progressions picked here.',
+  progressionVariations: 'Rotations: how often a row starts on another chord. Permutations: how often its chords are shuffled.',
+  variations: 'Amount: how often a chord gets one of the variations picked here.',
+  bass: 'How often a chord gets another bass note.',
+  melody: 'How far the melody may jump.',
+  exercises: 'An exercise fixes some options to practise one thing.',
+};
+
+/** A short note in the small, pale type of the notes of the panels. */
+function hint(text) {
+  return `<p class="option-hint">${escapeHtml(text)}</p>`;
+}
+
 function toggleButton(label, attributes, pressed, disabled = false) {
   return `<button type="button" class="chip${pressed ? ' is-on' : ''}" aria-pressed="${pressed}" ${attributes}${disabled ? ' disabled' : ''}>` +
     `${escapeHtml(label)}</button>`;
@@ -66,7 +81,12 @@ function progressionGroups(state, library) {
       toggleButton(progression.name, `data-action="toggle-progression" data-id="${escapeHtml(progression.id)}"`, selected.has(progression.id), disabled),
     ).join('');
     return `<fieldset class="group"><legend>` +
-      toggleButton(group, `data-action="toggle-group" data-group="${escapeHtml(group)}"`, allSelected, disabled) +
+      toggleButton(
+        group,
+        `data-action="toggle-group" data-group="${escapeHtml(group)}" title="All ${escapeHtml(group)} progressions"`,
+        allSelected,
+        disabled,
+      ) +
       `</legend><div class="chips">${chips}</div></fieldset>`;
   }).join('');
 }
@@ -159,7 +179,7 @@ function countButton(state) {
   // With the circle of fifths switch on, the count is fixed at one per key: it shows 12 and is greyed out.
   const disabled = isUnavailable(state, 'count');
   return `<button type="button" class="chip count-toggle" data-action="cycle-count" aria-label="Number of progressions" ` +
-    `title="Number of progressions"${disabled ? ' disabled' : ''}>${effectiveState(state).count}</button>`;
+    `title="Number of progressions: 1, 2, 4 or 8"${disabled ? ' disabled' : ''}>${effectiveState(state).count}</button>`;
 }
 
 /**
@@ -187,7 +207,8 @@ function melodyButton(state) {
   const on = exerciseState(state).inversions;
   const disabled = isUnavailable(state, 'inversions');
   return `<button type="button" class="chip melody-toggle${on ? ' is-on' : ''}" aria-pressed="${on}" ` +
-    `data-action="toggle-melody" data-flag="inversions" aria-label="Melody" title="Melody"${disabled ? ' disabled' : ''}>${MELODY_ICON}</button>`;
+    'data-action="toggle-melody" data-flag="inversions" aria-label="Melody" ' +
+    `title="Melody: each chord in an inversion by its top note"${disabled ? ' disabled' : ''}>${MELODY_ICON}</button>`;
 }
 
 /**
@@ -236,7 +257,7 @@ function optionSection(name, state, library) {
   const header = sideButton
     ? `<h2 class="section-header${expanded ? ' is-expanded' : ''}">${toggle}${sideButton}</h2>`
     : `<h2>${toggle}</h2>`;
-  const body = expanded ? sectionBody(name, state, library) : '';
+  const body = expanded ? sectionBody(name, state, library) + hint(SECTION_HINTS[name]) : '';
   const classes = `option${expanded ? '' : ' is-collapsed'}${unavailable ? ' is-unavailable' : ''}`;
   return `<section class="${classes}">${header}${body}</section>`;
 }

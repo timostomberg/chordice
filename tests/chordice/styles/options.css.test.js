@@ -71,3 +71,12 @@ test('the circle of fifths button beside the chords is filled blue when on, like
   assert.ok(/\.options \.chip \{[^}]*border-color: var\(--icon-blue\)/.test(CSS));
   assert.ok(!/\.song-circle \.chip \{/.test(CSS) && !/\.song-circle \.chip,/.test(CSS));
 });
+
+test('the notes of the options are small and pale, like those of the other panels', () => {
+  const note = /\n\.option-hint\s*\{([^}]*)\}/.exec(readCss('options.css'))?.[1] ?? '';
+  assert.match(note, /font-size: 0\.85rem/);
+  assert.match(note, /color: var\(--muted\)/);
+  // Under the chips of the progressions, the variations and the exercises, it keeps a gap above it.
+  assert.match(note, /margin: 0\.8rem 0 0\.2rem/);
+  assert.match(/\n\.slider \+ \.option-hint\s*\{([^}]*)\}/.exec(readCss('options.css'))?.[1] ?? '', /margin-top: 0/);
+});
