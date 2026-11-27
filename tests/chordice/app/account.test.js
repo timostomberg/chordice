@@ -405,3 +405,8 @@ test('the person is shown by name and email address; the messages name what went
   assert.equal(messageOf(new Error('x')), 'Something went wrong with the account.');
   assert.equal(messageOf(undefined), 'Something went wrong with the account.');
 });
+
+test('a domain that Firebase does not allow is named in the message', () => {
+  assert.equal(messageOf(failure('auth/unauthorized-domain'), '127.0.0.1'), 'Signing in is not allowed on 127.0.0.1.');
+  assert.equal(messageOf(failure('auth/unauthorized-domain'), ''), 'Signing in is not allowed on this website.');
+});

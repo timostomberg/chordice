@@ -143,12 +143,16 @@ test('without an account, the songs panel offers none', () => {
   }
 });
 
-test('with an account, the songs panel invites to sign in with Google, the only way to sign in, above the name field', () => {
-  const html = renderSongs(withSongs([]), '', {}, { person: null, loading: false });
+test('with an account, the songs panel invites to sign in with Google, the only way to sign in, at the bottom under Account', () => {
+  const html = renderSongs(withSongs(['Song']), '', {}, { person: null, loading: false });
   const document = dom(html);
   const section = document.querySelector('section.account');
   assert.ok(section);
-  assert.ok(html.indexOf('class="account"') < html.indexOf('data-form="save-song"'));
+  // The section is the last part of the panel, after the saved songs, under its own heading.
+  assert.equal(document.body.lastElementChild, section);
+  assert.equal(section.previousElementSibling.tagName, 'H2');
+  assert.equal(section.previousElementSibling.textContent, 'Account');
+  assert.ok(html.indexOf('class="saved-songs"') < html.indexOf('>Account</h2>'));
   // Before signing in, the privacy policy is a click away.
   assert.equal(section.querySelector('a').getAttribute('href'), PRIVACY_PATH);
   assert.equal(section.querySelector('a').dataset.action, 'show-help-page');
@@ -168,7 +172,10 @@ test('with an account, the songs panel invites to sign in with Google, the only 
 test('signed in, the panel names the person, escaped, with Sign out and Delete account', () => {
   const document = dom(renderSongs(withSongs(['Song']), '', {}, { person: ADA, loading: false }));
   const section = document.querySelector('section.account');
-  assert.match(section.textContent, /Signed in as Ada <L> \(ada@example\.org\)/);
+  assert.equal(section.querySelector('.account-text').textContent, 'Signed in as Ada <L> (ada@example.org).');
+  assert.doesNotMatch(section.textContent, /kept in your account/);
+  assert.equal(document.body.lastElementChild, section);
+  assert.equal(section.previousElementSibling.textContent, 'Account');
   assert.equal(section.querySelector('strong').textContent, 'Ada <L>');
   assert.ok(section.querySelector('[data-action="sign-out"]'));
   assert.ok(section.querySelector('[data-action="delete-account"]'));

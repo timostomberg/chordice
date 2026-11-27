@@ -1,4 +1,4 @@
-/* The songs panel: the account section, the name field with its Save button, the list of saved songs, and the note above
+/* The songs panel: the name field with its Save button, the list of saved songs, the account section, and the note above
    the panels while a saved song is shown frozen. The cards share the paper look of the options sections. */
 
 /* The name field and the Save button share one row; the field takes the room that is left. */
@@ -159,7 +159,7 @@
   color: var(--text);
 }
 
-/* The account section at the top of the panel: a paper card with the invitation to sign in, or who is signed in and the
+/* The account section at the bottom of the panel: a paper card with the invitation to sign in, or who is signed in and the
    buttons to sign out and to delete the account. */
 .account {
   margin-bottom: 1rem;

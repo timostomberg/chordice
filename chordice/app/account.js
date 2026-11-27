@@ -56,8 +56,11 @@ export function personOf(user) {
   return user ? { name: user.displayName ?? '', email: user.email ?? '' } : null;
 }
 
-/** A message for the page from an error of Firebase. */
-export function messageOf(error) {
+/**
+ * A message for the page from an error of Firebase. `host` is the domain the page is served from, which a domain that
+ * Firebase does not allow names, so that it is clear which one to add to the authorized domains of the project.
+ */
+export function messageOf(error, host = globalThis.location?.hostname) {
   switch (error?.code) {
     case 'auth/network-request-failed':
     case 'unavailable':
@@ -67,7 +70,7 @@ export function messageOf(error) {
     case 'permission-denied':
       return 'The account refused access to its songs.';
     case 'auth/unauthorized-domain':
-      return 'Signing in is not allowed on this website.';
+      return `Signing in is not allowed on ${host || 'this website'}.`;
     case 'auth/popup-blocked':
     case 'auth/operation-not-supported-in-environment':
       return 'The browser did not open the window of Google. Allow pop-up windows for this website and try again.';

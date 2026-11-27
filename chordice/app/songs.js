@@ -142,13 +142,19 @@ function signInSection(account) {
 }
 
 /**
- * The account section at the top of the songs panel: an invitation to sign in, or who is signed in, with buttons to sign
- * out and to delete the account. Deleting it asks first, in the section itself. Empty where the page has no account.
+ * The account section at the bottom of the songs panel, under the heading Account: an invitation to sign in, or who is
+ * signed in, with buttons to sign out and to delete the account. Deleting it asks first, in the section itself. Empty
+ * where the page has no account.
  */
 function accountSection(account, deletingAccount) {
   if (!account) {
     return '';
   }
+  return '<h2 class="options-heading">Account</h2>' + accountCard(account, deletingAccount);
+}
+
+/** The card of the account section (see accountSection). */
+function accountCard(account, deletingAccount) {
   if (!account.person) {
     return signInSection(account);
   }
@@ -160,7 +166,7 @@ function accountSection(account, deletingAccount) {
       '<button type="button" class="chip" data-action="cancel-delete-account">Keep it</button></div></section>';
   }
   return '<section class="account" aria-label="Account">' +
-    `<p class="account-text">Signed in as ${personLabel(account.person)}. Your songs are kept in your account.</p>` +
+    `<p class="account-text">Signed in as ${personLabel(account.person)}.</p>` +
     '<div class="account-buttons">' +
     '<button type="button" class="chip" data-action="sign-out">Sign out</button>' +
     '<button type="button" class="chip" data-action="delete-account">Delete account</button></div>' +
@@ -195,6 +201,6 @@ export function renderSongs(state, draft = '', editing = {}, account = null) {
     `<button type="submit" class="chip is-on save-song-button" aria-label="Save song" title="Save song"${blocked ? ' disabled' : ''}>` +
     `${SAVE_ICON}</button></form>` +
     (full ? `<p class="songs-full">At most ${SONG_LIMIT} songs can be saved. Delete one to save another.</p>` : '');
-  return accountSection(account, editing.deletingAccount === true) + save +
-    '<h2 class="options-heading">Saved songs</h2>' + songList(state, editing, account);
+  return save + '<h2 class="options-heading">Saved songs</h2>' + songList(state, editing, account) +
+    accountSection(account, editing.deletingAccount === true);
 }
