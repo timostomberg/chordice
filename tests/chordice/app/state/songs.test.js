@@ -3,19 +3,26 @@ import assert from 'node:assert/strict';
 import {
   NAME_LIMIT,
   SONGS_KEY,
+  SONG_LIMIT,
   defaultSongName,
   deleteSong,
   formatDate,
   frozenSong,
+  hasChanges,
   keyLabel,
   loadSong,
+  mergeSongs,
   parseSongs,
   recipeOf,
   renameSong,
   saveSong,
   serializeSongs,
   shownSong,
+  songChanges,
   songSnapshot,
+  songsFromRecord,
+  songsFull,
+  songsRecord,
   unfreezeSong,
   withSongs,
 } from '../../../../chordice/app/state/songs.js';
@@ -306,4 +313,93 @@ test('a frozen song lets its sections be opened and closed, but not its options 
   // A section closed by the exercise stays closed.
   const exercise = { ...frozen, frozen: null, exercise: 'circle-ii-v-i' };
   assert.equal(applyAction(exercise, 'toggle-section', { section: 'progressions' }, LIBRARY), exercise);
+});
+
+/** A saved song of the real library with the id, saved at the minute `minute` of DATE's hour. */
+function songAt(id, minute, name = id) {
+  const date = new Date(2026, 10, 27, 9, minute);
+  return saveSong(richState(), { id, name, date, library: LIBRARY, bassPatterns: BASS_PATTERNS }).songs[0];
+}
+
+test('the song limit keeps the songs of an account below the 1 MiB of its document, with the largest songs', () => {
+  // The largest song: 12 rows (one per key), every progression chosen, every kind of choice on.
+  const largest = saved({ ...richState(), circleOfFifths: true });
+  assert.equal(largest.songs[0].song.rows.length, 12);
+  const size = JSON.stringify(songsRecord(Array.from({ length: SONG_LIMIT }, () => largest.songs[0]))).length;
+  assert.ok(size < 0.85 * 1024 * 1024, `${SONG_LIMIT} songs take ${size} characters`);
+});
+
+test('once the songs are full, saving changes nothing', () => {
+  const songs = Array.from({ length: SONG_LIMIT }, (_, index) => ({ ...songAt('x', 0), id: `s${index}` }));
+  const full = { ...richState(), songs };
+  assert.equal(songsFull(full), true);
+  assert.equal(songsFull({ ...full, songs: songs.slice(1) }), false);
+  assert.equal(saved(full, { id: 'new' }), full);
+  assert.equal(saved({ ...full, songs: songs.slice(1) }, { id: 'new' }).songs.length, SONG_LIMIT);
+});
+
+test('the record of an account keeps each song under its id, and gives the songs back newest first', () => {
+  const older = songAt('older', 1);
+  const newer = songAt('newer', 2);
+  const record = songsRecord([older, newer]);
+  assert.deepEqual(Object.keys(record).sort(), ['newer', 'older']);
+  assert.equal(record.older, older);
+  assert.deepEqual(songsFromRecord(record), [newer, older]);
+  // Through JSON, as the database gives the record back, nothing is lost.
+  assert.deepEqual(songsFromRecord(JSON.parse(JSON.stringify(record))), [newer, older]);
+});
+
+test('songsFromRecord leaves out broken songs and songs under another id, and gives no songs for a broken record', () => {
+  const song = songAt('a', 1);
+  assert.deepEqual(songsFromRecord({ a: song, b: song, c: { id: 'c' }, d: null }), [song]);
+  for (const broken of [null, undefined, 'text', 3, [song]]) {
+    assert.deepEqual(songsFromRecord(broken), [], String(broken));
+  }
+});
+
+test('a song with markup in its snapshot is left out, from the account as from the browser', () => {
+  const song = songAt('a', 1);
+  const evil = JSON.parse(JSON.stringify(song));
+  evil.id = 'evil';
+  evil.song.rows[0].chords[0].function = '"><img src=x onerror=alert(1)>';
+  assert.deepEqual(songsFromRecord({ a: song, evil }), [song]);
+  assert.deepEqual(parseSongs(JSON.stringify([song, evil])), [song]);
+});
+
+test('songChanges finds the new, the changed and the removed songs, but not a new order', () => {
+  const a = songAt('a', 1);
+  const b = songAt('b', 2);
+  const c = songAt('c', 3);
+  const renamed = { ...b, name: 'Renamed' };
+  const changes = songChanges([a, b], [c, renamed]);
+  assert.deepEqual(changes, { put: [c, renamed], remove: ['a'] });
+  assert.equal(hasChanges(changes), true);
+  const none = songChanges([a, b], [b, a]);
+  assert.deepEqual(none, { put: [], remove: [] });
+  assert.equal(hasChanges(none), false);
+  assert.equal(hasChanges({ put: [], remove: ['a'] }), true);
+});
+
+test('mergeSongs adds the songs of the browser to the account, newest first, and skips those it has already', () => {
+  const account = [songAt('a', 5), songAt('b', 1)];
+  const device = [songAt('b', 1, 'B in the browser'), songAt('c', 3), songAt('d', 7)];
+  const { songs, upload, left } = mergeSongs(account, device);
+  assert.deepEqual(songs.map((song) => song.id), ['d', 'a', 'c', 'b']);
+  assert.deepEqual(upload.map((song) => song.id), ['d', 'c']);
+  assert.deepEqual(left, []);
+  // The account's copy of a song both have counts.
+  assert.equal(songs.find((song) => song.id === 'b').name, 'b');
+});
+
+test('mergeSongs keeps the songs that do not fit into the account in the browser, so that none is lost', () => {
+  const account = [songAt('a', 1), songAt('b', 2)];
+  const device = [songAt('c', 3), songAt('d', 4), songAt('e', 5)];
+  const { songs, upload, left } = mergeSongs(account, device, 4);
+  assert.deepEqual(upload.map((song) => song.id), ['e', 'd']);
+  assert.deepEqual(left.map((song) => song.id), ['c']);
+  assert.equal(songs.length, 4);
+  // An account that is full already takes none.
+  assert.deepEqual(mergeSongs(account, device, 2).upload, []);
+  assert.equal(mergeSongs(account, device, 2).left.length, 3);
+  assert.deepEqual(mergeSongs([], []), { songs: [], upload: [], left: [] });
 });

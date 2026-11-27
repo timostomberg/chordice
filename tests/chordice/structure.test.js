@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 //   cookie, which options are available) as pure functions; each window (the header, the options on the left, the song
 //   on the right, the notes dialog, the help page) turns it into HTML and SVG and handles the window's elements, each
 //   standing on its own and sharing only escape.js, names.js and chord.js; app.js loads the data and wires the events to the
-//   state and the windows; main.js starts it. A part of one file is a file directly in app/ (e.g. header.js); only a
+//   state, the windows and the account (account.js); main.js starts it. A part of one file is a file directly in app/ (e.g. header.js); only a
 //   part of several files that belong together has a folder of its own (e.g. options/, notes/, help/).
 // - styles/ is the look of the page: every stylesheet and nothing else, side by side without folders. main.css is the base
 //   stylesheet; every other one is named after the module or page in app/ it styles (e.g. options.css for options.js).
@@ -25,7 +25,8 @@ const WINDOWS = { header: 'header.js', options: 'options', song: 'song', notes: 
 const SHARED = ['app/escape.js', 'app/names.js', 'app/chord.js'];
 // device.js is what main.js asks of the device (the screen kept on, the service worker); it belongs to no window.
 // panel.js makes the side panel a screen of its own (back button, swipes) for app.js; it belongs to no window either.
-const APP_ENTRIES = ['app.js', 'main.js', 'device.js', 'panel.js', 'state', ...Object.values(WINDOWS), ...SHARED.map((path) => path.slice('app/'.length))];
+// account.js connects app.js to the account of the person who is signed in (Firebase); it belongs to no window either.
+const APP_ENTRIES = ['app.js', 'main.js', 'device.js', 'panel.js', 'account.js', 'state', ...Object.values(WINDOWS), ...SHARED.map((path) => path.slice('app/'.length))];
 
 function sourceFiles(dir = JS) {
   return readdirSync(dir).flatMap((name) => {
@@ -206,9 +207,10 @@ test('structure: every stylesheet is linked by a page, and both pages link main.
 const STRUCTURE_TEST = 'chordice/structure.test.js';
 const FEATURES = 'features/';
 const HELPERS = 'helpers/';
-const TESTED = /\.(js|html|css|yaml|webmanifest)$/;
-// The files of the page that sit next to index.html: the service worker and the manifest of the app on the home screen.
-const ROOT_SOURCES = ['index.html', 'sw.js', 'manifest.webmanifest'];
+const TESTED = /\.(js|html|css|yaml|webmanifest|rules)$/;
+// The files that sit next to index.html: the service worker and the manifest of the app on the home screen, and the rules
+// of the database of the accounts.
+const ROOT_SOURCES = ['index.html', 'sw.js', 'manifest.webmanifest', 'firestore.rules'];
 
 function filesUnder(dir) {
   return readdirSync(dir).flatMap((name) => {

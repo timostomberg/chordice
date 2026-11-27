@@ -3,6 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- What the page may load, so that markup that got in by mistake runs no script. Scripts: the page, the libraries of
+       jsDelivr, the Firebase SDK (gstatic) and the Google scripts of its sign-in window (apis.google.com), and the import
+       map below by its hash, which tests/index.html.test.js checks. Styles may be inline, as the range fields colour
+       themselves with a style attribute. The account talks to *.googleapis.com and opens its sign-in frame from
+       chordice.firebaseapp.com. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com 'sha256-UKUjJH4fpSy5L3VFXg32JlkK0r/t/tFV8H+s3ThDq3A='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data: https://cdn.jsdelivr.net; connect-src 'self' https://cdn.jsdelivr.net https://www.gstatic.com https://*.googleapis.com; frame-src https://chordice.firebaseapp.com https://accounts.google.com; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
   <title>Chordice</title>
   <!-- An app on the home screen: the manifest names it and its icons, the apple tags do the same for iPhones and iPads. It
        opens without the browser's bars, and its header reaches under the status bar (the header keeps clear of it). -->

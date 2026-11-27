@@ -21,7 +21,8 @@ The user chooses options in a side panel, and the site produces concrete chord p
 - A **Songs** panel (heart button in the header) saves the song shown under a name (by default its date and time, e.g. 2026 Nov 27 · 14:30), lists the saved songs, loads one with a click, renames one, and deletes one after a confirmation.
 - A saved song keeps its **recipe** (the options that make the song and their seeds) and a **snapshot** of its rows. Loading puts the recipe into the state, so the song is generated anew and every option works on it as usual; the view, instrument and panel stay.
 - If the recipe now gives another song (the generator or `chord_progressions.yaml` have changed), the song is **frozen**: the snapshot is shown, the options that make the song are fixed, and a note offers *Generate anew*; New Song ends it too.
-- The songs are kept in the local storage under a key of their own, not in the cookie.
+- The songs are kept in the local storage under a key of their own, not in the cookie. At most 75 songs can be saved.
+- **Account (optional):** once a Firebase project is entered in `account.js`, the Songs panel offers *Sign in with Google* (Firebase Authentication), the only way to sign in. While signed in, the songs are kept in the account instead, in one Firestore document per account (`users/{uid}`, a map from song id to song), cached in the browser for offline use and synced across devices. On sign-in the songs of the browser move into the account (those that do not fit stay in the browser). The panel also offers *Sign out*, which removes the songs of the account from the browser (and waits while changes have not reached the account), and *Delete account* (after a confirmation and a fresh sign-in with Google, before anything is deleted). `firestore.rules` lets each account access only its own document. Without a Firebase project the page offers no account.
 
 ## Display
 
@@ -30,6 +31,10 @@ The user chooses options in a side panel, and the site produces concrete chord p
 - **Instrument:** a piano/guitar tab in the header. Piano shows a staff; guitar shows chord diagrams from `@tombatossals/chords-db` and disables bass variations, melody and the chord tones.
 - **Layout:** the side panel is on the left (up to 480px, at most half the width; full width on narrow screens). The back button closes it (it has its own history entry); a swipe right from the left edge opens it, a swipe left on it closes it, and so does a click on the song area outside the chords. The circle of fifths stands beside the chords, also while the side panel is closed. From 8 rows on, the rows are split in half into two columns (first half left), except where the song area is narrow. Only the chords can be zoomed; the circle keeps its size and only gets smaller where the room is too little for it. When the number of rows changes, the chords are fitted so that every row can be seen without scrolling (at most at the default zoom), except where the circle stands above the chords.
 - **Background:** a randomly generated watercolour painting behind the app (seeded by the song), painted on a canvas in a web worker at a limited resolution, with the paper grain laid over it by CSS; can be switched off.
+
+## Legal
+
+- An imprint (§ 5 DDG, only the required details) and a privacy policy (GDPR) are pages next to the help. Like the help, they are shown in the side panel, opened from links in the help and (the privacy policy) in the sign-in invitation; the Help button leads back to the help. They are in English, like the app.
 
 ## Persistence and devices
 

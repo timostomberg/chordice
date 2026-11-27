@@ -190,6 +190,25 @@ test('a library comes from the store first, and one not yet stored is fetched an
   assert.ok(await stores[name].match(fresh));
 });
 
+test('the Firebase SDK of the account is a library of the version account.js loads, stored once fetched, not on install', async () => {
+  const { sandbox } = load();
+  const sdk = vm.runInContext('FIREBASE_SDK', sandbox);
+  const account = readFileSync(join(REPO, 'chordice/app/account.js'), 'utf8');
+  assert.equal(/export const FIREBASE_SDK = '([^']+)'/.exec(account)[1], sdk);
+  assert.ok(![...vm.runInContext('CDN', sandbox)].some((url) => url.startsWith(sdk)), 'not stored on install');
+  const auth = `${sdk}firebase-auth.js`;
+  const name = vm.runInContext('CACHE', sandbox);
+  const stores = {};
+  const { listeners, fetched } = load({ network: { [auth]: response('auth') }, stores });
+  assert.equal(await (await fetchThrough(listeners.fetch, auth)).text(), 'auth');
+  assert.equal(await (await fetchThrough(listeners.fetch, auth)).text(), 'auth');
+  assert.deepEqual(fetched, [auth], 'fetched once, then served from the store');
+  assert.ok(await stores[name].match(auth));
+  // The requests of the account to Google, and other versions of the SDK, are left to the browser.
+  assert.equal(await fetchThrough(listeners.fetch, 'https://firestore.googleapis.com/google.firestore.v1.Firestore/Listen'), undefined);
+  assert.equal(await fetchThrough(listeners.fetch, 'https://www.gstatic.com/firebasejs/1.0.0/firebase-app.js'), undefined);
+});
+
 test('other requests are left to the browser: other sites, other projects on the same host, and anything but GET', async () => {
   const { listeners } = load();
   assert.equal(await fetchThrough(listeners.fetch, 'https://example.org/x.js'), undefined);

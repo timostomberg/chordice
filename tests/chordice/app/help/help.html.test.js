@@ -233,3 +233,9 @@ test('the help page explains the circle of fifths beside the chords and its arro
   assert.ok(html.includes('left of the chords'));
   assert.ok(html.includes('arrow button in the middle of the circle'));
 });
+
+test('the help page says what signing out and deleting the account do', () => {
+  const text = new JSDOM(help()).window.document.querySelector('main').textContent.replace(/\s+/g, ' ');
+  assert.ok(text.includes('Sign out leaves them in your account and removes them from this browser'));
+  assert.ok(text.includes('after Google has asked you to sign in once more'));
+});

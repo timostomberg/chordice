@@ -6,6 +6,7 @@
 import { bassOf } from '../music/theory/bass.js';
 import { toneKind } from '../music/theory/tones.js';
 import { invertedTones } from '../music/theory/melody.js';
+import { isHarmonicFunction } from '../music/theory/numerals.js';
 import { nameHtml } from './names.js';
 
 /** Attributes that make a chord open its notes window when clicked. */
@@ -96,7 +97,8 @@ function symbolHtml(given) {
 export function chordCell(chord, attributes, { colour, roman, tones, melody }, tonic) {
   const classes = ['chord'];
   if (colour) {
-    classes.push(chord.function ? `fn-${chord.function}` : 'fn-none', chord.quality === 'major' ? 'is-major' : 'is-minor');
+    // Only a known function names a class, whatever the chord holds: it goes into the markup unescaped.
+    classes.push(isHarmonicFunction(chord.function) ? `fn-${chord.function}` : 'fn-none', chord.quality === 'major' ? 'is-major' : 'is-minor');
   }
   const column = tones || melody;
   if (column) {

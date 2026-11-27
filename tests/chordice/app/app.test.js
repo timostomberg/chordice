@@ -2,14 +2,19 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { SONGS_FAILED, THEME_COLOURS, startApp } from '../../../chordice/app/app.js';
-import { BASS_TEXT, LIBRARY, PROGRESSIONS_TEXT as YAML_TEXT } from '../../helpers/fixtures.js';
+import { BASS_PATTERNS, BASS_TEXT, LIBRARY, PROGRESSIONS_TEXT as YAML_TEXT } from '../../helpers/fixtures.js';
 import { defaultState } from '../../../chordice/app/state/state.js';
 import { STORAGE_KEY, serializeCookie, serializeStored } from '../../../chordice/app/state/persistence.js';
-import { SONGS_KEY, parseSongs } from '../../../chordice/app/state/songs.js';
+import { SONGS_KEY, parseSongs, saveSong, songsRecord } from '../../../chordice/app/state/songs.js';
 
 // app.js has no side effects on import; startApp runs against the minimal fake DOM installed by loadApp below.
 // The guitar shapes as the CDN serves them; app.js fetches them from the URL of the installed version.
 const HELP_TEXT = readFileSync(new URL('../../../chordice/app/help/help.html', import.meta.url), 'utf8');
+// The imprint and the privacy policy, which the help window shows too.
+const LEGAL_TEXTS = Object.fromEntries(['imprint', 'privacy'].map((page) => [
+  `/${page}.html`,
+  readFileSync(new URL(`../../../chordice/app/help/${page}.html`, import.meta.url), 'utf8'),
+]));
 const GUITAR_TEXT = readFileSync(new URL('../../../node_modules/@tombatossals/chords-db/lib/guitar.json', import.meta.url), 'utf8');
 
 class FakeClassList {
@@ -125,7 +130,7 @@ class FakeInput {
 }
 
 /** Installs the globals app.js uses, loads it and waits until its start-up promise has settled. */
-async function loadApp({ cookie = '', stored = null, storage = fakeStorage(stored), yaml = YAML_TEXT, bass = BASS_TEXT, ok = true, guitarOk = true, helpOk = true, pathname = '/chordice/index.html' } = {}) {
+async function loadApp({ cookie = '', stored = null, storage = fakeStorage(stored), yaml = YAML_TEXT, bass = BASS_TEXT, ok = true, guitarOk = true, helpOk = true, pathname = '/chordice/index.html', connect = () => null } = {}) {
   const elements = {
     '#side-panel': new FakeElement(),
     '#options': new FakeElement(),
@@ -195,13 +200,18 @@ async function loadApp({ cookie = '', stored = null, storage = fakeStorage(store
   globalThis.fetch = async (url) => {
     fetched.push(String(url));
     const isGuitar = String(url).endsWith('/guitar.json');
+    const legal = Object.keys(LEGAL_TEXTS).find((ending) => String(url).endsWith(ending));
+    if (legal) {
+      return { ok: helpOk, status: helpOk ? 200 : 404, text: async () => LEGAL_TEXTS[legal] };
+    }
     const isHelp = String(url).endsWith('/help.html');
     const good = isGuitar ? guitarOk : isHelp ? helpOk : ok;
     const text = String(url).endsWith('/bass_patterns.yaml') ? bass : isGuitar ? GUITAR_TEXT : isHelp ? HELP_TEXT : yaml;
     return { ok: good, status: good ? 200 : 404, text: async () => text };
   };
 
-  await startApp();
+  // The page has no account unless a test gives it one (see fakeAccount), whatever Firebase project account.js names.
+  await startApp({ connect });
 
   // Returns a promise that settles once the click has been handled, e.g. after the guitar shapes are loaded.
   const dispatch = (dataset) => Promise.all(
@@ -836,7 +846,7 @@ test('the guitar shapes are fetched from the chord database at the version in pa
 
 test('app.js has no start-up code of its own: it exports startApp, which main.js calls', () => {
   const app = readFileSync(new URL('../../../chordice/app/app.js', import.meta.url), 'utf8');
-  assert.ok(app.includes('export function startApp()'));
+  assert.ok(app.includes('export function startApp('));
   assert.ok(!/^(loadData|startApp)\(/m.test(app), 'app.js calls nothing at the top level');
 });
 
@@ -1347,6 +1357,351 @@ test('a click that does not focus the control (e.g. a tap on the iPad) moves no 
     const focus = trackFocus(app, () => [{ action: 'confirm-delete', id: song.id }]);
     await app.dispatch({ action: 'delete-song', id: song.id });
     assert.equal(focus.active, null);
+  } finally {
+    uninstall();
+  }
+});
+
+/**
+ * An account as account.js connects it, for the page to use: it records the calls of the page, and `callbacks` lets the test
+ * report the person and the songs of the account, as Firebase would. Writes settle at once, unless `refuse` is set.
+ */
+function fakeAccount() {
+  // `answer` is what deleting the account resolves to: null when it works, else a message.
+  const fake = { calls: [], callbacks: null, refuse: false, answer: null };
+  fake.connect = (callbacks) => {
+    fake.callbacks = callbacks;
+    return {
+      signIn: async () => fake.calls.push(['signIn']),
+      signOut: async () => fake.calls.push(['signOut']),
+      deleteAccount: async () => {
+        fake.calls.push(['deleteAccount']);
+        return fake.answer;
+      },
+      write: async (changes) => {
+        fake.calls.push(['write', changes]);
+        if (fake.refuse) {
+          throw new Error('permission-denied');
+        }
+      },
+    };
+  };
+  fake.writes = () => fake.calls.filter(([name]) => name === 'write').map(([, changes]) => changes);
+  return fake;
+}
+
+/** A song saved in another browser, as the record of an account holds it. */
+function accountSong(id, name) {
+  const state = defaultState(LIBRARY, () => 0.4);
+  return saveSong(state, { id, name, date: new Date(2026, 10, 20, 8, 0), library: LIBRARY, bassPatterns: BASS_PATTERNS }).songs[0];
+}
+
+const ADA = { name: 'Ada', email: 'ada@example.org' };
+const settleWrites = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+test('without an account the songs panel offers none, and the songs stay in the browser', async () => {
+  try {
+    const app = await loadApp();
+    await app.dispatch({ action: 'toggle-songs' });
+    assert.ok(!app.elements['#option-list'].innerHTML.includes('class="account'));
+  } finally {
+    uninstall();
+  }
+});
+
+test('with an account, the songs panel invites to sign in, and the button signs in', async () => {
+  try {
+    const account = fakeAccount();
+    const app = await loadApp({ connect: account.connect });
+    await app.dispatch({ action: 'toggle-songs' });
+    assert.ok(app.elements['#option-list'].innerHTML.includes('data-action="sign-in"'));
+    await app.dispatch({ action: 'sign-in' });
+    assert.deepEqual(account.calls, [['signIn']]);
+  } finally {
+    uninstall();
+  }
+});
+
+test('signing in shows the songs of the account, and the songs of the browser move into it', async () => {
+  try {
+    const account = fakeAccount();
+    const app = await loadApp({ connect: account.connect });
+    await app.dispatch({ action: 'toggle-songs' });
+    nameField(app, 'From this browser');
+    submitSave(app);
+    const [local] = parseSongs(app.storage.getItem(SONGS_KEY));
+    account.callbacks.onPerson(ADA);
+    const list = () => app.elements['#option-list'].innerHTML;
+    assert.ok(list().includes('Loading the songs of your account'));
+    assert.ok(!list().includes('From this browser'), 'the songs of the browser are not shown as the account\'s');
+    // Saving waits for the songs of the account.
+    submitSave(app);
+    assert.deepEqual(account.writes(), []);
+    const remote = accountSong('remote', 'From the account');
+    account.callbacks.onSongs(songsRecord([remote]));
+    assert.ok(list().includes('Signed in as <strong>Ada</strong>'));
+    assert.ok(list().includes('From the account'));
+    assert.ok(list().includes('From this browser'));
+    assert.deepEqual(account.writes(), [{ put: [local] }]);
+    await settleWrites();
+    // Once the account has them, they are no longer kept in the browser.
+    assert.deepEqual(parseSongs(app.storage.getItem(SONGS_KEY)), []);
+  } finally {
+    uninstall();
+  }
+});
+
+test('the songs of the browser move into the account only once the account has confirmed its songs', async () => {
+  try {
+    const account = fakeAccount();
+    const app = await loadApp({ connect: account.connect });
+    await app.dispatch({ action: 'toggle-songs' });
+    nameField(app, 'From this browser');
+    submitSave(app);
+    const [local] = parseSongs(app.storage.getItem(SONGS_KEY));
+    account.callbacks.onPerson(ADA);
+    const list = () => app.elements['#option-list'].innerHTML;
+    // The copy in the browser may be behind (e.g. a new device without a network): its songs are shown, nothing is joined.
+    account.callbacks.onSongs({}, { confirmed: false });
+    assert.ok(!list().includes('Loading the songs of your account'));
+    assert.ok(!list().includes('From this browser'));
+    assert.deepEqual(account.writes(), []);
+    const remote = accountSong('remote', 'From the account');
+    account.callbacks.onSongs(songsRecord([remote]), { confirmed: true });
+    assert.ok(list().includes('From the account'));
+    assert.ok(list().includes('From this browser'));
+    assert.deepEqual(account.writes(), [{ put: [local] }]);
+    // Later records join nothing again.
+    account.callbacks.onSongs(songsRecord([remote, local]), { confirmed: true });
+    assert.equal(account.writes().length, 1);
+  } finally {
+    uninstall();
+  }
+});
+
+test('the songs of the browser stay in it while the account has not taken them', async () => {
+  try {
+    const account = fakeAccount();
+    account.refuse = true;
+    const app = await loadApp({ connect: account.connect });
+    nameField(app, 'Precious');
+    submitSave(app);
+    account.callbacks.onPerson(ADA);
+    account.callbacks.onSongs({});
+    await settleWrites();
+    assert.deepEqual(parseSongs(app.storage.getItem(SONGS_KEY)).map((song) => song.name), ['Precious']);
+    // Signed out, they are shown again.
+    account.callbacks.onPerson(null);
+    await app.dispatch({ action: 'toggle-songs' });
+    assert.ok(app.elements['#option-list'].innerHTML.includes('Precious'));
+  } finally {
+    uninstall();
+  }
+});
+
+test('signed in, saving, renaming and deleting a song write only that song to the account, not to the browser', async () => {
+  try {
+    const account = fakeAccount();
+    const app = await loadApp({ connect: account.connect });
+    await app.dispatch({ action: 'toggle-songs' });
+    account.callbacks.onPerson(ADA);
+    account.callbacks.onSongs({});
+    nameField(app, 'Online');
+    submitSave(app);
+    const [saved] = account.writes();
+    assert.deepEqual(saved.remove, []);
+    assert.deepEqual(saved.put.map((song) => song.name), ['Online']);
+    assert.equal(app.storage.getItem(SONGS_KEY), null, 'nothing is written to the browser');
+    const { id } = saved.put[0];
+    await app.dispatch({ action: 'rename-song', id });
+    app.elements['#option-list'].querySelector = (selector) => (selector === '#rename-name' ? { value: 'Renamed' } : new FakeElement());
+    await app.dispatch({ action: 'confirm-rename', id });
+    assert.deepEqual(account.writes()[1].put.map((song) => song.name), ['Renamed']);
+    await app.dispatch({ action: 'confirm-delete', id });
+    assert.deepEqual(account.writes()[2], { put: [], remove: [id] });
+    // A change that is not about the songs writes nothing.
+    await app.dispatch({ action: 'reroll' });
+    assert.equal(account.writes().length, 3);
+  } finally {
+    uninstall();
+  }
+});
+
+test('a frozen song stays frozen when its account signs in at start-up', async () => {
+  try {
+    const account = fakeAccount();
+    const app = await loadApp({ connect: account.connect });
+    nameField(app, 'Frozen');
+    submitSave(app);
+    const [song] = parseSongs(app.storage.getItem(SONGS_KEY));
+    // The song as an older version of the page saved it: its snapshot differs from what its recipe gives now.
+    const old = { ...song, song: { ...song.song, rows: song.song.rows.slice(1) } };
+    app.storage.setItem(SONGS_KEY, JSON.stringify([old]));
+    const again = await loadApp({ connect: account.connect, storage: app.storage, cookie: app.document.cookie });
+    await again.dispatch({ action: 'load-song', id: song.id });
+    await again.dispatch({ action: 'toggle-songs' });
+    assert.ok(again.elements['#option-list'].innerHTML.includes('class="frozen-note"'));
+    account.callbacks.onPerson(ADA);
+    account.callbacks.onSongs(songsRecord([old]));
+    assert.ok(again.elements['#option-list'].innerHTML.includes('class="frozen-note"'));
+  } finally {
+    uninstall();
+  }
+});
+
+test('songs that come from another device are shown without being written back', async () => {
+  try {
+    const account = fakeAccount();
+    const app = await loadApp({ connect: account.connect });
+    await app.dispatch({ action: 'toggle-songs' });
+    account.callbacks.onPerson(ADA);
+    account.callbacks.onSongs({});
+    account.callbacks.onSongs(songsRecord([accountSong('other', 'From the iPad')]));
+    assert.ok(app.elements['#option-list'].innerHTML.includes('From the iPad'));
+    assert.deepEqual(account.writes(), []);
+  } finally {
+    uninstall();
+  }
+});
+
+test('signing out and deleting the account go through the account; deleting asks first', async () => {
+  try {
+    const account = fakeAccount();
+    const app = await loadApp({ connect: account.connect });
+    await app.dispatch({ action: 'toggle-songs' });
+    account.callbacks.onPerson(ADA);
+    account.callbacks.onSongs({});
+    await app.dispatch({ action: 'delete-account' });
+    assert.ok(app.elements['#option-list'].innerHTML.includes('data-action="confirm-delete-account"'));
+    assert.deepEqual(account.calls, [], 'the question alone deletes nothing');
+    await app.dispatch({ action: 'cancel-delete-account' });
+    assert.ok(!app.elements['#option-list'].innerHTML.includes('confirm-delete-account'));
+    await app.dispatch({ action: 'delete-account' });
+    await app.dispatch({ action: 'confirm-delete-account' });
+    assert.deepEqual(account.calls, [['deleteAccount']]);
+    await app.dispatch({ action: 'sign-out' });
+    assert.deepEqual(account.calls.at(-1), ['signOut']);
+    account.callbacks.onPerson(null);
+    assert.ok(app.elements['#option-list'].innerHTML.includes('data-action="sign-in"'));
+  } finally {
+    uninstall();
+  }
+});
+
+test('a song saved in another tab does not replace the songs of the account', async () => {
+  const storageListeners = [];
+  globalThis.addEventListener = (type, listener) => {
+    if (type === 'storage') {
+      storageListeners.push(listener);
+    }
+  };
+  try {
+    const account = fakeAccount();
+    const app = await loadApp({ connect: account.connect });
+    await app.dispatch({ action: 'toggle-songs' });
+    account.callbacks.onPerson(ADA);
+    account.callbacks.onSongs(songsRecord([accountSong('remote', 'From the account')]));
+    storageListeners.forEach((listener) => listener({ key: SONGS_KEY, newValue: '[]' }));
+    assert.ok(app.elements['#option-list'].innerHTML.includes('From the account'));
+  } finally {
+    delete globalThis.addEventListener;
+    uninstall();
+  }
+});
+
+test('what goes wrong with the account is shown above the chords', async () => {
+  try {
+    const account = fakeAccount();
+    const app = await loadApp({ connect: account.connect });
+    account.callbacks.onError('There is no connection to the account right now.');
+    assert.equal(app.elements['#status'].textContent, 'There is no connection to the account right now.');
+    assert.equal(app.elements['#status'].hidden, false);
+  } finally {
+    uninstall();
+  }
+});
+
+test('the links to the imprint and the privacy policy show them in the side panel, and the Help button goes back', async () => {
+  try {
+    const app = await loadApp();
+    app.dispatch({ action: 'toggle-help' });
+    await settle();
+    app.dispatch({ action: 'show-help-page', page: 'privacy' });
+    await settle();
+    const list = () => app.elements['#option-list'].innerHTML;
+    assert.ok(list().includes('<h2>Controller</h2>'));
+    assert.ok(list().includes('data-page="help">← Help</a>'));
+    assert.equal(app.elements['#options'].attributes['aria-label'], 'Privacy policy');
+    assert.equal(app.elements['#options'].hidden, false);
+    app.dispatch({ action: 'show-help-page', page: 'imprint' });
+    await settle();
+    assert.ok(list().includes('§ 5 DDG'));
+    assert.equal(app.elements['#options'].attributes['aria-label'], 'Imprint');
+    // The Help button shows the help again, rather than closing the panel; pressed again, it closes it.
+    app.dispatch({ action: 'toggle-help' });
+    assert.ok(list().includes('<h2>What Chordice does</h2>'));
+    assert.equal(app.elements['#options'].hidden, false);
+    app.dispatch({ action: 'toggle-help' });
+    assert.equal(app.elements['#options'].hidden, true);
+    // An unknown page changes nothing.
+    app.dispatch({ action: 'show-help-page', page: 'nowhere' });
+    assert.equal(app.elements['#options'].hidden, true);
+  } finally {
+    uninstall();
+  }
+});
+
+test('the privacy policy opens from the songs panel in the side panel, and the help opens at the help again', async () => {
+  try {
+    const app = await loadApp();
+    await app.dispatch({ action: 'toggle-songs' });
+    app.dispatch({ action: 'show-help-page', page: 'privacy' });
+    await settle();
+    assert.equal(app.elements['.help-toggle'].attributes['aria-expanded'], 'true');
+    assert.equal(app.elements['#options'].attributes['aria-label'], 'Privacy policy');
+    assert.ok(app.elements['#option-list'].innerHTML.includes('<h2>Storage in your browser</h2>'));
+    await app.dispatch({ action: 'toggle-options' });
+    app.dispatch({ action: 'toggle-help' });
+    await settle();
+    assert.ok(app.elements['#option-list'].innerHTML.includes('<h2>What Chordice does</h2>'));
+  } finally {
+    uninstall();
+  }
+});
+
+test('a click on a link with an action does the action in the page rather than following the link', async () => {
+  try {
+    const app = await loadApp();
+    let prevented = false;
+    const link = { tagName: 'A', dataset: { action: 'show-help-page', page: 'privacy' } };
+    for (const listener of app.listeners.click) {
+      listener({ target: { closest: () => link }, preventDefault: () => { prevented = true; } });
+    }
+    assert.equal(prevented, true);
+    assert.equal(app.elements['#options'].attributes['aria-label'], 'Privacy policy');
+    // The privacy policy has loaded before the page is taken down.
+    await settle();
+  } finally {
+    uninstall();
+  }
+});
+
+test('when the account cannot be deleted, the account section says why', async () => {
+  try {
+    const account = fakeAccount();
+    account.answer = 'There is no connection to the account right now.';
+    const app = await loadApp({ connect: account.connect });
+    await app.dispatch({ action: 'toggle-songs' });
+    account.callbacks.onPerson(ADA);
+    account.callbacks.onSongs({});
+    await app.dispatch({ action: 'delete-account' });
+    await app.dispatch({ action: 'confirm-delete-account' });
+    await settle();
+    assert.ok(app.elements['#option-list'].innerHTML.includes(
+      '<p class="account-notice" role="status">There is no connection to the account right now.</p>'));
+    // Signing out ends the message.
+    account.callbacks.onPerson(null);
+    assert.ok(!app.elements['#option-list'].innerHTML.includes('account-notice'));
   } finally {
     uninstall();
   }

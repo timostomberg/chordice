@@ -6,6 +6,7 @@
 
 import { Note } from 'tonal';
 import { isKeyName } from '../theory/keys.js';
+import { isHarmonicFunction } from '../theory/numerals.js';
 
 /** The fields of a chord the song and the notes window show, each with the type it must have. */
 const CHORD_FIELDS = {
@@ -64,7 +65,8 @@ function isChord(chord) {
   }
   const typed = Object.entries(CHORD_FIELDS).every(([field, type]) => typeof chord[field] === type);
   return typed &&
-    (chord.function === null || typeof chord.function === 'string') &&
+    // The function becomes a class of the chord (see app/chord.js), so only a known one is let in.
+    (chord.function === null || isHarmonicFunction(chord.function)) &&
     (chord.variation === null || typeof chord.variation === 'string') &&
     isNoteName(chord.root) &&
     (chord.bass === null || isNoteName(chord.bass)) &&
@@ -80,8 +82,8 @@ function isRow(row) {
 
 /**
  * The snapshot from untrusted input (e.g. the local storage), or null if it is not a valid one. Besides the types, the
- * notes are checked: every row is in a key of the circle, and every chord has real note names and an inversion of its own
- * tones, so that the song and the notes window can show it.
+ * notes are checked: every row is in a key of the circle, and every chord has real note names, an inversion of its own
+ * tones and a known harmonic function, so that the song and the notes window can show it, and no markup gets in.
  */
 export function sanitizeSnapshot(raw) {
   if (!raw || typeof raw !== 'object' || !Array.isArray(raw.rows) || !raw.rows.every(isRow)) {

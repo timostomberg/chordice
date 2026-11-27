@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createHelp, HELP_URL, renderHelp, renderHelpMessage } from '../../../../chordice/app/help/help.js';
+import { BACK_TO_HELP, HELP_PAGES, createHelp, HELP_URL, isHelpPage, renderHelp, renderHelpMessage } from '../../../../chordice/app/help/help.js';
 
 const PAGE = readFileSync(new URL('../../../../chordice/app/help/help.html', import.meta.url), 'utf8');
 const INDEX = readFileSync(new URL('../../../../index.html', import.meta.url), 'utf8');
@@ -50,6 +50,16 @@ test('renderHelp takes the main part of the help page without the link back to t
   assert.ok(!html.includes('Back to Chordice'));
   assert.ok(!html.includes('<main'));
   assert.ok(!html.includes('index.html'), 'no link leaves the app');
+});
+
+test('renderHelp keeps the links to the imprint and the privacy policy working in the side panel', () => {
+  const html = renderHelp(help());
+  for (const page of ['imprint.html', 'privacy.html']) {
+    assert.ok(html.includes(`href="${new URL(page, HELP_URL).href}"`), page);
+  }
+  // Links to other sites, and links within the page, stay as they are.
+  assert.equal(renderHelp('<main class="help"><a href="https://example.org/x">x</a><a href="#top">t</a></main>'),
+    '<div class="help"><a href="https://example.org/x">x</a><a href="#top">t</a></div>');
 });
 
 test('renderHelp returns null for a page without a main part, and the help messages are escaped', () => {
@@ -108,4 +118,53 @@ test('a page without a main part counts as a failed load, and retry does nothing
   panel.retry();
   assert.equal(panel.markup(), renderHelp(PAGE));
   assert.equal(requested.length, 1);
+});
+
+const PRIVACY = readFileSync(new URL('../../../../chordice/app/help/privacy.html', import.meta.url), 'utf8');
+
+test('the help window shows the help, the imprint and the privacy policy, each a page next to help.js', () => {
+  assert.deepEqual(Object.keys(HELP_PAGES), ['help', 'imprint', 'privacy']);
+  assert.equal(HELP_PAGES.help, HELP_URL);
+  assert.ok(HELP_PAGES.imprint.href.endsWith('/chordice/app/help/imprint.html'));
+  assert.ok(HELP_PAGES.privacy.href.endsWith('/chordice/app/help/privacy.html'));
+  assert.equal(isHelpPage('privacy'), true);
+  assert.equal(isHelpPage('toString'), false);
+  assert.equal(isHelpPage(undefined), false);
+});
+
+test('the links of the help to the imprint and the privacy policy show them in the side panel', () => {
+  const html = renderHelp(help());
+  for (const page of ['imprint', 'privacy']) {
+    assert.ok(html.includes(`data-action="show-help-page" data-page="${page}"`), page);
+  }
+});
+
+test('createHelp loads each page of the help on its own, and the privacy policy starts with a link back to the help', async () => {
+  const { panel, requested } = helpWith(PRIVACY, PAGE);
+  assert.equal(panel.markup('privacy'), renderHelpMessage('Loading the privacy policy …'));
+  await settle();
+  const privacy = panel.markup('privacy');
+  assert.equal(privacy, renderHelp(PRIVACY).replace('<div class="help">', `<div class="help">${BACK_TO_HELP}`));
+  assert.ok(BACK_TO_HELP.includes('data-action="show-help-page" data-page="help"'));
+  assert.equal(panel.markup('privacy'), privacy, 'the same string every time');
+  assert.equal(panel.markup(), renderHelpMessage('Loading the help …'));
+  await settle();
+  assert.equal(panel.markup(), renderHelp(PAGE));
+  assert.ok(!panel.markup().includes(BACK_TO_HELP), 'the help itself has no link back to itself');
+  assert.deepEqual(requested, [HELP_PAGES.privacy.href, HELP_URL.href]);
+  // An unknown page is the help.
+  assert.equal(panel.markup('unknown'), renderHelp(PAGE));
+});
+
+test('a page of the help that cannot be loaded says so by its name, until retry', async () => {
+  await quietly(async () => {
+    const { panel, requested } = helpWith(new Error('offline'), PRIVACY);
+    panel.markup('privacy');
+    await settle();
+    assert.equal(panel.markup('privacy'), renderHelpMessage('The privacy policy could not be loaded.'));
+    panel.retry();
+    panel.markup('privacy');
+    await settle();
+    assert.equal(requested.length, 2);
+  });
 });

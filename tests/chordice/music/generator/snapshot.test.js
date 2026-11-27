@@ -117,6 +117,12 @@ test('sanitizeSnapshot rejects chords and rows that the song and the notes windo
   assert.equal(broken((row, chord) => { chord.inversion = chord.tones.length; }), null, 'an inversion beyond the tones');
   assert.equal(broken((row) => { row.tonic = 'H'; }), null, 'a row in no key of the circle');
   assert.equal(broken((row) => { row.tonic = 'A#'; }), null, 'a key the circle does not have');
+  assert.equal(broken((row, chord) => { chord.function = '"><img src=x onerror=alert(1)>'; }), null, 'markup as the function');
+  assert.equal(broken((row, chord) => { chord.function = 'Tonic'; }), null, 'a function that does not exist');
+  assert.notEqual(broken((row, chord) => { chord.function = null; }), null, 'a chord without a function');
+  for (const value of ['tonic', 'subdominant', 'dominant']) {
+    assert.equal(broken((row, chord) => { chord.function = value; }).rows[0].chords[0].function, value);
+  }
 });
 
 test('every song the generator makes is a valid snapshot, in one key and in all keys', () => {

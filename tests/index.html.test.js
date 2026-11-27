@@ -1,10 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { LIBRARY } from './helpers/fixtures.js';
 import { applyAction } from '../chordice/app/state/actions.js';
 import { defaultState, FLAGS } from '../chordice/app/state/state.js';
+import { FIREBASE_CONFIG, FIREBASE_SDK } from '../chordice/app/account.js';
 
 const APP = new URL('../chordice/app/', import.meta.url);
 const STYLES = new URL('../chordice/styles/', import.meta.url);
@@ -337,4 +339,52 @@ test('the song area holds the circle of fifths left of the chords', () => {
   assert.ok(circle > html.indexOf('class="song"') && circle < rows, 'the circle comes first, so it is on the left');
   assert.ok(/class="song-chords">\s*<div id="song-rows"/.test(html), 'the chords sit in their own room beside the circle');
   assert.ok(/class="song-circle-part">\s*<div id="song-circle"/.test(html), 'the circle sits in its own part');
+});
+
+/** The Content-Security-Policy of index.html, as a map from each directive to its sources. */
+function policy() {
+  const content = /<meta http-equiv="Content-Security-Policy" content="([^"]+)">/.exec(readIndex())?.[1];
+  assert.ok(content, 'index.html has a Content-Security-Policy');
+  return new Map(content.split(';').map((part) => part.trim().split(/\s+/)).map(([name, ...sources]) => [name, sources]));
+}
+
+test('the Content-Security-Policy comes before every script, and lets in no inline script but the import map', () => {
+  const html = readIndex();
+  assert.ok(html.indexOf('http-equiv="Content-Security-Policy"') < html.indexOf('<script'));
+  const csp = policy();
+  const scripts = csp.get('script-src');
+  for (const unsafe of ["'unsafe-inline'", "'unsafe-eval'", "'unsafe-hashes'", '*', 'data:', 'blob:', 'https:']) {
+    assert.ok(!scripts.includes(unsafe), unsafe);
+  }
+  // The import map is let in by its hash; a change of it needs a new hash.
+  const map = /<script type="importmap">([\s\S]*?)<\/script>/.exec(html)[1];
+  const hash = `'sha256-${createHash('sha256').update(map).digest('base64')}'`;
+  assert.deepEqual(scripts.filter((source) => source.startsWith("'sha")), [hash]);
+  // No other inline script, which the policy would block.
+  const inline = [...html.matchAll(/<script(?![^>]*\bsrc=)([^>]*)>/g)].map((match) => match[1].trim());
+  assert.deepEqual(inline, ['type="importmap"']);
+  assert.ok(!/\son[a-z]+="/.test(html), 'no inline event handler');
+  assert.deepEqual(csp.get('object-src'), ["'none'"]);
+  assert.deepEqual(csp.get('base-uri'), ["'none'"]);
+  assert.deepEqual(csp.get('default-src'), ["'self'"]);
+});
+
+test('the Content-Security-Policy lets in every host the page loads code and data from', () => {
+  const csp = policy();
+  const origin = (url) => new URL(url).origin;
+  const html = readIndex();
+  const imports = JSON.parse(/<script type="importmap">([\s\S]*?)<\/script>/.exec(html)[1]).imports;
+  for (const url of [...Object.values(imports), FIREBASE_SDK]) {
+    assert.ok(csp.get('script-src').includes(origin(url)), url);
+  }
+  // The libraries and the guitar shapes are also fetched (the service worker and app.js), and the account talks to Google.
+  assert.ok(csp.get('connect-src').includes('https://cdn.jsdelivr.net'));
+  assert.ok(csp.get('connect-src').includes('https://*.googleapis.com'));
+  // The sign-in window of Firebase needs the Google scripts and the frame of the auth domain.
+  assert.ok(csp.get('script-src').includes('https://apis.google.com'));
+  assert.ok(csp.get('frame-src').includes(`https://${FIREBASE_CONFIG.authDomain}`));
+  // The painting worker and the service worker are files of the page; the CSS draws its paper grain from data: URLs.
+  assert.deepEqual(csp.get('worker-src'), ["'self'"]);
+  assert.ok(csp.get('img-src').includes('data:'));
+  assert.ok(csp.get('font-src').includes('data:'), 'VexFlow loads its music font from the bundle');
 });

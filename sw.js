@@ -6,7 +6,8 @@
  * - The files of the page are fetched from the network first, so a new version shows as soon as there is a network; the
  *   stored copy is the fallback without one, and every successful fetch renews it.
  * - The libraries are pinned to a version, so they never change: they come from the store first, and only what is not
- *   there yet (e.g. a module a library loads later) is fetched and stored.
+ *   there yet (e.g. a module a library loads later, or the Firebase SDK of the account) is fetched and stored.
+ * - Everything else, such as the requests of the account to Google, is left to the browser.
  *
  * It is a classic script, not a module, as not every browser starts a service worker that is a module. The tests load it
  * into a sandbox with a stand-in for `self`.
@@ -32,6 +33,7 @@ const SHELL = [
   'icons/icon-180.png',
   'icons/icon-192.png',
   'icons/icon-512.png',
+  'chordice/app/account.js',
   'chordice/app/app.js',
   'chordice/app/background/background.js',
   'chordice/app/background/painter.js',
@@ -43,6 +45,8 @@ const SHELL = [
   'chordice/app/header.js',
   'chordice/app/help/help.html',
   'chordice/app/help/help.js',
+  'chordice/app/help/imprint.html',
+  'chordice/app/help/privacy.html',
   'chordice/app/main.js',
   'chordice/app/names.js',
   'chordice/app/notes/diagram.js',
@@ -103,6 +107,12 @@ const CDN = [
   'https://cdn.jsdelivr.net/npm/vexflow@5.0.0/+esm',
   'https://cdn.jsdelivr.net/npm/@tombatossals/chords-db@0.5.1/lib/guitar.json',
 ];
+
+/**
+ * The Firebase SDK of the account (FIREBASE_SDK in chordice/app/account.js), pinned to a version like the libraries. It is
+ * not stored on install, as only a page with an account loads it: it is stored once the page has fetched it.
+ */
+const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/13.3.0/';
 
 /**
  * The modules a module of the CDN imports, as full URLs. The CDN bundles each package into one module, which imports the
@@ -182,7 +192,7 @@ function strategyOf(request, scope) {
     return null;
   }
   const url = new URL(request.url);
-  if (url.origin === CDN_ORIGIN) {
+  if (url.origin === CDN_ORIGIN || url.href.startsWith(FIREBASE_SDK)) {
     return 'library';
   }
   return url.href.startsWith(scope) ? 'page' : null;

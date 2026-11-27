@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { degree, harmonicFunction, parseNumeral } from '../../../../chordice/music/theory/numerals.js';
+import { HARMONIC_FUNCTIONS, degree, harmonicFunction, isHarmonicFunction, parseNumeral } from '../../../../chordice/music/theory/numerals.js';
 
 test('degree places roman numerals in the major scale of the tonic', () => {
   assert.deepEqual(degree('C', 'I'), { root: 'C', quality: 'major' });
@@ -28,4 +28,19 @@ test('harmonic functions follow the roman numeral', () => {
   assert.equal(harmonicFunction('V'), 'dominant');
   assert.equal(harmonicFunction('bVII'), 'dominant');
   assert.equal(harmonicFunction('xyz'), null);
+});
+
+test('the harmonic functions are tonic, subdominant and dominant, and every numeral has one of them or none', () => {
+  assert.deepEqual(HARMONIC_FUNCTIONS, ['tonic', 'subdominant', 'dominant']);
+  assert.ok(Object.isFrozen(HARMONIC_FUNCTIONS));
+  for (const value of HARMONIC_FUNCTIONS) {
+    assert.equal(isHarmonicFunction(value), true);
+  }
+  for (const value of [null, undefined, '', 'Tonic', 'tonic ', '"><img src=x>', 42]) {
+    assert.equal(isHarmonicFunction(value), false, String(value));
+  }
+  for (const numeral of ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii', 'bVI', 'bVII', 'III', 'VI', 'VII', 'iv', 'xyz']) {
+    const value = harmonicFunction(numeral);
+    assert.ok(value === null || isHarmonicFunction(value), numeral);
+  }
 });

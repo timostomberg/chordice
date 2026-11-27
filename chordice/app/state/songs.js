@@ -24,6 +24,12 @@ export const SONGS_KEY = 'chordice_songs';
 /** The longest name a saved song can have. */
 export const NAME_LIMIT = 60;
 
+/**
+ * The most songs that can be saved. The songs of an account are kept in one document (see app/account.js), which holds at
+ * most 1 MiB; the largest song (12 rows, every progression chosen) takes about 10 KB, so 75 of them leave room to spare.
+ */
+export const SONG_LIMIT = 75;
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /** The recipe of the state: the options that make the song, and the seeds. */
@@ -113,11 +119,19 @@ export function songSnapshot(state, library, bassPatterns) {
   return snapshotOf(rows, { showKey, melody });
 }
 
+/** Whether as many songs are saved as can be (see SONG_LIMIT), so that no other can be saved. */
+export function songsFull(state) {
+  return state.songs.length >= SONG_LIMIT;
+}
+
 /**
  * Saves the song the state shows under `name` (a default name when it is empty), with the id and the date it is given.
- * The new song is the first of the list.
+ * The new song is the first of the list. Once SONG_LIMIT songs are saved, nothing is saved.
  */
 export function saveSong(state, { id, name, date, library, bassPatterns }) {
+  if (songsFull(state)) {
+    return state;
+  }
   const trimmed = String(name ?? '').trim().slice(0, NAME_LIMIT);
   const song = {
     id,
@@ -221,4 +235,73 @@ export function parseSongs(text) {
 export function withSongs(state, songs) {
   const frozen = songs.some((song) => song.id === state.frozen) ? state.frozen : null;
   return { ...state, songs, frozen };
+}
+
+/** Newest first, as the list shows the songs; songs saved at the same time keep the order of their ids. */
+function newestFirst(a, b) {
+  return Date.parse(b.savedAt) - Date.parse(a.savedAt) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+}
+
+/**
+ * The saved songs as the document of an account keeps them: a record from the id of each song to the song. Kept by id, one
+ * song can be written or removed without touching the others, also when two devices change the songs at once.
+ */
+export function songsRecord(songs) {
+  return Object.fromEntries(songs.map((song) => [song.id, song]));
+}
+
+/**
+ * The saved songs from the record of an account (see songsRecord), newest first. A broken record gives no songs; a broken
+ * song is left out, as is a song whose id is not its key.
+ */
+export function songsFromRecord(record) {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) {
+    return [];
+  }
+  return Object.entries(record)
+    .map(([id, raw]) => (raw?.id === id ? sanitizeSong(raw) : null))
+    .filter((song) => song !== null)
+    .sort(newestFirst);
+}
+
+/**
+ * What changed from the songs `before` to the songs `after`: the songs to write (new ones and changed ones) and the ids of
+ * the songs to remove. The order of the songs does not count.
+ */
+export function songChanges(before, after) {
+  const old = new Map(before.map((song) => [song.id, JSON.stringify(song)]));
+  const kept = new Set(after.map((song) => song.id));
+  return {
+    put: after.filter((song) => old.get(song.id) !== JSON.stringify(song)),
+    remove: before.filter((song) => !kept.has(song.id)).map((song) => song.id),
+  };
+}
+
+/** Whether a change of songChanges changes anything. */
+export function hasChanges(changes) {
+  return changes.put.length > 0 || changes.remove.length > 0;
+}
+
+/**
+ * Joins the songs saved in this browser into the songs of an account, when someone signs in. The account keeps all of its
+ * songs; the songs of the browser it does not have yet are added, newest first, as long as fewer than `limit` songs are
+ * saved. Returns the songs of the account then (newest first), the songs to `upload` to it, and the songs that did not fit
+ * and stay in the browser (`left`), so that none is lost. A song of the browser that the account has already (by its id)
+ * was uploaded before; the account's copy counts.
+ */
+export function mergeSongs(account, device, limit = SONG_LIMIT) {
+  const ids = new Set(account.map((song) => song.id));
+  const upload = [];
+  const left = [];
+  for (const song of [...device].sort(newestFirst)) {
+    if (ids.has(song.id)) {
+      continue;
+    }
+    if (account.length + upload.length < limit) {
+      upload.push(song);
+    } else {
+      left.push(song);
+    }
+  }
+  return { songs: [...account, ...upload].sort(newestFirst), upload, left };
 }

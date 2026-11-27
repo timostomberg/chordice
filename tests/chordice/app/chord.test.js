@@ -27,6 +27,15 @@ test('chordCell marks the box with has-tones only while the tones switch is on',
   assert.ok(!chordCell(CHORD, '', { colour: false, roman: true, tones: false }, 'C').includes('has-tones'));
 });
 
+test('chordCell names a class only after a known function, so that no markup gets in through the function', () => {
+  const evil = { ...CHORD, function: '"><img src=x onerror=alert(1)>' };
+  const html = chordCell(evil, '', { colour: true, roman: false, tones: false }, 'C');
+  assert.ok(html.startsWith('<li class="chord fn-none is-major"'));
+  assert.ok(!html.includes('<img'));
+  assert.ok(!html.includes('onerror'));
+  assert.ok(chordCell({ ...CHORD, function: 'tonic' }, '', { colour: true }, 'C').startsWith('<li class="chord fn-tonic is-major"'));
+});
+
 test('chordCell without colour has no function classes', () => {
   const html = chordCell(CHORD, '', { colour: false, roman: false, tones: false }, 'C');
   assert.equal(html.startsWith('<li class="chord"'), true);

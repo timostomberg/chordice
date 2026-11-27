@@ -29,6 +29,14 @@ const FUNCTIONS = {
   V: 'dominant', vii: 'dominant', VII: 'dominant', bVII: 'dominant',
 };
 
+/** The harmonic functions a chord can have; a chord of none has null. */
+export const HARMONIC_FUNCTIONS = Object.freeze(['tonic', 'subdominant', 'dominant']);
+
+/** Whether `value` is a harmonic function (see HARMONIC_FUNCTIONS). */
+export function isHarmonicFunction(value) {
+  return HARMONIC_FUNCTIONS.includes(value);
+}
+
 /** Harmonic function of a roman numeral: "tonic", "subdominant", "dominant" or null. */
 export function harmonicFunction(numeral) {
   return FUNCTIONS[numeral] ?? null;

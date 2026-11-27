@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Imprint</title>
+  <link rel="stylesheet" href="../../styles/main.css">
+  <link rel="stylesheet" href="../../styles/header.css">
+  <link rel="stylesheet" href="../../styles/help.css">
+  <script>
+    // The page follows the theme chosen in the app, as the help page does (see help.html). Light is the default.
+    const cookie = /(?:^|;\s*)chordice_state=([^;]*)/.exec(document.cookie);
+    let theme = 'light';
+    try {
+      const stored = cookie ? decodeURIComponent(cookie[1]) : localStorage.getItem('chordice_state');
+      if (stored && JSON.parse(stored).theme === 'dark') {
+        theme = 'dark';
+      }
+    } catch {
+      // A broken cookie or copy, or a refused storage, leaves the default theme, as the app does.
+    }
+    document.documentElement.dataset.theme = theme;
+  </script>
+</head>
+<body class="help-page">
+  <header class="toolbar">
+    <a class="chip help-back" href="../../../index.html">Back to Chordice</a>
+    <h1>Imprint</h1>
+  </header>
+  <main class="help">
+    <!-- The legal notice (Impressum) under § 5 of the German Digital Services Act (DDG): the name, the place and a means of
+         fast electronic contact. -->
+    <p>Legal notice (Impressum) under § 5 DDG.</p>
+
+    <h2>Operator</h2>
+    <p>Timo Tjaden Stomberg<br>
+      Bonn, Germany</p>
+
+    <h2>Contact</h2>
+    <p>Email: <a href="mailto:timo.stomberg.s@gmx.de">timo.stomberg.s@gmx.de</a></p>
+
+    <h2>Privacy</h2>
+    <p>How Chordice handles personal data is described in the <a href="privacy.html" data-action="show-help-page"
+      data-page="privacy">privacy policy</a>.</p>
+
+    <p class="help-footer"><a href="../../../index.html">Back to Chordice</a></p>
+  </main>
+</body>
+</html>

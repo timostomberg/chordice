@@ -60,3 +60,28 @@ test('the question before deleting takes the place of the name, and a long name 
   assert.match(question, /overflow-wrap: anywhere/);
   assert.match(block('.saved-song.is-deleting'), /min-height: var\(--touch\)/);
 });
+
+test('the account section is a paper card like the saved songs, with the accent border while it asks to delete the account', () => {
+  const card = block('.account');
+  assert.match(card, /background: var\(--card\)/);
+  assert.match(card, /box-shadow: var\(--shadow\)/);
+  assert.match(card, /border-radius: 16px 12px 18px 13px \/ 13px 17px 12px 16px/);
+  assert.match(block('.account.is-deleting'), /border-color: var\(--accent\)/);
+  // The buttons wrap on a narrow panel, and a long email address breaks rather than widening the panel.
+  assert.match(block('.account-buttons'), /flex-wrap: wrap/);
+  assert.match(block('.account-text'), /overflow-wrap: anywhere/);
+  assert.match(block('.account-sign-in svg'), /width: 1\.2rem/);
+});
+
+test('the Sign in with Google button stands on the left, and the note under it is smaller and paler', () => {
+  const button = block('.account-sign-in');
+  assert.match(button, /display: flex/);
+  assert.match(button, /width: fit-content/);
+  assert.match(button, /margin: 0\.2rem 0 0\.6rem/, 'on the left, not in the middle');
+  assert.doesNotMatch(button, /\bauto\b/);
+  const hint = block('.account-hint');
+  assert.match(hint, /font-size: 0\.85rem/);
+  assert.match(hint, /color: var\(--muted\)/);
+  // It comes after the text of the card, so that its size and colour win.
+  assert.ok(CSS.indexOf('\n.account-hint {') > CSS.indexOf('\n.account-text {'));
+});

@@ -1,21 +1,37 @@
 /**
  * The page: loads the progression data, holds the state (state/), renders it through the windows (header.js, options/,
  * song/, notes/, help/), wires the events of the page to the state transitions and keeps the state in a cookie and in
- * the local storage. The music (music/) generates the song; the look of the page is in styles/. main.js starts it.
+ * the local storage. The saved songs are kept in the local storage, or in the account of the person who is signed in
+ * (account.js). The music (music/) generates the song; the look of the page is in styles/. main.js starts it.
  */
 
 import { load } from 'js-yaml';
 import { buildBassPatterns, buildLibrary } from '../music/data/validate.js';
 import { applyAction } from './state/actions.js';
-import { setInstrument } from './state/state.js';
+import { choosePanel, setInstrument } from './state/state.js';
 import { STORAGE_KEY, cookiePathOf, readState, sanitizeState, serializeCookie, serializeStored } from './state/persistence.js';
 import { displaySwitches } from './state/availability.js';
-import { SONGS_KEY, deleteSong, loadSong, renameSong, parseSongs, saveSong, serializeSongs, shownSong, unfreezeSong, withSongs } from './state/songs.js';
+import {
+  SONGS_KEY,
+  deleteSong,
+  hasChanges,
+  loadSong,
+  mergeSongs,
+  renameSong,
+  parseSongs,
+  saveSong,
+  serializeSongs,
+  shownSong,
+  songChanges,
+  songsFromRecord,
+  unfreezeSong,
+  withSongs,
+} from './state/songs.js';
 import { NAME_FIELD_ID, RENAME_FIELD_ID, renderFrozenNote, renderSongs } from './songs.js';
 import { updateHeader } from './header.js';
 import { renderExercises, renderOptions } from './options/options.js';
 import { renderKeyCircle } from './options/circle-of-fifths.js';
-import { createHelp } from './help/help.js';
+import { createHelp, isHelpPage } from './help/help.js';
 import { keepFocus } from './options/focus.js';
 import { renderSong } from './song/song.js';
 import { bindSongZoom, blockZoom } from './song/zoom.js';
@@ -23,6 +39,7 @@ import { createNotesDialog } from './notes/notes.js';
 import { createBackground } from './background/background.js';
 import { bindPanelHistory, bindPanelSwipes } from './panel.js';
 import { fingeringOf } from '../music/instruments/guitar.js';
+import { connectAccount } from './account.js';
 
 const PROGRESSIONS_URL = new URL('../music/data/chord_progressions.yaml', import.meta.url);
 const BASS_URL = new URL('../music/data/bass_patterns.yaml', import.meta.url);
@@ -109,14 +126,17 @@ export const THEME_COLOURS = { light: '#f1ebdf', dark: '#141824' };
 /** The accessible name of the side panel for each of its panels. */
 const PANEL_LABELS = { options: 'Options', exercises: 'Exercises', songs: 'Songs', help: 'Help' };
 
+/** The accessible name of the side panel for each page of the help window (see help/help.js). */
+const HELP_LABELS = { help: 'Help', imprint: 'Imprint', privacy: 'Privacy policy' };
+
 /** The markup of each panel of the side panel but the help, which help.js loads. */
 const PANEL_MARKUP = {
   options: (state, library) => renderOptions(state, library),
   exercises: (state, library) => renderExercises(state, library),
-  songs: (state, library, draft, editing) => renderSongs(state, draft, editing),
+  songs: (state, library, draft, editing, account) => renderSongs(state, draft, editing, account),
 };
 
-function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, guitarError = false }) {
+function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, guitarError = false, connect }) {
   let state = initial;
   let guitar = loaded;
   const cookiePath = cookiePathOf(document.location.pathname);
@@ -148,6 +168,9 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
   // The markup the side panel shows, while it shows the help, and the panel it showed at the last render.
   let shownHelp = null;
   let shownPanel = null;
+  // The page the help panel shows: the help, the imprint or the privacy policy (see help/help.js). It belongs to the panel,
+  // not to the state: the Help button always opens the help itself.
+  let helpPage = 'help';
   // The saved songs last written to the local storage: they are written again only when they change, and until a write
   // works.
   let writtenSongs = state.songs;
@@ -155,6 +178,22 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
   // null. They belong to the panel, not to the state: any other action ends them.
   let renaming = null;
   let deleting = null;
+  // Whether the songs panel asks whether to delete the account; any other action ends the question.
+  let deletingAccount = false;
+  // The message of the account section (e.g. why the account could not be deleted), until the next action of the account
+  // or until someone signs in or out.
+  let accountNotice = null;
+
+  // The person who is signed in (see account.js), or null. While someone is signed in, the songs of the state are the
+  // songs of their account, and a change of them is written to the account instead of the local storage. `synced` tells
+  // whether the songs of the account have come since they signed in; until then no song can be saved. `merged` tells
+  // whether the songs of the browser have been joined into them, which waits until the account has confirmed its songs:
+  // the copy in the browser may be behind and hold fewer songs than the account.
+  let person = null;
+  let synced = false;
+  let merged = false;
+  // The account (see account.js), connected once the page is set up; null where the page has none.
+  let account = null;
 
   // Only the chords zoom, with Ctrl + scroll or a pinch. The options never zoom; Ctrl + scroll there does nothing.
   const song = document.querySelector('.song');
@@ -183,15 +222,16 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
     // A keyboard user keeps their place: the control they used is focused again in the new markup.
     // The side panel shows the options, the exercises or the help, as the Options, Exercises and Help buttons choose. The help
     // stays as it is while it is shown, so a re-render (e.g. after New Song) keeps the reader's place in it.
-    options.setAttribute('aria-label', PANEL_LABELS[state.panel]);
-    // Another panel starts at its top.
-    if (state.panel !== shownPanel) {
+    options.setAttribute('aria-label', state.panel === 'help' ? HELP_LABELS[helpPage] : PANEL_LABELS[state.panel]);
+    // Another panel, or another page of the help, starts at its top.
+    const panel = state.panel === 'help' ? `help:${helpPage}` : state.panel;
+    if (panel !== shownPanel) {
       sidePanel.scrollTop = 0;
-      shownPanel = state.panel;
+      shownPanel = panel;
     }
     if (state.panel === 'help') {
       if (state.showOptions) {
-        const markup = help.markup();
+        const markup = help.markup(helpPage);
         if (markup !== shownHelp) {
           optionList.innerHTML = markup;
           shownHelp = markup;
@@ -202,7 +242,8 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
       // The name typed into the field of the songs panel is kept over a re-render, until the song is saved.
       const draft = optionList.querySelector(`#${NAME_FIELD_ID}`)?.value ?? '';
       keepFocus(optionList, () => {
-        optionList.innerHTML = renderFrozenNote(state) + PANEL_MARKUP[state.panel](state, library, draft, { renaming, deleting });
+        const editing = { renaming, deleting, deletingAccount };
+        optionList.innerHTML = renderFrozenNote(state) + PANEL_MARKUP[state.panel](state, library, draft, editing, accountView());
       });
     }
     const list = optionList.querySelector('.progression-list');
@@ -235,7 +276,14 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
     updateHeader(state);
     document.cookie = serializeCookie(state, cookiePath);
     writeStorage(serializeStored(state));
-    if (state.songs !== writtenSongs) {
+    if (state.songs !== writtenSongs && person) {
+      // The account gets only what changed; a write it refuses is undone by the songs it sends back.
+      const changes = songChanges(writtenSongs, state.songs);
+      writtenSongs = state.songs;
+      if (hasChanges(changes)) {
+        account.write(changes).catch(() => {});
+      }
+    } else if (state.songs !== writtenSongs) {
       // A song that cannot be stored stays in the list for now, and the page says that it will be lost.
       if (writeStorage(serializeSongs(state.songs), SONGS_KEY)) {
         writtenSongs = state.songs;
@@ -249,6 +297,11 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
     panelHistory.sync();
   }
 
+  /** What the songs panel shows of the account: none without one, else who is signed in and whether their songs came. */
+  function accountView() {
+    return account ? { person, loading: person !== null && !synced, notice: accountNotice } : null;
+  }
+
   /** The display switches of the chords; a frozen song shows its melody note as it was saved. */
   function songDisplay() {
     return { ...displaySwitches(state), melody: currentMelody };
@@ -257,6 +310,9 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
   /** The actions on the saved songs, which need the progressions, the date or the name field besides the state. */
   const songActions = {
     'save-song': () => {
+      if (person && !synced) {
+        return state;
+      }
       const field = optionList.querySelector(`#${NAME_FIELD_ID}`);
       const next = saveSong(state, { id: newSongId(), name: field?.value, date: new Date(), library, bassPatterns });
       if (field) {
@@ -280,20 +336,47 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
     'confirm-rename': (params) => renameSong(state, params.id, optionList.querySelector(`#${RENAME_FIELD_ID}`)?.value),
     'cancel-rename': () => state,
     'unfreeze-song': () => unfreezeSong(state),
+    // The account: signing in and out, and deleting it after a question in the songs panel. Their results come back
+    // through onPerson and onSongs.
+    'sign-in': () => {
+      account?.signIn();
+      return state;
+    },
+    'sign-out': () => {
+      account?.signOut();
+      return state;
+    },
+    'delete-account': () => {
+      deletingAccount = person !== null;
+      return state;
+    },
+    'confirm-delete-account': () => {
+      accountNotice = null;
+      account?.deleteAccount().then(showAccountNotice);
+      return state;
+    },
+    'cancel-delete-account': () => state,
   };
+
+  /** Shows a message of the account in its section, or none. */
+  function showAccountNotice(message) {
+    accountNotice = message ?? null;
+    render();
+  }
 
   /**
    * The saved songs as the local storage holds them now, which another tab of the page may have changed. While the
-   * storage holds no songs (or refuses them), the songs of this tab stay.
+   * storage holds no songs (or refuses them), the songs of this tab stay; so do the songs of an account, which come from
+   * the account.
    */
   function storedSongs() {
-    const text = readStorage(SONGS_KEY);
+    const text = person ? null : readStorage(SONGS_KEY);
     return text === null ? state.songs : parseSongs(text);
   }
 
   // Another tab of the page saved, renamed or deleted a song: this tab shows its songs too.
   globalThis.addEventListener?.('storage', (event) => {
-    if (event.key !== SONGS_KEY && event.key !== null) {
+    if ((event.key !== SONGS_KEY && event.key !== null) || person) {
       return;
     }
     state = withSongs(state, event.newValue === null ? [] : parseSongs(event.newValue));
@@ -334,6 +417,26 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
   function dispatch(action, params) {
     if (action === 'toggle-help') {
       help.retry();
+      // While the imprint or the privacy policy is shown, the Help button goes back to the help rather than closing it.
+      const showsOtherPage = state.showOptions && state.panel === 'help' && helpPage !== 'help';
+      helpPage = 'help';
+      if (showsOtherPage) {
+        render();
+        return;
+      }
+    }
+    // A link to a page of the help (e.g. the privacy policy, from the help or the songs panel) shows it in the side panel.
+    if (action === 'show-help-page') {
+      if (!isHelpPage(params.page)) {
+        return;
+      }
+      help.retry();
+      helpPage = params.page;
+      if (!state.showOptions || state.panel !== 'help') {
+        state = choosePanel(state, 'help');
+      }
+      render();
+      return;
     }
     // Whether the keyboard focus was in the side panel, and on the name field, before the action.
     const focused = document.activeElement;
@@ -353,6 +456,9 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
     }
     if (action !== 'delete-song') {
       deleting = null;
+    }
+    if (action !== 'delete-account') {
+      deletingAccount = false;
     }
     state = Object.hasOwn(songActions, action) ? songActions[action](params) : applyAction(state, action, params, library);
     render();
@@ -394,6 +500,10 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
 
   document.addEventListener('click', (event) => {
     const target = event.target.closest('[data-action]');
+    // A link with an action (e.g. to the privacy policy) does its action in the page rather than leaving it.
+    if (target?.tagName === 'A') {
+      event.preventDefault();
+    }
     if (target?.dataset.action === 'show-notes') {
       openNotes(target);
     } else if (target?.dataset.action === 'set-instrument' && target.dataset.instrument === 'guitar') {
@@ -454,12 +564,58 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
     }
   });
 
+  account = connect({
+    onPerson(next) {
+      const signedOut = person !== null && next === null;
+      person = next;
+      synced = false;
+      merged = false;
+      deletingAccount = false;
+      accountNotice = null;
+      // Signed in, the songs of the browser stay in the state until the songs of the account come (the panel says they are
+      // loading), so that a frozen song stays frozen if the account has it.
+      if (signedOut) {
+        // The songs of the browser come back: those saved before signing in that did not fit into the account.
+        state = withSongs(state, parseSongs(readStorage(SONGS_KEY)));
+      }
+      writtenSongs = state.songs;
+      render();
+    },
+    onSongs(record, { confirmed = true } = {}) {
+      if (!person) {
+        return;
+      }
+      let songs = songsFromRecord(record);
+      synced = true;
+      if (!merged && confirmed) {
+        merged = true;
+        // The songs saved in this browser go into the account once it has confirmed its songs; those that do not fit stay
+        // here.
+        const device = parseSongs(readStorage(SONGS_KEY));
+        const joined = mergeSongs(songs, device);
+        songs = joined.songs;
+        if (joined.left.length < device.length) {
+          account.write({ put: joined.upload })
+            .then(() => writeStorage(serializeSongs(joined.left), SONGS_KEY))
+            .catch(() => {});
+        }
+      }
+      state = withSongs(state, songs);
+      writtenSongs = state.songs;
+      render();
+    },
+    onError: showStatus,
+  });
+
   render();
   showStatus(guitarError ? GUITAR_FAILED : null);
 }
 
-/** Loads the data and shows the page. The promise settles once the page is shown, or once the error is shown. */
-export function startApp() {
+/**
+ * Loads the data and shows the page. The promise settles once the page is shown, or once the error is shown. `connect`
+ * connects the page to the account (see account.js); it returns null where the page has none.
+ */
+export function startApp({ connect = connectAccount } = {}) {
   const loadGuitar = guitarLoader();
   return loadData()
     .then(async (data) => {
@@ -476,7 +632,7 @@ export function startApp() {
         });
       }
       const initial = guitar ? stored : setInstrument(stored, 'piano');
-      start({ ...data, initial, guitar, loadGuitar, guitarError });
+      start({ ...data, initial, guitar, loadGuitar, guitarError, connect });
     })
     .catch((error) => {
       document.querySelector('#song-rows').textContent = `Chordice could not start: ${error.message}`;
