@@ -262,7 +262,8 @@ test('the pigment of every wash settles in soft clouds: a tile of noise in both 
     assert.match(block, /--clouds: var\(--mottle\);/, 'the buttons carry the clouds of the theme');
   }
   const filled = declarationsOf('.generate::before,\n.chip.is-on::before,\n.chip.count-toggle::before,\n' +
-    '.toolbar button[aria-pressed="true"]::before,\n.toolbar button[aria-expanded="true"]::before');
+    '.toolbar button[aria-pressed="true"]::before,\n.toolbar button[aria-expanded="true"]::before,\n' +
+    '.toolbar button[data-exercise-active="true"]::before');
   assert.ok(filled.includes('var(--mottle-ink)'), 'the filled buttons have darker clouds, which show on the blue');
 });
 
@@ -294,7 +295,8 @@ test('the rim of a wash is uneven: the pigment gathers more at the bottom, where
 
 test('the bloom on the deep blue of the filled buttons is fainter than on the others', () => {
   const filled = declarationsOf('.generate::before,\n.chip.is-on::before,\n.chip.count-toggle::before,\n' +
-    '.toolbar button[aria-pressed="true"]::before,\n.toolbar button[aria-expanded="true"]::before');
+    '.toolbar button[aria-pressed="true"]::before,\n.toolbar button[aria-expanded="true"]::before,\n' +
+    '.toolbar button[data-exercise-active="true"]::before');
   assert.ok(filled.includes('var(--bloom-ink)'));
   for (const block of [themeBlock(':root'), themeBlock(':root\\[data-theme="dark"\\]')]) {
     const alpha = (name) => Number(new RegExp(`${name}:\\s*rgba\\([^)]*,\\s*([\\d.]+)\\)`).exec(block)[1]);

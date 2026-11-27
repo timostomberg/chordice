@@ -54,10 +54,12 @@ const SHELL = [
   'chordice/app/panel.js',
   'chordice/app/song/song.js',
   'chordice/app/song/zoom.js',
+  'chordice/app/songs.js',
   'chordice/app/state/actions.js',
   'chordice/app/state/availability.js',
   'chordice/app/state/exercises.js',
   'chordice/app/state/persistence.js',
+  'chordice/app/state/songs.js',
   'chordice/app/state/state.js',
   'chordice/music/constants.js',
   'chordice/music/data/bass_patterns.yaml',
@@ -68,6 +70,7 @@ const SHELL = [
   'chordice/music/generator/order.js',
   'chordice/music/generator/progression.js',
   'chordice/music/generator/random.js',
+  'chordice/music/generator/snapshot.js',
   'chordice/music/generator/song.js',
   'chordice/music/instruments/guitar.js',
   'chordice/music/instruments/piano.js',
@@ -86,6 +89,7 @@ const SHELL = [
   'chordice/styles/notes.css',
   'chordice/styles/options.css',
   'chordice/styles/song.css',
+  'chordice/styles/songs.css',
 ];
 
 /** The CDN the libraries come from. */

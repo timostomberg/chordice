@@ -212,7 +212,8 @@ button {
 .chip.is-on::before,
 .chip.count-toggle::before,
 .toolbar button[aria-pressed="true"]::before,
-.toolbar button[aria-expanded="true"]::before {
+.toolbar button[aria-expanded="true"]::before,
+.toolbar button[data-exercise-active="true"]::before {
   background: radial-gradient(ellipse at 35% 30%, var(--bloom-ink), transparent 70%), var(--mottle-ink);
   background-size: auto, 200px 200px;
 }
@@ -241,7 +242,8 @@ button:focus-visible {
   outline-offset: 2px;
 }
 
-button[aria-expanded="true"] {
+button[aria-expanded="true"],
+button[data-exercise-active="true"] {
   border-color: var(--accent);
 }
 

@@ -21,6 +21,7 @@
   <link rel="stylesheet" href="chordice/styles/options.css">
   <link rel="stylesheet" href="chordice/styles/circle-of-fifths.css">
   <link rel="stylesheet" href="chordice/styles/song.css">
+  <link rel="stylesheet" href="chordice/styles/songs.css">
   <link rel="stylesheet" href="chordice/styles/chord.css">
   <link rel="stylesheet" href="chordice/styles/notes.css">
   <link rel="stylesheet" href="chordice/styles/help.css">
@@ -45,7 +46,8 @@
     <!-- The buttons left of the title are one group, the buttons right of it another: on a narrow screen each group wraps
          to the next row only as a whole. -->
     <div class="toolbar-start">
-      <!-- The panel tabs: the side panel shows the options, the exercises or the help; the pressed one again closes it. -->
+      <!-- The panel tabs: the side panel shows the options, the exercises, the saved songs or the help; the pressed one again
+           closes it. -->
       <div class="panel-tabs" role="group" aria-label="Side panel">
         <button type="button" class="options-toggle panel-tab" data-action="toggle-options" aria-controls="options" aria-label="Options" title="Options">
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -60,6 +62,12 @@
             <rect x="16" y="6" width="3" height="12" rx="1" fill="currentColor"/>
             <rect x="2" y="9" width="2.5" height="6" rx="1" fill="currentColor"/>
             <rect x="19.5" y="9" width="2.5" height="6" rx="1" fill="currentColor"/>
+          </svg>
+        </button>
+        <button type="button" class="songs-toggle panel-tab" data-action="toggle-songs" aria-controls="options" aria-label="Songs" title="Songs">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <!-- A heart: the songs you liked and saved. -->
+            <path d="M12 20s-7.5-4.6-7.5-10.1A4.2 4.2 0 0 1 12 7.6a4.2 4.2 0 0 1 7.5 2.3C19.5 15.4 12 20 12 20z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
           </svg>
         </button>
         <button type="button" class="help-toggle panel-tab" data-action="toggle-help" aria-controls="options" aria-label="Help" title="Help">

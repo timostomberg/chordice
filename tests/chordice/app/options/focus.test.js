@@ -30,7 +30,11 @@ function rerender(list, state) {
 }
 
 test('after a re-render the focus is on the new element of the control that had it', () => {
-  const state = { ...defaultState(LIBRARY, () => 0.5), collapsed: ['progressionVariations', 'variations', 'bass', 'melody', 'exercises'] };
+  const state = {
+    ...defaultState(LIBRARY, () => 0.5),
+    selection: LIBRARY.map((progression) => progression.id),
+    collapsed: ['progressionVariations', 'variations', 'bass', 'melody', 'exercises'],
+  };
   const { document, list } = page(state);
   const chip = list.querySelector('[data-action="toggle-progression"][data-id="Jazz / Jazz Cadence"]');
   chip.focus();

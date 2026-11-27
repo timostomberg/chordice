@@ -5,12 +5,13 @@
  */
 
 import { load } from 'js-yaml';
-import { generateSong } from '../music/generator/song.js';
 import { buildBassPatterns, buildLibrary } from '../music/data/validate.js';
 import { applyAction } from './state/actions.js';
 import { setInstrument } from './state/state.js';
 import { STORAGE_KEY, cookiePathOf, readState, sanitizeState, serializeCookie, serializeStored } from './state/persistence.js';
-import { displaySwitches, effectiveState } from './state/availability.js';
+import { displaySwitches } from './state/availability.js';
+import { SONGS_KEY, deleteSong, loadSong, renameSong, parseSongs, saveSong, serializeSongs, shownSong, unfreezeSong, withSongs } from './state/songs.js';
+import { NAME_FIELD_ID, RENAME_FIELD_ID, renderFrozenNote, renderSongs } from './songs.js';
 import { updateHeader } from './header.js';
 import { renderExercises, renderOptions } from './options/options.js';
 import { renderKeyCircle } from './options/circle-of-fifths.js';
@@ -63,24 +64,41 @@ function guitarLoader() {
 }
 
 /**
- * The copy of the state in the browser's local storage (see persistence.js). A browser that refuses the storage (e.g. a
- * private window that is full) keeps only the cookie.
+ * An entry of the browser's local storage: the copy of the state (see persistence.js) or the saved songs (see songs.js).
+ * A browser that refuses the storage (e.g. a private window that is full) keeps only the cookie, and no songs.
  */
-function readStorage() {
+function readStorage(key = STORAGE_KEY) {
   try {
-    return globalThis.localStorage?.getItem(STORAGE_KEY) ?? null;
+    return globalThis.localStorage?.getItem(key) ?? null;
   } catch {
     return null;
   }
 }
 
-function writeStorage(text) {
+/** Writes an entry of the local storage; returns whether it was written (see readStorage). */
+function writeStorage(text, key = STORAGE_KEY) {
   try {
-    globalThis.localStorage?.setItem(STORAGE_KEY, text);
+    if (!globalThis.localStorage) {
+      return false;
+    }
+    globalThis.localStorage.setItem(key, text);
+    return true;
   } catch {
     // Only the cookie keeps the state then.
+    return false;
   }
 }
+
+/** A new id for a saved song: the time and a random part, so that two songs saved at once differ too. */
+function newSongId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/** The message shown when the saved songs cannot be written to the local storage (e.g. it is full, or refused). */
+export const SONGS_FAILED = 'The saved songs could not be stored in this browser, so they will be lost when the page is closed.';
+
+/** The actions that change the saved songs: they start from the songs another tab may have stored meanwhile. */
+const SONG_WRITES = ['save-song', 'confirm-rename', 'confirm-delete'];
 
 /** The message shown when the guitar shapes cannot be loaded; the piano stays chosen. */
 const GUITAR_FAILED = 'The guitar shapes could not be loaded, so the piano stays chosen.';
@@ -89,7 +107,14 @@ const GUITAR_FAILED = 'The guitar shapes could not be loaded, so the piano stays
 export const THEME_COLOURS = { light: '#f1ebdf', dark: '#141824' };
 
 /** The accessible name of the side panel for each of its panels. */
-const PANEL_LABELS = { options: 'Options', exercises: 'Exercises', help: 'Help' };
+const PANEL_LABELS = { options: 'Options', exercises: 'Exercises', songs: 'Songs', help: 'Help' };
+
+/** The markup of each panel of the side panel but the help, which help.js loads. */
+const PANEL_MARKUP = {
+  options: (state, library) => renderOptions(state, library),
+  exercises: (state, library) => renderExercises(state, library),
+  songs: (state, library, draft, editing) => renderSongs(state, draft, editing),
+};
 
 function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, guitarError = false }) {
   let state = initial;
@@ -112,6 +137,8 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
   const background = createBackground(document.querySelector('#background'));
   const notes = createNotesDialog(document.querySelector('#notes'));
   let currentSong = [];
+  // Whether the song shown shows its melody note (see shownSong in state/songs.js).
+  let currentMelody = false;
   // Once a load of the help has ended, the help is shown if its panel is still chosen.
   const help = createHelp(fetchText, () => {
     if (state.panel === 'help') {
@@ -121,6 +148,13 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
   // The markup the side panel shows, while it shows the help, and the panel it showed at the last render.
   let shownHelp = null;
   let shownPanel = null;
+  // The saved songs last written to the local storage: they are written again only when they change, and until a write
+  // works.
+  let writtenSongs = state.songs;
+  // The saved song whose name is being edited in the songs panel, and the one that is about to be deleted, each an id or
+  // null. They belong to the panel, not to the state: any other action ends them.
+  let renaming = null;
+  let deleting = null;
 
   // Only the chords zoom, with Ctrl + scroll or a pinch. The options never zoom; Ctrl + scroll there does nothing.
   const song = document.querySelector('.song');
@@ -165,21 +199,25 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
       }
     } else {
       shownHelp = null;
+      // The name typed into the field of the songs panel is kept over a re-render, until the song is saved.
+      const draft = optionList.querySelector(`#${NAME_FIELD_ID}`)?.value ?? '';
       keepFocus(optionList, () => {
-        optionList.innerHTML = state.panel === 'exercises' ? renderExercises(state, library) : renderOptions(state, library);
+        optionList.innerHTML = renderFrozenNote(state) + PANEL_MARKUP[state.panel](state, library, draft, { renaming, deleting });
       });
     }
     const list = optionList.querySelector('.progression-list');
     if (list) {
       list.scrollTop = listScroll;
     }
-    const effective = effectiveState(state);
-    currentSong = generateSong({ ...effective, library, bassPatterns });
+    // The song generated from the options, or the snapshot of a saved song that is shown frozen (see state/songs.js).
+    const shown = shownSong(state, library, bassPatterns);
+    currentSong = shown.rows;
+    currentMelody = shown.melody;
     // The circle of fifths left of the chords, where the key is chosen, with the circle of fifths button in its middle.
     keepFocus(songCircle, () => {
       songCircle.innerHTML = renderKeyCircle(state);
     });
-    songRows.innerHTML = renderSong(currentSong, displaySwitches(state), { showKey: effective.circleOfFifths });
+    songRows.innerHTML = renderSong(currentSong, songDisplay(), { showKey: shown.showKey });
     if (currentSong.length === shownRowCount) {
       zoom.fit();
     } else {
@@ -197,15 +235,135 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
     updateHeader(state);
     document.cookie = serializeCookie(state, cookiePath);
     writeStorage(serializeStored(state));
+    if (state.songs !== writtenSongs) {
+      // A song that cannot be stored stays in the list for now, and the page says that it will be lost.
+      if (writeStorage(serializeSongs(state.songs), SONGS_KEY)) {
+        writtenSongs = state.songs;
+        if (status.textContent === SONGS_FAILED) {
+          showStatus(null);
+        }
+      } else {
+        showStatus(SONGS_FAILED);
+      }
+    }
     panelHistory.sync();
+  }
+
+  /** The display switches of the chords; a frozen song shows its melody note as it was saved. */
+  function songDisplay() {
+    return { ...displaySwitches(state), melody: currentMelody };
+  }
+
+  /** The actions on the saved songs, which need the progressions, the date or the name field besides the state. */
+  const songActions = {
+    'save-song': () => {
+      const field = optionList.querySelector(`#${NAME_FIELD_ID}`);
+      const next = saveSong(state, { id: newSongId(), name: field?.value, date: new Date(), library, bassPatterns });
+      if (field) {
+        field.value = '';
+      }
+      return next;
+    },
+    'load-song': (params) => loadSong(state, params.id, library, bassPatterns),
+    // The cross asks in the entry of the song whether to delete it; Delete there deletes it.
+    'delete-song': (params) => {
+      deleting = state.songs.some((saved) => saved.id === params.id) ? params.id : null;
+      return state;
+    },
+    'confirm-delete': (params) => deleteSong(state, params.id),
+    'cancel-delete': () => state,
+    // The pencil shows the name in a field; the form of the field renames the song (see the submit listener).
+    'rename-song': (params) => {
+      renaming = state.songs.some((saved) => saved.id === params.id) ? params.id : null;
+      return state;
+    },
+    'confirm-rename': (params) => renameSong(state, params.id, optionList.querySelector(`#${RENAME_FIELD_ID}`)?.value),
+    'cancel-rename': () => state,
+    'unfreeze-song': () => unfreezeSong(state),
+  };
+
+  /**
+   * The saved songs as the local storage holds them now, which another tab of the page may have changed. While the
+   * storage holds no songs (or refuses them), the songs of this tab stay.
+   */
+  function storedSongs() {
+    const text = readStorage(SONGS_KEY);
+    return text === null ? state.songs : parseSongs(text);
+  }
+
+  // Another tab of the page saved, renamed or deleted a song: this tab shows its songs too.
+  globalThis.addEventListener?.('storage', (event) => {
+    if (event.key !== SONGS_KEY && event.key !== null) {
+      return;
+    }
+    state = withSongs(state, event.newValue === null ? [] : parseSongs(event.newValue));
+    writtenSongs = state.songs;
+    render();
+  });
+
+  /** The control of the songs panel with the action and the song id, if it is shown. */
+  function songControl(action, id) {
+    return [...optionList.querySelectorAll(`[data-action="${action}"]`)].find((element) => element.dataset.id === id);
+  }
+
+  /**
+   * After an action of the songs panel, the control the keyboard user used may be gone (e.g. the cross that turned into
+   * the question). The focus then goes to the control that takes its place: the Delete button of the question, the pencil
+   * after renaming, the song that follows a deleted one, or the name field after saving with Enter.
+   */
+  function songFocus(action, { id, before, index, inField }) {
+    switch (action) {
+      case 'delete-song':
+        return songControl('confirm-delete', id);
+      case 'cancel-delete':
+        return songControl('delete-song', before.deleting);
+      case 'confirm-rename':
+      case 'cancel-rename':
+        return songControl('rename-song', id ?? before.renaming);
+      case 'confirm-delete': {
+        const songs = [...optionList.querySelectorAll('[data-action="load-song"]')];
+        return songs[Math.min(index, songs.length - 1)] ?? optionList.querySelector(`#${NAME_FIELD_ID}`);
+      }
+      case 'save-song':
+        return inField ? optionList.querySelector(`#${NAME_FIELD_ID}`) : null;
+      default:
+        return null;
+    }
   }
 
   function dispatch(action, params) {
     if (action === 'toggle-help') {
       help.retry();
     }
-    state = applyAction(state, action, params, library);
+    // Whether the keyboard focus was in the side panel, and on the name field, before the action.
+    const focused = document.activeElement;
+    const hadFocus = Boolean(focused) && optionList.contains(focused);
+    const focus = {
+      id: params.id,
+      before: { renaming, deleting },
+      index: state.songs.findIndex((saved) => saved.id === params.id),
+      inField: hadFocus && focused.id === NAME_FIELD_ID,
+    };
+    if (SONG_WRITES.includes(action)) {
+      state = withSongs(state, storedSongs());
+    }
+    const startsRenaming = action === 'rename-song';
+    if (!startsRenaming) {
+      renaming = null;
+    }
+    if (action !== 'delete-song') {
+      deleting = null;
+    }
+    state = Object.hasOwn(songActions, action) ? songActions[action](params) : applyAction(state, action, params, library);
     render();
+    // The field of the song that is being renamed takes the focus, with its name selected, so typing replaces it.
+    if (startsRenaming && renaming) {
+      const field = optionList.querySelector(`#${RENAME_FIELD_ID}`);
+      field?.focus?.();
+      field?.select?.();
+    } else if (hadFocus && !optionList.contains(document.activeElement)) {
+      songFocus(action, focus)?.focus?.({ preventScroll: true });
+    }
   }
 
   function openNotes(target) {
@@ -213,7 +371,7 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
     const chord = row.chords[Number(target.dataset.chord)];
     const instrument = state.instrument;
     const fingering = instrument === 'guitar' ? fingeringOf(chord, guitar) : null;
-    notes.open(chord, target, row.tonic, displaySwitches(state), { instrument, fingering });
+    notes.open(chord, target, row.tonic, songDisplay(), { instrument, fingering });
   }
 
   /** Chooses the guitar only once its shapes are loaded; if they cannot be loaded, the piano stays chosen. */
@@ -254,6 +412,12 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
   // opens its notes, a key is chosen). Neither is a <button>, which would turn the keys into a click by itself. Space would
   // otherwise scroll the song area.
   document.addEventListener('keydown', (event) => {
+    // Escape in the field of a song that is being renamed keeps its name.
+    if (event.key === 'Escape' && renaming && event.target.closest?.('[data-form="rename-song"]')) {
+      event.preventDefault();
+      dispatch('cancel-rename', {});
+      return;
+    }
     if (event.key !== 'Enter' && event.key !== ' ') {
       return;
     }
@@ -266,6 +430,20 @@ function start({ library, bassPatterns, initial, guitar: loaded, loadGuitar, gui
       openNotes(target);
     } else {
       dispatch(target.dataset.action, target.dataset);
+    }
+  });
+
+  // The name field of the songs panel saves the song with Enter, as its Save button does; the field of a song that is being
+  // renamed renames it with Enter, as its OK button does.
+  document.addEventListener('submit', (event) => {
+    if (event.target.closest?.('[data-form="save-song"]')) {
+      event.preventDefault();
+      dispatch('save-song', {});
+    }
+    const rename = event.target.closest?.('[data-form="rename-song"]');
+    if (rename) {
+      event.preventDefault();
+      dispatch('confirm-rename', { id: rename.dataset.id });
     }
   });
 
@@ -285,7 +463,8 @@ export function startApp() {
   const loadGuitar = guitarLoader();
   return loadData()
     .then(async (data) => {
-      const stored = sanitizeState(readState(document.cookie, readStorage()), data.library);
+      const songs = parseSongs(readStorage(SONGS_KEY));
+      const stored = withSongs(sanitizeState(readState(document.cookie, readStorage()), data.library), songs);
       // A stored guitar needs its shapes before the page is drawn; without them the piano is shown instead.
       let guitar = null;
       let guitarError = false;

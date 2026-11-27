@@ -367,3 +367,27 @@ test('the Pop Progression in F with the circle of fifths: the second row is tran
   assert.equal(rows[1].tonic, 'F');
   assert.deepEqual(rows[1].chords.map((chord) => chord.displaySymbol), ['F', 'C', 'Dm', 'Bb']);
 });
+
+/**
+ * The golden song: fixed settings and seeds give exactly this song. A saved song keeps its settings and seeds and is
+ * generated anew from them (see app/state/songs.js), so a change of the generator changes the saved songs too: they are
+ * then shown frozen. This test makes such a change visible. If it is intended, update the expected song here.
+ */
+test('golden: fixed settings and seeds always give the same song, so saved songs keep their chords', () => {
+  const seeds = Object.fromEntries(Object.keys(SEEDS).map((name, index) => [name, 1000003 * (index + 1)]));
+  const rows = generateSong(settings({
+    key: 'G',
+    rotation: 3,
+    permutation: 3,
+    variationProbability: 3,
+    bassProbability: 3,
+    inversions: true,
+    seeds,
+  }));
+  assert.deepEqual(rows.map((row) => `${row.name}: ${row.chords.map((chord) => `${chord.displaySymbol}@${chord.inversion}`).join(' ')}`), [
+    'Minor Cadence: Am@2 B@1 Em/G@0',
+    'Pop Progression: Dsus4/G@2 Em@2 C6@3 G@1',
+    'Minor Cadence: Em@1 B/D#@0 Am@0',
+    'Minor Cadence: Em@1 B@1 Am@2',
+  ]);
+});

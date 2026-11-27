@@ -40,8 +40,8 @@ test('sanitizeState keeps valid values and repairs invalid ones', () => {
     seeds: { progression: -1 },
   }, LIBRARY, FIXED);
   assert.equal(state.key, 'D');
-  // The selection is always every progression, whatever the cookie stored.
-  assert.deepEqual(state.selection, IDS);
+  // The stored selection is kept, without the progressions the library does not have.
+  assert.deepEqual(state.selection, ['Pop / A']);
   assert.equal(state.count, 4);
   assert.equal(state.rotation, 4);
   assert.equal(state.permutation, 2);
@@ -80,12 +80,14 @@ test('sanitizeState keeps only known collapsed sections, and every open section 
   assert.deepEqual(sanitizeState({ collapsed: 'keys' }, LIBRARY, FIXED).collapsed, defaultState(LIBRARY, FIXED).collapsed);
 });
 
-test('sanitizeState selects every progression, even when the cookie holds an empty or partial selection, and keeps empty variations', () => {
+test('sanitizeState keeps the stored selection, also an empty one, and keeps empty variations', () => {
   const empty = sanitizeState({ selection: [], variations: [] }, LIBRARY, FIXED);
-  assert.deepEqual(empty.selection, IDS);
+  assert.deepEqual(empty.selection, []);
   assert.deepEqual(empty.variations, []);
+  // The stored order does not matter: the selection follows the order of the library.
+  assert.deepEqual(sanitizeState({ selection: ['Rock / C', 'Pop / A'] }, LIBRARY, FIXED).selection, ['Pop / A', 'Rock / C']);
   const missing = sanitizeState({}, LIBRARY, FIXED);
-  assert.deepEqual(missing.selection, IDS);
+  assert.deepEqual(missing.selection, ['Pop / A', 'Pop / B']);
   assert.deepEqual(missing.variations, ['7', 'maj7', '6', 'add9', 'sus2', 'sus4']);
 });
 
@@ -158,13 +160,24 @@ test('a cookie with every options section collapsed opens none of them', () => {
   assert.deepEqual(older.collapsed, SECTIONS);
 });
 
-test('the cookie leaves out the selection, which start-up never reads back, and keeps everything else', () => {
-  const state = { ...defaultState(LIBRARY, () => 0.5), selection: ['Pop / A'], count: 4 };
+test('the cookie keeps the selection with everything else', () => {
+  const state = { ...defaultState(LIBRARY, () => 0.5), selection: ['Rock / C'], count: 4 };
   const cookie = serializeCookie(state);
   const stored = JSON.parse(decodeURIComponent(cookie.slice(cookie.indexOf('=') + 1, cookie.indexOf(';'))));
-  assert.equal('selection' in stored, false);
+  assert.deepEqual(stored.selection, ['Rock / C']);
   assert.equal(stored.count, 4);
-  assert.deepEqual(sanitizeState(parseCookie(cookie), LIBRARY, () => 0.5).selection, LIBRARY.map((progression) => progression.id));
+  assert.deepEqual(sanitizeState(parseCookie(cookie), LIBRARY, () => 0.5).selection, ['Rock / C']);
+});
+
+test('a stored selection of which the library has no progression left falls back to the default selection', () => {
+  assert.deepEqual(sanitizeState({ selection: ['Gone / X', 'Gone / Y'] }, LIBRARY, FIXED).selection, ['Pop / A', 'Pop / B']);
+  assert.deepEqual(sanitizeState({ selection: 'Pop / A' }, LIBRARY, FIXED).selection, ['Pop / A', 'Pop / B']);
+});
+
+test('the cookie with every progression of the real library selected stays well below the 4 KB cookie limit', async () => {
+  const { LIBRARY: REAL } = await import('../../../helpers/fixtures.js');
+  const state = { ...defaultState(REAL, FIXED), selection: REAL.map((progression) => progression.id) };
+  assert.ok(serializeCookie(state, '/chordice/').length < 3000);
 });
 
 test('the circle of fifths switch is kept in the cookie, and a broken one is off', () => {
@@ -209,10 +222,10 @@ test('the painting switch is kept in the cookie, and is on when the cookie does 
   assert.equal(sanitizeState({ painting: 'maybe' }, SMALL_LIBRARY, FIXED).painting, true);
 });
 
-test('the stored copy of the state survives a round trip, and leaves out the selection like the cookie', () => {
-  const state = { ...defaultState(LIBRARY, FIXED), count: 8, theme: 'dark' };
+test('the stored copy of the state survives a round trip, and keeps the selection like the cookie', () => {
+  const state = { ...defaultState(LIBRARY, FIXED), count: 8, theme: 'dark', selection: ['Rock / C'] };
   const raw = parseStored(serializeStored(state));
-  assert.equal(raw.selection, undefined);
+  assert.deepEqual(raw.selection, ['Rock / C']);
   assert.deepEqual(sanitizeState(raw, LIBRARY), sanitizeState(parseCookie(serializeCookie(state)), LIBRARY));
   assert.equal(raw.count, 8);
 });
@@ -234,4 +247,22 @@ test('the page starts from the cookie, and from the stored copy once the cookie 
 
 test('the stored copy has the name of the cookie, which names Chordice, as the projects on one host share the local storage', () => {
   assert.equal(STORAGE_KEY, COOKIE_NAME);
+});
+
+test('the cookie and the stored copy leave out the saved songs, which have a storage of their own, and keep the frozen song', () => {
+  const state = { ...defaultState(LIBRARY, FIXED), songs: [{ id: 'a' }], frozen: 'a' };
+  const cookie = serializeCookie(state);
+  const fromCookie = JSON.parse(decodeURIComponent(cookie.slice(cookie.indexOf('=') + 1, cookie.indexOf(';'))));
+  assert.equal('songs' in fromCookie, false);
+  assert.equal(fromCookie.frozen, 'a');
+  assert.equal('songs' in parseStored(serializeStored(state)), false);
+  const read = sanitizeState(fromCookie, LIBRARY, FIXED);
+  assert.deepEqual(read.songs, []);
+  assert.equal(read.frozen, 'a');
+});
+
+test('a broken frozen song in the cookie is none', () => {
+  assert.equal(sanitizeState({ frozen: 3 }, LIBRARY, FIXED).frozen, null);
+  assert.equal(sanitizeState({ frozen: '' }, LIBRARY, FIXED).frozen, null);
+  assert.equal(sanitizeState({}, LIBRARY, FIXED).frozen, null);
 });

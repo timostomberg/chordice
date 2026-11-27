@@ -1,10 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { THEME_COLOURS, startApp } from '../../../chordice/app/app.js';
+import { SONGS_FAILED, THEME_COLOURS, startApp } from '../../../chordice/app/app.js';
 import { BASS_TEXT, LIBRARY, PROGRESSIONS_TEXT as YAML_TEXT } from '../../helpers/fixtures.js';
 import { defaultState } from '../../../chordice/app/state/state.js';
 import { STORAGE_KEY, serializeCookie, serializeStored } from '../../../chordice/app/state/persistence.js';
+import { SONGS_KEY, parseSongs } from '../../../chordice/app/state/songs.js';
 
 // app.js has no side effects on import; startApp runs against the minimal fake DOM installed by loadApp below.
 // The guitar shapes as the CDN serves them; app.js fetches them from the URL of the installed version.
@@ -138,6 +139,7 @@ async function loadApp({ cookie = '', stored = null, storage = fakeStorage(store
     '#status': new FakeElement(),
     '.options-toggle': new FakeElement(),
     '.exercises-toggle': new FakeElement(),
+    '.songs-toggle': new FakeElement(),
     '.help-toggle': new FakeElement(),
     '.song': new FakeElement(),
     '[data-action="toggle-theme"]': new FakeElement(),
@@ -844,7 +846,7 @@ test('app.js keeps a copy of the state in the local storage, next to the cookie'
     await app.dispatch({ action: 'cycle-count' });
     const stored = JSON.parse(app.storage.getItem(STORAGE_KEY));
     assert.equal(stored.count, 8, 'the count after the default of 4');
-    assert.equal(stored.selection, undefined, 'like the cookie, the copy leaves out the selection');
+    assert.ok(Array.isArray(stored.selection), 'like the cookie, the copy keeps the selection');
   } finally {
     uninstall();
   }
@@ -968,6 +970,383 @@ test('the circle of fifths beside the chords is greyed out while the circle of f
     assert.ok(circle.includes('class="chip circle-toggle is-on" aria-pressed="true"'));
     app.dispatch({ action: 'toggle-circle-of-fifths' });
     assert.ok(!app.elements['#song-circle'].innerHTML.includes('is-disabled'), 'the button switches it off again');
+  } finally {
+    uninstall();
+  }
+});
+
+/** Gives the option list of the fake page a name field of the songs panel holding `name`, and returns the field. */
+function nameField(app, name) {
+  const field = { value: name };
+  app.elements['#option-list'].querySelector = (selector) => (selector === '#song-name' ? field : new FakeElement());
+  return field;
+}
+
+/** Submits the form of the songs panel, as Enter in the name field or a click on its Save button does. */
+function submitSave(app) {
+  let prevented = false;
+  const target = { closest: (selector) => (selector === '[data-form="save-song"]' ? {} : null) };
+  for (const listener of app.listeners.submit ?? []) {
+    listener({ target, preventDefault: () => { prevented = true; } });
+  }
+  return prevented;
+}
+
+test('the songs button shows the saved songs, and saving keeps the song in the local storage, not in the cookie', async () => {
+  try {
+    const app = await loadApp();
+    await app.dispatch({ action: 'toggle-songs' });
+    assert.equal(app.elements['.songs-toggle'].attributes['aria-expanded'], 'true');
+    assert.ok(app.elements['#option-list'].innerHTML.includes('data-form="save-song"'));
+    assert.ok(app.elements['#option-list'].innerHTML.includes('No saved songs yet'));
+    const field = nameField(app, 'Favourite');
+    assert.equal(submitSave(app), true, 'the form is not sent to a server');
+    const songs = parseSongs(app.storage.getItem(SONGS_KEY));
+    assert.deepEqual(songs.map((song) => song.name), ['Favourite']);
+    assert.equal(field.value, '', 'the field is empty for the next song');
+    assert.ok(app.elements['#option-list'].innerHTML.includes('<span class="saved-song-name">Favourite</span>'));
+    assert.ok(!decodeURIComponent(app.document.cookie).includes('Favourite'), 'the cookie stays small');
+  } finally {
+    uninstall();
+  }
+});
+
+test('a saved song comes back with a click on it after New Song, and the saved songs are read again at start-up', async () => {
+  try {
+    const app = await loadApp();
+    nameField(app, 'Keep');
+    submitSave(app);
+    const saved = app.elements['#song-rows'].innerHTML;
+    await app.dispatch({ action: 'reroll' });
+    assert.notEqual(app.elements['#song-rows'].innerHTML, saved);
+    const [song] = parseSongs(app.storage.getItem(SONGS_KEY));
+    await app.dispatch({ action: 'load-song', id: song.id });
+    assert.equal(app.elements['#song-rows'].innerHTML, saved);
+    // The page opened again finds the song.
+    const again = await loadApp({ storage: app.storage, cookie: app.document.cookie });
+    await again.dispatch({ action: 'toggle-songs' });
+    assert.ok(again.elements['#option-list'].innerHTML.includes('<span class="saved-song-name">Keep</span>'));
+  } finally {
+    uninstall();
+  }
+});
+
+test('a saved song that the page now generates otherwise is shown frozen, with a note, until it is generated anew', async () => {
+  try {
+    const app = await loadApp();
+    nameField(app, 'Older');
+    submitSave(app);
+    // The song as an older version of the page made it: its first chord was another one.
+    const [song] = parseSongs(app.storage.getItem(SONGS_KEY));
+    song.song.rows[0].chords[0] = { ...song.song.rows[0].chords[0], symbol: 'Ebmaj7', displaySymbol: 'Ebmaj7', variation: 'maj7' };
+    app.storage.setItem(SONGS_KEY, JSON.stringify([song]));
+    const again = await loadApp({ storage: app.storage, cookie: app.document.cookie });
+    await again.dispatch({ action: 'load-song', id: song.id });
+    assert.ok(again.elements['#song-rows'].innerHTML.includes('E<span class="accidental">♭</span>'), 'the saved chord is shown');
+    assert.ok(again.elements['#option-list'].innerHTML.includes('class="frozen-note"'));
+    assert.ok(decodeURIComponent(again.document.cookie).includes(`"frozen":"${song.id}"`));
+    // The options that make the song are fixed.
+    const rows = again.elements['#song-rows'].innerHTML;
+    await again.dispatch({ action: 'cycle-count' });
+    assert.equal(again.elements['#song-rows'].innerHTML, rows);
+    // Generating anew shows what the options give now.
+    await again.dispatch({ action: 'unfreeze-song' });
+    assert.ok(!again.elements['#option-list'].innerHTML.includes('class="frozen-note"'));
+    assert.ok(!again.elements['#song-rows'].innerHTML.includes('E<span class="accidental">♭</span>'));
+  } finally {
+    uninstall();
+  }
+});
+
+test('the cross asks in the entry of the song whether to delete it, without a dialog; Delete deletes it', async () => {
+  try {
+    const app = await loadApp();
+    await app.dispatch({ action: 'toggle-songs' });
+    nameField(app, 'Maybe');
+    submitSave(app);
+    const [song] = parseSongs(app.storage.getItem(SONGS_KEY));
+    // A browser that blocks its dialogs answers every question with no; the page does not ask it.
+    globalThis.confirm = () => {
+      throw new Error('no dialog of the browser');
+    };
+    await app.dispatch({ action: 'delete-song', id: song.id });
+    assert.ok(app.elements['#option-list'].innerHTML.includes('class="delete-question"'));
+    assert.equal(parseSongs(app.storage.getItem(SONGS_KEY)).length, 1, 'the cross alone deletes nothing');
+    await app.dispatch({ action: 'confirm-delete', id: song.id });
+    assert.deepEqual(parseSongs(app.storage.getItem(SONGS_KEY)), []);
+    assert.ok(!app.elements['#option-list'].innerHTML.includes('class="delete-question"'));
+  } finally {
+    delete globalThis.confirm;
+    uninstall();
+  }
+});
+
+test('the cross of the question, or any other action, keeps the song that was about to be deleted', async () => {
+  try {
+    const app = await loadApp();
+    await app.dispatch({ action: 'toggle-songs' });
+    nameField(app, 'Stay');
+    submitSave(app);
+    const [song] = parseSongs(app.storage.getItem(SONGS_KEY));
+    const asking = () => app.elements['#option-list'].innerHTML.includes('class="delete-question"');
+    await app.dispatch({ action: 'delete-song', id: song.id });
+    await app.dispatch({ action: 'cancel-delete' });
+    assert.equal(asking(), false);
+    await app.dispatch({ action: 'delete-song', id: song.id });
+    await app.dispatch({ action: 'toggle-roman' });
+    assert.equal(asking(), false);
+    // Renaming ends the question too, and the question ends renaming.
+    await app.dispatch({ action: 'delete-song', id: song.id });
+    await app.dispatch({ action: 'rename-song', id: song.id });
+    assert.equal(asking(), false);
+    await app.dispatch({ action: 'delete-song', id: song.id });
+    assert.ok(!app.elements['#option-list'].innerHTML.includes('data-form="rename-song"'));
+    assert.equal(parseSongs(app.storage.getItem(SONGS_KEY)).length, 1);
+  } finally {
+    uninstall();
+  }
+});
+
+/** Submits the rename form of the song with the id, as Enter in its field or a click on its OK button does. */
+function submitRename(app, id) {
+  let prevented = false;
+  const form = { dataset: { id } };
+  const target = { closest: (selector) => (selector === '[data-form="rename-song"]' ? form : null) };
+  for (const listener of app.listeners.submit ?? []) {
+    listener({ target, preventDefault: () => { prevented = true; } });
+  }
+  return prevented;
+}
+
+/** Gives the option list of the fake page the field of a song that is being renamed, holding `name`, and returns it. */
+function renameField(app, name) {
+  const field = { value: name, focused: false, selected: false, focus() { this.focused = true; }, select() { this.selected = true; } };
+  app.elements['#option-list'].querySelector = (selector) => (selector === '#rename-name' ? field : new FakeElement());
+  return field;
+}
+
+test('the pencil shows the name of a saved song in a field, focused, and OK or Enter renames it, without a dialog', async () => {
+  try {
+    const app = await loadApp();
+    await app.dispatch({ action: 'toggle-songs' });
+    nameField(app, 'Old name');
+    submitSave(app);
+    const [song] = parseSongs(app.storage.getItem(SONGS_KEY));
+    const field = renameField(app, 'Old name');
+    await app.dispatch({ action: 'rename-song', id: song.id });
+    assert.ok(app.elements['#option-list'].innerHTML.includes('data-form="rename-song"'));
+    assert.ok(app.elements['#option-list'].innerHTML.includes('value="Old name"'));
+    assert.equal(field.focused && field.selected, true, 'typing replaces the name');
+    field.value = '  New name ';
+    assert.equal(submitRename(app, song.id), true, 'the form is not sent to a server');
+    assert.equal(parseSongs(app.storage.getItem(SONGS_KEY))[0].name, 'New name');
+    assert.ok(!app.elements['#option-list'].innerHTML.includes('data-form="rename-song"'), 'the field is gone again');
+    assert.ok(app.elements['#option-list'].innerHTML.includes('<span class="saved-song-name">New name</span>'));
+  } finally {
+    uninstall();
+  }
+});
+
+test('the cross, Escape or any other action leaves the name of a song that is being renamed as it was', async () => {
+  try {
+    const app = await loadApp();
+    await app.dispatch({ action: 'toggle-songs' });
+    nameField(app, 'Kept');
+    submitSave(app);
+    const [song] = parseSongs(app.storage.getItem(SONGS_KEY));
+    const editing = () => app.elements['#option-list'].innerHTML.includes('data-form="rename-song"');
+    renameField(app, 'Changed');
+    await app.dispatch({ action: 'rename-song', id: song.id });
+    await app.dispatch({ action: 'cancel-rename' });
+    assert.equal(editing(), false);
+    await app.dispatch({ action: 'rename-song', id: song.id });
+    let prevented = false;
+    const target = { closest: (selector) => (selector === '[data-form="rename-song"]' ? {} : null) };
+    for (const listener of app.listeners.keydown ?? []) {
+      listener({ key: 'Escape', target, preventDefault: () => { prevented = true; } });
+    }
+    assert.equal(prevented, true);
+    assert.equal(editing(), false);
+    await app.dispatch({ action: 'rename-song', id: song.id });
+    await app.dispatch({ action: 'toggle-roman' });
+    assert.equal(editing(), false);
+    assert.equal(parseSongs(app.storage.getItem(SONGS_KEY))[0].name, 'Kept');
+  } finally {
+    uninstall();
+  }
+});
+
+test('a song saved in another tab is not lost: saving starts from the stored songs, and the storage event shows them', async () => {
+  const storageListeners = [];
+  globalThis.addEventListener = (type, listener) => {
+    if (type === 'storage') {
+      storageListeners.push(listener);
+    }
+  };
+  try {
+    const app = await loadApp();
+    await app.dispatch({ action: 'toggle-songs' });
+    // Another tab, opened at the same time, saves a song first.
+    const other = await loadApp({ storage: app.storage, cookie: app.document.cookie });
+    nameField(other, 'From B');
+    submitSave(other);
+    // This tab has not heard of it yet, and saves its own: both are kept.
+    nameField(app, 'From A');
+    submitSave(app);
+    assert.deepEqual(parseSongs(app.storage.getItem(SONGS_KEY)).map((song) => song.name), ['From A', 'From B']);
+    // The storage event of the other tab shows its songs here at once, and deleting one there removes it here.
+    const [, fromB] = parseSongs(app.storage.getItem(SONGS_KEY));
+    const remaining = JSON.stringify(parseSongs(app.storage.getItem(SONGS_KEY)).filter((song) => song.id !== fromB.id));
+    app.storage.setItem(SONGS_KEY, remaining);
+    storageListeners.forEach((listener) => listener({ key: SONGS_KEY, newValue: remaining }));
+    assert.ok(!app.elements['#option-list'].innerHTML.includes('From B'));
+    assert.ok(app.elements['#option-list'].innerHTML.includes('From A'));
+    // An event of another entry changes nothing.
+    storageListeners.forEach((listener) => listener({ key: STORAGE_KEY, newValue: '{}' }));
+    assert.ok(app.elements['#option-list'].innerHTML.includes('From A'));
+  } finally {
+    delete globalThis.addEventListener;
+    uninstall();
+  }
+});
+
+test('a song that cannot be stored stays listed, and the page says it will be lost, until a write works', async () => {
+  try {
+    const items = new Map();
+    let full = true;
+    const storage = {
+      getItem: (key) => items.get(key) ?? null,
+      setItem: (key, value) => {
+        if (full && key === SONGS_KEY) {
+          throw new Error('QuotaExceededError');
+        }
+        items.set(key, String(value));
+      },
+    };
+    const app = await loadApp({ storage });
+    await app.dispatch({ action: 'toggle-songs' });
+    nameField(app, 'Fragile');
+    submitSave(app);
+    assert.equal(app.elements['#status'].textContent, SONGS_FAILED);
+    assert.equal(app.elements['#status'].hidden, false);
+    assert.ok(app.elements['#option-list'].innerHTML.includes('Fragile'));
+    assert.equal(storage.getItem(SONGS_KEY), null);
+    // Once there is room again, the next render stores the song and the message goes.
+    full = false;
+    await app.dispatch({ action: 'toggle-roman' });
+    assert.deepEqual(parseSongs(storage.getItem(SONGS_KEY)).map((song) => song.name), ['Fragile']);
+    assert.equal(app.elements['#status'].hidden, true);
+  } finally {
+    uninstall();
+  }
+});
+
+test('a browser that refuses the storage keeps the songs of the tab, and says they will be lost', async () => {
+  try {
+    const app = await loadApp({ storage: REFUSED_STORAGE });
+    nameField(app, 'One');
+    submitSave(app);
+    nameField(app, 'Two');
+    submitSave(app);
+    assert.equal(app.elements['#status'].textContent, SONGS_FAILED);
+    await app.dispatch({ action: 'toggle-songs' });
+    assert.ok(app.elements['#option-list'].innerHTML.includes('One'));
+    assert.ok(app.elements['#option-list'].innerHTML.includes('Two'));
+  } finally {
+    uninstall();
+  }
+});
+
+/**
+ * Lets the option list of the fake page track the focus as a browser does: a control rendered by the songs panel can be
+ * focused, and re-rendering removes the focused control, so the focus falls out of the list. `controls` gives the
+ * controls the list holds after a render, from its markup.
+ */
+function trackFocus(app, controls) {
+  const list = app.elements['#option-list'];
+  let html = list.innerHTML;
+  let active = null;
+  Object.defineProperty(app.document, 'activeElement', { get: () => active, configurable: true });
+  const control = (dataset) => ({ dataset, alive: true, insideContent: true, focus() { active = this; } });
+  let shown = [];
+  Object.defineProperty(list, 'innerHTML', {
+    get: () => html,
+    set: (value) => {
+      html = value;
+      if (active) {
+        active.alive = false;
+      }
+      shown = controls(value).map(control);
+    },
+    configurable: true,
+  });
+  list.contains = (node) => node?.insideContent === true && node.alive === true;
+  list.querySelectorAll = (selector) => {
+    const action = /data-action="([^"]+)"/.exec(selector)?.[1];
+    return shown.filter((element) => element.dataset.action === action);
+  };
+  list.querySelector = (selector) => shown.find((element) => `#${element.dataset.id}` === selector) ?? null;
+  return {
+    focusOn(dataset) {
+      active = control(dataset);
+    },
+    get active() {
+      return active;
+    },
+  };
+}
+
+test('after an action of the songs panel, a keyboard user is given the control that takes the place of the one used', async () => {
+  try {
+    const app = await loadApp();
+    await app.dispatch({ action: 'toggle-songs' });
+    nameField(app, 'First');
+    submitSave(app);
+    nameField(app, 'Second');
+    submitSave(app);
+    const [second, first] = parseSongs(app.storage.getItem(SONGS_KEY));
+    // The controls the songs panel renders: the name field and the buttons with their song ids.
+    const songControls = (html) => [
+      ...(html.includes('id="song-name"') ? [{ id: 'song-name' }] : []),
+      ...[...html.matchAll(/data-action="([^"]+)" data-id="([^"]+)"/g)].map(([, action, id]) => ({ action, id })),
+    ];
+    const focus = trackFocus(app, songControls);
+    // The cross turns into the question: Delete is focused.
+    focus.focusOn({ action: 'delete-song', id: second.id });
+    await app.dispatch({ action: 'delete-song', id: second.id });
+    assert.deepEqual(focus.active.dataset, { action: 'confirm-delete', id: second.id });
+    // The cross of the question gives the focus back to the cross of the song.
+    focus.focusOn({ action: 'cancel-delete' });
+    await app.dispatch({ action: 'cancel-delete' });
+    assert.deepEqual(focus.active.dataset, { action: 'delete-song', id: second.id });
+    // OK or the cross of renaming gives it to the pencil.
+    focus.focusOn({ action: 'cancel-rename' });
+    await app.dispatch({ action: 'cancel-rename', id: first.id });
+    assert.deepEqual(focus.active.dataset, { action: 'rename-song', id: first.id });
+    // Deleting gives it to the song that takes the place of the deleted one.
+    focus.focusOn({ action: 'confirm-delete', id: second.id });
+    await app.dispatch({ action: 'confirm-delete', id: second.id });
+    assert.deepEqual(focus.active.dataset, { action: 'load-song', id: first.id });
+    // Saving with Enter in the name field keeps the focus in the field.
+    focus.focusOn({ id: 'song-name' });
+    app.document.activeElement.id = 'song-name';
+    submitSave(app);
+    assert.deepEqual(focus.active.dataset, { id: 'song-name' });
+  } finally {
+    uninstall();
+  }
+});
+
+test('a click that does not focus the control (e.g. a tap on the iPad) moves no focus after an action of the songs panel', async () => {
+  try {
+    const app = await loadApp();
+    await app.dispatch({ action: 'toggle-songs' });
+    nameField(app, 'Tap');
+    submitSave(app);
+    const [song] = parseSongs(app.storage.getItem(SONGS_KEY));
+    const focus = trackFocus(app, () => [{ action: 'confirm-delete', id: song.id }]);
+    await app.dispatch({ action: 'delete-song', id: song.id });
+    assert.equal(focus.active, null);
   } finally {
     uninstall();
   }

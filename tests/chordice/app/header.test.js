@@ -17,7 +17,7 @@ function element(dataset = {}) {
 function headerPage() {
   const flags = ['roman', 'tones', 'inversions', 'colour'].map((flag) => element({ flag }));
   const tabs = ['piano', 'guitar'].map((instrument) => element({ instrument }));
-  const elements = { '.options-toggle': element(), '.exercises-toggle': element(), '.help-toggle': element(), '[data-action="toggle-theme"]': element() };
+  const elements = { '.options-toggle': element(), '.exercises-toggle': element(), '.songs-toggle': element(), '.help-toggle': element(), '[data-action="toggle-theme"]': element() };
   return {
     flags,
     tabs,
@@ -107,4 +107,35 @@ test('the header shows the circle of fifths switch pressed and disabled while th
   assert.equal(circle.disabled, true);
   assert.equal(melody.attributes['aria-pressed'], 'true');
   assert.equal(melody.disabled, false);
+});
+
+test('the exercises button is highlighted while an exercise is on, whichever panel is shown', () => {
+  const page = headerPage();
+  const highlighted = () => page.elements['.exercises-toggle'].attributes['data-exercise-active'];
+  updateHeader({ ...defaultState(LIBRARY), exercise: 'circle-ii-v-i', showOptions: true, panel: 'options' }, page);
+  assert.equal(highlighted(), 'true');
+  updateHeader({ ...defaultState(LIBRARY), exercise: 'circle-ii-v-i', showOptions: false }, page);
+  assert.equal(highlighted(), 'true');
+  updateHeader({ ...defaultState(LIBRARY), exercise: null }, page);
+  assert.equal(highlighted(), 'false');
+});
+
+test('the header style fills the exercises button while an exercise is on, like a pressed switch', async () => {
+  const { readFileSync } = await import('node:fs');
+  const css = readFileSync(new URL('../../../chordice/styles/header.css', import.meta.url), 'utf8');
+  assert.ok(css.includes('.toolbar .exercises-toggle[data-exercise-active="true"]'));
+});
+
+test('the highlighted exercises button is painted like every other filled toolbar button: darker bloom and accent border', async () => {
+  const { readFileSync } = await import('node:fs');
+  const css = readFileSync(new URL('../../../chordice/styles/main.css', import.meta.url), 'utf8');
+  assert.ok(/\.toolbar button\[aria-expanded="true"\]::before,\s*\.toolbar button\[data-exercise-active="true"\]::before \{/.test(css));
+  assert.ok(/button\[aria-expanded="true"\],\s*button\[data-exercise-active="true"\] \{\s*border-color: var\(--accent\);/.test(css));
+});
+
+test('the songs button is pressed while the side panel shows the saved songs', () => {
+  const page = headerPage();
+  updateHeader({ ...defaultState(LIBRARY), showOptions: true, panel: 'songs' }, page);
+  assert.equal(page.elements['.songs-toggle'].attributes['aria-expanded'], 'true');
+  assert.equal(page.elements['.options-toggle'].attributes['aria-expanded'], 'false');
 });

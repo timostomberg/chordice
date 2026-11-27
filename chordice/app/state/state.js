@@ -18,9 +18,9 @@ export const FLAGS = ['showOptions', 'colour', 'roman', 'tones', 'inversions', '
 export const THEMES = ['light', 'dark'];
 // The instrument whose notes window the chords open: notes for the piano, a diagram for the guitar.
 export const INSTRUMENTS = ['piano', 'guitar'];
-// What the side panel shows: the options, the exercises or the help. The Options, Exercises and Help buttons in the header
-// choose it, like the instrument tabs, so exactly one of them is pressed while the panel is open.
-export const PANELS = ['options', 'exercises', 'help'];
+// What the side panel shows: the options, the exercises, the saved songs or the help. The Options, Exercises, Songs and Help
+// buttons in the header choose it, like the instrument tabs, so exactly one of them is pressed while the panel is open.
+export const PANELS = ['options', 'exercises', 'songs', 'help'];
 // The boxes of the options panel, and those of the exercises panel. Each box opens and closes on its own.
 export const SECTIONS = ['progressions', 'progressionVariations', 'variations', 'bass', 'melody'];
 export const EXERCISE_SECTIONS = ['exercises'];
@@ -36,15 +36,41 @@ export const SECTION_OPTIONS = {
   melody: 'melodyAmount',
 };
 
+// The options that make the song. They are saved with a song (see songs.js), and fixed while a frozen song is shown.
+export const RECIPE_OPTIONS = [
+  'key',
+  'selection',
+  'count',
+  'rotation',
+  'permutation',
+  'variations',
+  'variationProbability',
+  'bassProbability',
+  'melodyAmount',
+  'inversions',
+  'foreignVariations',
+  'circleOfFifths',
+  'exercise',
+];
+
 // The chord variations selected on start-up: the common ones.
 export const DEFAULT_VARIATIONS = ['7', 'maj7', '6', 'add9', 'sus2', 'sus4'];
+
+// The group of progressions selected on start-up.
+export const DEFAULT_GROUP = 'Pop';
+
+/** The progressions selected on start-up: those of the default group, or every progression if the library has none of it. */
+export function defaultSelection(library) {
+  const ids = library.filter((progression) => progression.group === DEFAULT_GROUP).map((progression) => progression.id);
+  return ids.length > 0 ? ids : library.map((progression) => progression.id);
+}
 
 export function defaultState(library, random = Math.random) {
   return {
     version: 2,
     // The major key of the rows, chosen on the circle of fifths.
     key: 'C',
-    selection: library.map((progression) => progression.id),
+    selection: defaultSelection(library),
     count: 4,
     // The probabilities are on the scale from 0 to 5 (1 means 20%).
     rotation: 1,
@@ -74,6 +100,9 @@ export function defaultState(library, random = Math.random) {
     // Every box of the options starts collapsed; the box of the exercises starts expanded.
     collapsed: [...SECTIONS],
     seeds: createSeeds(random),
+    // The saved songs (see songs.js), and the id of the saved song that is shown frozen, or null.
+    songs: [],
+    frozen: null,
   };
 }
 
@@ -212,7 +241,7 @@ export function toggleFlag(state, flag) {
   return { ...state, [flag]: !state[flag] };
 }
 
-/** New random outcomes for every option; all other settings stay as they are. */
+/** New random outcomes for every option; all other settings stay as they are. A frozen song is generated again. */
 export function reroll(state, random = Math.random) {
-  return { ...state, seeds: createSeeds(random) };
+  return { ...state, seeds: createSeeds(random), frozen: null };
 }

@@ -73,6 +73,7 @@ const ACTION_PARAMS = {
   'toggle-melody': {},
   'toggle-options': {},
   'toggle-exercises': {},
+  'toggle-songs': {},
   'toggle-help': {},
   'toggle-panel': {},
   'toggle-theme': {},
@@ -180,14 +181,18 @@ test('a click on the header, e.g. the title, opens or closes the side panel, whi
   assert.ok(html.includes('<header class="toolbar" data-action="toggle-panel">'));
 });
 
-test('the exercises and help buttons sit directly right of the options button, the three one switch like the instrument tabs', () => {
+test('the exercises, songs and help buttons sit directly right of the options button, the four one switch like the instrument tabs', () => {
   const html = readIndex();
   const toolbar = /<header class="toolbar"[\s\S]*?<\/header>/.exec(html)?.[0] ?? '';
   const tabs = /<div class="panel-tabs"[\s\S]*?<\/div>/.exec(toolbar)?.[0] ?? '';
   assert.ok(toolbar.startsWith('<header class="toolbar" data-action="toggle-panel">\n    <!--'), 'the panel tabs come first');
   assert.ok(toolbar.indexOf('class="panel-tabs"') < toolbar.indexOf('class="instrument-tabs"'));
   const buttons = [...tabs.matchAll(/<button[^>]*data-action="([^"]+)"/g)].map((match) => match[1]);
-  assert.deepEqual(buttons, ['toggle-options', 'toggle-exercises', 'toggle-help']);
+  assert.deepEqual(buttons, ['toggle-options', 'toggle-exercises', 'toggle-songs', 'toggle-help']);
+  // The songs button shows a heart, drawn as an outline.
+  assert.ok(tabs.includes('class="songs-toggle panel-tab" data-action="toggle-songs" aria-controls="options" aria-label="Songs" title="Songs"'));
+  const songs = /<button[^>]*toggle-songs[\s\S]*?<\/button>/.exec(tabs)?.[0] ?? '';
+  assert.ok(songs.includes('<svg') && songs.includes('fill="none"') && !songs.includes('<text'), 'the button is a symbol, not a word');
   assert.ok(tabs.includes('class="exercises-toggle panel-tab" data-action="toggle-exercises" aria-controls="options" aria-label="Exercises" title="Exercises"'));
   const exercises = /<button[^>]*toggle-exercises[\s\S]*?<\/button>/.exec(tabs)?.[0] ?? '';
   assert.ok(exercises.includes('<svg') && !exercises.includes('<text'), 'the button is a symbol, not a word');

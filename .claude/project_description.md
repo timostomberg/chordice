@@ -9,12 +9,19 @@ A static HTML website, hosted on GitHub Pages, that generates practice material 
 The user chooses options in a side panel, and the site produces concrete chord progressions. Changing one option changes only that option; everything else (including random choices) stays the same.
 
 - **Key:** one major key, chosen on the circle of fifths left of the chords (not in the side panel), shown with its relative minor, e.g. C (Am). A circle of fifths button in the middle of the circle instead gives 12 rows, one per key, counterclockwise from C (F# or Gb at random); the number of progressions and key selection are then greyed out.
-- **Chord progressions:** groups or single progressions from `chord_progressions.yaml` (all selected on start-up), the number of progressions (1, 2, 4, 8; default 4), and probabilities (0–5) for rotating and for permuting them.
+- **Chord progressions:** groups or single progressions from `chord_progressions.yaml` (the Pop group selected by default; the selection is stored like the other options), the number of progressions (1, 2, 4, 8; default 4), and probabilities (0–5) for rotating and for permuting them.
 - **Chord variations:** extensions such as 7, maj7, 6, add9, sus2, sus4, 9, … with a probability (0–5); their commonness per genre in the YAML weights the choice. An `off` button disables all variations; a `#b` button (off by default) allows variations with tones foreign to the key. By default 7, maj7, 6, add9, sus2 and sus4 are selected.
 - **Bass notes** (e.g. C/E): a probability (0–5); the commonness in `bass_patterns.yaml` weights the choice.
 - **Melody / inversions:** the Melody button switches inversions on. Each chord is then shown in an inversion chosen by its melody note (top tone). A Strength (0–5) controls how far consecutive melody notes may jump: 0 always picks the nearest, 5 picks any inversion equally.
 - **Exercises:** at most one exercise is active; it fixes certain options (greyed out) while the stored values are kept. Example: *Circle around ii7-V7-Imaj7* (Jazz Cadence in all keys with 7/maj7 only).
 - **View:** plain or extended view, background colours on/off, light or dark theme.
+
+## Saved songs
+
+- A **Songs** panel (heart button in the header) saves the song shown under a name (by default its date and time, e.g. 2026 Nov 27 · 14:30), lists the saved songs, loads one with a click, renames one, and deletes one after a confirmation.
+- A saved song keeps its **recipe** (the options that make the song and their seeds) and a **snapshot** of its rows. Loading puts the recipe into the state, so the song is generated anew and every option works on it as usual; the view, instrument and panel stay.
+- If the recipe now gives another song (the generator or `chord_progressions.yaml` have changed), the song is **frozen**: the snapshot is shown, the options that make the song are fixed, and a note offers *Generate anew*; New Song ends it too.
+- The songs are kept in the local storage under a key of their own, not in the cookie.
 
 ## Display
 

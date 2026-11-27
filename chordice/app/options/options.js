@@ -7,7 +7,7 @@
 
 import { VARIATION_NAMES } from '../../music/theory/chords.js';
 import { EXERCISE_SECTIONS, SECTIONS, SECTION_OPTIONS } from '../state/state.js';
-import { effectiveState, exerciseState, isUnavailable } from '../state/availability.js';
+import { effectiveState, exerciseState, isUnavailable, isUnavailableForSettings } from '../state/availability.js';
 import { EXERCISES } from '../state/exercises.js';
 import { PROBABILITY_MAX } from '../../music/constants.js';
 import { escapeHtml } from '../escape.js';
@@ -96,10 +96,13 @@ function sectionBody(name, state, library) {
       return slider('bassProbability', state);
     case 'melody':
       return slider('melodyAmount', state);
-    case 'exercises':
+    case 'exercises': {
+      // A frozen song fixes the exercise too (see isFrozen in availability.js).
+      const disabled = isUnavailable(state, 'exercise');
       return `<div class="chips">${EXERCISES.map((exercise) =>
-        toggleButton(exercise.name, `data-action="toggle-exercise" data-exercise="${escapeHtml(exercise.id)}"`, state.exercise === exercise.id),
-      ).join('')}${clearExerciseButton()}</div>`;
+        toggleButton(exercise.name, `data-action="toggle-exercise" data-exercise="${escapeHtml(exercise.id)}"`, state.exercise === exercise.id, disabled),
+      ).join('')}${clearExerciseButton(disabled)}</div>`;
+    }
     default:
       return '';
   }
@@ -202,8 +205,8 @@ function clearVariationsButton(state) {
 }
 
 /** The last chip of the Exercises section, which switches the exercise that is on off. */
-function clearExerciseButton() {
-  return clearButton('data-action="clear-exercise"', 'Switch off all exercises', false);
+function clearExerciseButton(disabled = false) {
+  return clearButton('data-action="clear-exercise"', 'Switch off all exercises', disabled);
 }
 
 /** The buttons beside the heading of a section, by the name of the section; the other sections have none. */
@@ -216,12 +219,17 @@ const SIDE_BUTTONS = {
 function optionSection(name, state, library) {
   // A section whose option is unavailable (for the instrument or the exercise) is greyed out
   // and cannot be opened; it stays collapsed. The button beside its heading keeps its own look, as it may still be pressed.
-  const unavailable = Object.hasOwn(SECTION_OPTIONS, name) && isUnavailable(state, SECTION_OPTIONS[name]);
-  const expanded = !state.collapsed.includes(name) && !unavailable;
+  // A section whose option a frozen song fixes is greyed out too, but can be opened: it shows its values, which cannot be
+  // changed (its controls are disabled).
+  const option = SECTION_OPTIONS[name];
+  const hasOption = Object.hasOwn(SECTION_OPTIONS, name);
+  const unavailable = hasOption && isUnavailable(state, option);
+  const closed = hasOption && isUnavailableForSettings(state, option);
+  const expanded = !state.collapsed.includes(name) && !closed;
   const lines = sectionSummary(name, state, library).join('<br>');
   const summary = expanded ? '' : `<span class="section-summary">${lines}</span>`;
   const toggle = `<button type="button" class="section-toggle" data-action="toggle-section" ` +
-    `data-section="${name}" aria-expanded="${expanded}"${unavailable ? ' disabled' : ''}>` +
+    `data-section="${name}" aria-expanded="${expanded}"${closed ? ' disabled' : ''}>` +
     `<span class="section-title">${SECTION_TITLES[name]}</span>${summary}</button>`;
   // The headings with a button beside them draw their arrow after that button, so the arrow is on the header, not on the toggle.
   const sideButton = (SIDE_BUTTONS[name] ?? []).map((button) => button(state)).join('');

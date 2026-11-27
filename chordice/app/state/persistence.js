@@ -28,6 +28,18 @@ function toBoolean(value, fallback) {
   return typeof value === 'boolean' ? value : fallback;
 }
 
+/**
+ * The stored selection, in the order of the library, without the progressions the library no longer has. An empty selection
+ * is kept; a selection of which no progression is left (e.g. after the progressions were renamed) falls back to the default.
+ */
+function toSelection(value, library, fallback) {
+  if (!Array.isArray(value)) {
+    return fallback;
+  }
+  const selection = library.map((progression) => progression.id).filter((id) => value.includes(id));
+  return selection.length === 0 && value.length > 0 ? fallback : selection;
+}
+
 /** Returns a valid state built from untrusted input (e.g. a cookie), filling gaps with defaults. */
 export function sanitizeState(raw, library, random = Math.random) {
   const fallback = defaultState(library, random);
@@ -46,8 +58,7 @@ export function sanitizeState(raw, library, random = Math.random) {
   return {
     version: fallback.version,
     key: isKeyName(raw.key) ? raw.key : fallback.key,
-    // Every progression is selected on start-up, whatever was stored, so the selection never depends on the cookie.
-    selection: fallback.selection,
+    selection: toSelection(raw.selection, library, fallback.selection),
     count: COUNTS.includes(raw.count) ? raw.count : fallback.count,
     rotation: toProbability(raw.rotation, fallback.rotation),
     permutation: toProbability(raw.permutation, fallback.permutation),
@@ -71,6 +82,9 @@ export function sanitizeState(raw, library, random = Math.random) {
       ? ALL_SECTIONS.filter((name) => raw.collapsed.includes(name))
       : fallback.collapsed,
     seeds,
+    // The saved songs are not kept in the cookie but in the local storage of their own (see songs.js).
+    songs: [],
+    frozen: typeof raw.frozen === 'string' && raw.frozen !== '' ? raw.frozen : null,
   };
 }
 
@@ -83,13 +97,14 @@ export function cookiePathOf(pathname) {
   return path.startsWith('/') ? path.slice(0, path.lastIndexOf('/') + 1) : '/';
 }
 
-/**
- * The cookie value of the state, kept for `path` (see cookiePathOf). The selection is left out, as JSON drops the
- * undefined value: every progression is selected on start-up whatever the cookie says (see sanitizeState), so the stored
- * selection would never be read.
- */
+/** The state as it is kept: without the saved songs, which have a storage of their own (see songs.js). */
+function storedState(state) {
+  return JSON.stringify({ ...state, songs: undefined });
+}
+
+/** The cookie value of the state, kept for `path` (see cookiePathOf). */
 export function serializeCookie(state, path = '/') {
-  const stored = JSON.stringify({ ...state, selection: undefined });
+  const stored = storedState(state);
   return `${COOKIE_NAME}=${encodeURIComponent(stored)}; Max-Age=${ONE_YEAR_SECONDS}; Path=${path}; SameSite=Lax`;
 }
 
@@ -117,9 +132,9 @@ export function parseCookie(cookieHeader) {
  */
 export const STORAGE_KEY = 'chordice_state';
 
-/** The stored copy of the state, as text. Like the cookie, it leaves out the selection. */
+/** The stored copy of the state, as text. */
 export function serializeStored(state) {
-  return JSON.stringify({ ...state, selection: undefined });
+  return storedState(state);
 }
 
 /** Reads the raw state object from its stored copy. Returns null if absent or broken. */

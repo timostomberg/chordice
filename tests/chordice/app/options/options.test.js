@@ -405,3 +405,34 @@ test('an "unselect all" chip at the end of the Exercises section switches the ex
       'aria-label="Switch off all exercises" title="Switch off all exercises">unselect all</button>'));
   }
 });
+
+test('while a saved song is shown frozen, the options that make the song are greyed out, and so are the exercises', () => {
+  const frozen = { ...storedState(), frozen: 'a', collapsed: [] };
+  const options = renderOptions(frozen, APP_LIBRARY);
+  const sections = options.match(/<section class="option[\s\S]*?<\/section>/g);
+  assert.equal(sections.length, 5);
+  for (const section of sections) {
+    assert.ok(section.includes('is-unavailable'), section.slice(0, 80));
+  }
+  assert.ok(/count-toggle[^>]*disabled>/.test(options));
+  assert.ok(/melody-toggle[^>]*disabled/.test(options));
+  const exercises = renderExercises(frozen);
+  assert.ok(/data-action="toggle-exercise"[^>]*disabled>/.test(exercises));
+  assert.ok(/data-action="clear-exercise"[^>]*disabled>/.test(exercises));
+  // Without a frozen song the exercises can be chosen.
+  assert.ok(!/data-action="toggle-exercise"[^>]*disabled>/.test(renderExercises(storedState())));
+});
+
+test('while a saved song is shown frozen, its sections can be opened to show the values, whose controls are disabled', () => {
+  const frozen = { ...storedState(), frozen: 'a', collapsed: [] };
+  const options = renderOptions(frozen, APP_LIBRARY);
+  const [progressions, progressionVariations] = options.match(/<section class="option[\s\S]*?<\/section>/g);
+  assert.ok(progressions.startsWith('<section class="option is-unavailable">'), 'open, greyed out');
+  assert.ok(progressions.includes('data-section="progressions" aria-expanded="true">'), 'the toggle is not disabled');
+  assert.ok(/data-action="toggle-progression"[^>]*disabled>/.test(progressions));
+  assert.ok(!/data-action="toggle-progression"(?![^>]*disabled)[^>]*>/.test(progressions), 'every progression is disabled');
+  assert.ok(/data-option="rotation"[^>]*disabled>/.test(progressionVariations));
+  // Collapsed, a frozen section can be opened.
+  const collapsed = renderOptions({ ...frozen, collapsed: ['progressions'] }, APP_LIBRARY);
+  assert.ok(collapsed.includes('data-section="progressions" aria-expanded="false">'));
+});

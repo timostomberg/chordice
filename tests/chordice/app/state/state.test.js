@@ -21,6 +21,8 @@ import {
   toggleTheme,
   setInstrument,
   toggleExercise,
+  defaultSelection,
+  DEFAULT_GROUP,
 } from '../../../../chordice/app/state/state.js';
 import { VARIATION_NAMES } from '../../../../chordice/music/theory/chords.js';
 import { FIXED, SMALL_LIBRARY } from '../../../helpers/fixtures.js';
@@ -28,10 +30,10 @@ import { FIXED, SMALL_LIBRARY } from '../../../helpers/fixtures.js';
 const LIBRARY = SMALL_LIBRARY;
 const IDS = LIBRARY.map((progression) => progression.id);
 
-test('defaults select everything, show colours and extended information, and use four progressions, the common chord variations and no melody', () => {
+test('defaults select the Pop progressions, show colours and extended information, and use four progressions, the common chord variations and no melody', () => {
   const state = defaultState(LIBRARY, FIXED);
   assert.equal(state.key, 'C');
-  assert.deepEqual(state.selection, IDS);
+  assert.deepEqual(state.selection, ['Pop / A', 'Pop / B']);
   assert.equal(state.count, 4);
   assert.deepEqual(state.variations, ['7', 'maj7', '6', 'add9', 'sus2', 'sus4']);
   assert.equal(state.foreignVariations, false);
@@ -56,7 +58,7 @@ test('the options sections are progressions, progression variations, chord varia
 });
 
 test('the side panel shows the options, the exercises or the help', () => {
-  assert.deepEqual(PANELS, ['options', 'exercises', 'help']);
+  assert.deepEqual(PANELS, ['options', 'exercises', 'songs', 'help']);
 });
 
 test('choosePanel shows the other panel in place of the one shown, and closes the side panel for the one shown', () => {
@@ -162,7 +164,7 @@ test('toggleGroup selects or clears all progressions of a group', () => {
 });
 
 test('toggleProgression keeps the library order and allows an empty selection', () => {
-  const state = defaultState(LIBRARY, FIXED);
+  const state = { ...defaultState(LIBRARY, FIXED), selection: IDS };
   const without = toggleProgression(state, 'Pop / A', LIBRARY);
   assert.deepEqual(without.selection, ['Pop / B', 'Rock / C']);
   const back = toggleProgression(without, 'Pop / A', LIBRARY);
@@ -305,4 +307,19 @@ test('the instrument is the piano by default, and a tab sets it to the guitar or
 test('an unknown instrument leaves the state unchanged', () => {
   const state = defaultState(LIBRARY, FIXED);
   assert.equal(setInstrument(state, 'ukulele'), state);
+});
+
+test('the default selection is the Pop group, or every progression when the library has no Pop group', () => {
+  assert.equal(DEFAULT_GROUP, 'Pop');
+  assert.deepEqual(defaultSelection(LIBRARY), ['Pop / A', 'Pop / B']);
+  const noPop = LIBRARY.filter((progression) => progression.group !== 'Pop');
+  assert.deepEqual(defaultSelection(noPop), ['Rock / C']);
+  assert.deepEqual(defaultSelection([]), []);
+});
+
+test('the default selection of the real library is every Pop progression', async () => {
+  const { LIBRARY: REAL } = await import('../../../helpers/fixtures.js');
+  const pop = REAL.filter((progression) => progression.group === 'Pop').map((progression) => progression.id);
+  assert.ok(pop.length > 0);
+  assert.deepEqual(defaultState(REAL, FIXED).selection, pop);
 });

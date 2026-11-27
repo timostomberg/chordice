@@ -23,7 +23,7 @@ import {
   toggleTheme,
   toggleVariation,
 } from './state.js';
-import { isUnavailable } from './availability.js';
+import { isUnavailable, isUnavailableForSettings } from './availability.js';
 
 /** Actions that switch one flag; the action name is the flag's name in the data attributes. */
 const FLAG_ACTIONS = {
@@ -50,6 +50,8 @@ const ACTION_OPTIONS = {
   'clear-variations': 'variations',
   'toggle-foreign-variations': 'foreignVariations',
   'toggle-circle-of-fifths': 'circleOfFifths',
+  'toggle-exercise': 'exercise',
+  'clear-exercise': 'exercise',
 };
 
 /** The option an action changes, when that option can be unavailable; null for every other action. */
@@ -67,7 +69,10 @@ function optionOf(action, params) {
 export function applyAction(state, action, params, library, random = Math.random) {
   // An option that is unavailable (for the chosen instrument, or fixed by the exercise) cannot be changed, even by an event
   // that reaches it.
-  if (isUnavailable(state, optionOf(action, params))) {
+  // A section whose option a frozen song fixes can still be opened and closed, to show the values (see options.js).
+  const option = optionOf(action, params);
+  const blocked = action === 'toggle-section' ? isUnavailableForSettings(state, option) : isUnavailable(state, option);
+  if (blocked) {
     return state;
   }
   if (Object.hasOwn(FLAG_ACTIONS, action)) {
@@ -83,9 +88,10 @@ export function applyAction(state, action, params, library, random = Math.random
     'set-probability': () => setProbability(state, params.option, params.value),
     'toggle-exercise': () => toggleExercise(state, params.exercise),
     'clear-exercise': () => clearExercise(state),
-    // The Options, Exercises and Help buttons: one switch of three, like the instrument tabs (see choosePanel).
+    // The Options, Exercises, Songs and Help buttons: one switch of four, like the instrument tabs (see choosePanel).
     'toggle-options': () => choosePanel(state, 'options'),
     'toggle-exercises': () => choosePanel(state, 'exercises'),
+    'toggle-songs': () => choosePanel(state, 'songs'),
     'toggle-help': () => choosePanel(state, 'help'),
     'toggle-section': () => toggleSection(state, params.section),
     'toggle-theme': () => toggleTheme(state),

@@ -5,7 +5,7 @@
  * available again. Every function here is pure and derives its result from the stored state.
  */
 
-import { CIRCLE_COUNT } from './state.js';
+import { CIRCLE_COUNT, RECIPE_OPTIONS } from './state.js';
 import { exerciseSettings } from './exercises.js';
 
 /**
@@ -34,6 +34,23 @@ export function isLocked(state, option) {
  * while the circle of fifths switch is on, also when an exercise switches it on.
  */
 export function isUnavailable(state, option) {
+  return isFrozen(state, option) || isUnavailableForSettings(state, option);
+}
+
+/**
+ * Whether the option is fixed because a saved song is shown frozen (see songs.js): the options that make the song keep the
+ * values it was saved with until it is generated anew. Their sections can still be opened to show the values; only the
+ * values cannot be changed.
+ */
+export function isFrozen(state, option) {
+  return Boolean(state.frozen) && RECIPE_OPTIONS.includes(option);
+}
+
+/**
+ * Whether an option is unavailable for the instrument, the circle of fifths switch or the exercise (see isUnavailable):
+ * unlike a frozen song, these also close the section of the option.
+ */
+export function isUnavailableForSettings(state, option) {
   if (isLocked(state, option)) {
     return true;
   }
@@ -54,10 +71,11 @@ export function isUnavailable(state, option) {
  */
 export function effectiveState(state) {
   const fixed = exerciseState(state);
-  const offForInstrument = (option) => !isLocked(state, option) && isUnavailable(state, option);
+  // A frozen song fixes options, but does not change what they are: the settings stay those of its recipe.
+  const offForInstrument = (option) => !isLocked(state, option) && isUnavailableForSettings(state, option);
   return {
     ...fixed,
-    count: isUnavailable(state, 'count') ? CIRCLE_COUNT : state.count,
+    count: isUnavailableForSettings(state, 'count') ? CIRCLE_COUNT : state.count,
     bassProbability: offForInstrument('bassProbability') ? 0 : fixed.bassProbability,
     melodyAmount: offForInstrument('melodyAmount') ? 0 : fixed.melodyAmount,
     inversions: fixed.inversions && !offForInstrument('inversions'),

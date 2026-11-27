@@ -25,5 +25,7 @@ export function updateHeader(state, root = document) {
   for (const panel of PANELS) {
     root.querySelector(`.${panel}-toggle`).setAttribute('aria-expanded', String(state.showOptions && state.panel === panel));
   }
+  // While an exercise is on, the exercises button is highlighted, also while another panel is shown or the side panel is closed.
+  root.querySelector('.exercises-toggle').setAttribute('data-exercise-active', String(state.exercise !== null));
   root.querySelector('[data-action="toggle-theme"]').setAttribute('aria-pressed', String(state.theme === 'dark'));
 }

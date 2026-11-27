@@ -163,7 +163,7 @@
 }
 
 .option.is-unavailable .slider input,
-.option.is-unavailable .section-toggle {
+.option.is-unavailable .section-toggle:disabled {
   cursor: default;
 }
 
