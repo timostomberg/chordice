@@ -327,8 +327,10 @@ test('index.html can be added to the home screen as an app: the manifest, the ic
   assert.ok(html.includes('<link rel="apple-touch-icon" href="icons/icon-180.png">'));
   assert.ok(html.includes('<meta name="apple-mobile-web-app-capable" content="yes">'));
   assert.ok(html.includes('<meta name="apple-mobile-web-app-title" content="Chordice">'));
-  // The header reaches under the status bar of the app, and keeps clear of it by the top safe area (see header.css).
-  assert.ok(html.includes('<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">'));
+  // The status bar of the app keeps a bar of its own above the page: under a translucent one, iPadOS blurs the top of the
+  // header and leaves a stripe of the status bar's height at the bottom.
+  assert.ok(html.includes('<meta name="apple-mobile-web-app-status-bar-style" content="default">'));
+  assert.ok(!html.includes('content="black-translucent"'));
   assert.ok(html.includes('viewport-fit=cover'));
 });
 
