@@ -6,7 +6,7 @@
 
 import { VARIATION_NAMES } from '../../music/theory/chords.js';
 import { SLOTS_COUNTERCLOCKWISE, isKeyName } from '../../music/theory/keys.js';
-import { PROBABILITY_MAX } from '../../music/constants.js';
+import { PROBABILITY_MAX, VARIATIONS_ONLY } from '../../music/constants.js';
 import { createSeeds } from '../../music/generator/random.js';
 import { exerciseById } from './exercises.js';
 
@@ -74,7 +74,7 @@ export function defaultState(library, random = Math.random) {
     selection: defaultSelection(library),
     count: 4,
     // The probabilities are on the scale from 0 to 5 (1 means 20%).
-    rotation: 1,
+    rotation: 2,
     permutation: 1,
     variations: [...DEFAULT_VARIATIONS],
     variationProbability: 4,
@@ -172,6 +172,14 @@ export function clearVariations(state) {
   return { ...state, variations: [] };
 }
 
+/**
+ * The highest value of a probability option: PROBABILITY_MAX, except for the chord variations, whose scale goes one step
+ * further to 5+ (VARIATIONS_ONLY).
+ */
+export function probabilityMaxOf(option) {
+  return option === 'variationProbability' ? VARIATIONS_ONLY : PROBABILITY_MAX;
+}
+
 export function setProbability(state, option, value) {
   if (!PROBABILITY_OPTIONS.includes(option)) {
     return state;
@@ -180,7 +188,7 @@ export function setProbability(state, option, value) {
   if (!Number.isFinite(rounded)) {
     return state;
   }
-  return { ...state, [option]: Math.min(PROBABILITY_MAX, Math.max(0, rounded)) };
+  return { ...state, [option]: Math.min(probabilityMaxOf(option), Math.max(0, rounded)) };
 }
 
 /** Expands a collapsed section or collapses an expanded one; the other sections stay as they are. Unknown names are ignored. */

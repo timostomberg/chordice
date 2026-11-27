@@ -12,6 +12,7 @@ import {
   PANELS,
   choosePanel,
   setProbability,
+  probabilityMaxOf,
   toggleVariation,
   toggleGroup,
   setKey,
@@ -43,7 +44,7 @@ test('defaults select the Pop progressions, show colours and extended informatio
   assert.equal(state.roman, true);
   assert.equal(state.tones, false);
   assert.equal(state.permutation, 1);
-  assert.equal(state.rotation, 1);
+  assert.equal(state.rotation, 2);
   assert.equal(state.variationProbability, 4);
   assert.equal(state.bassProbability, 0);
   assert.equal(state.melodyAmount, 1);
@@ -222,6 +223,15 @@ test('setProbability rounds to whole steps of the 0 to 5 scale and clamps to 0..
   assert.equal(setProbability(state, 'bassProbability', -2).bassProbability, 0);
   assert.equal(setProbability(state, 'rotation', 'abc'), state);
   assert.equal(setProbability(state, 'count', 50), state);
+});
+
+test('the chord variations go one step further, to 5+ (6); the other probabilities stop at 5', () => {
+  const state = defaultState(LIBRARY, FIXED);
+  assert.equal(setProbability(state, 'variationProbability', 6).variationProbability, 6);
+  assert.equal(setProbability(state, 'variationProbability', 99).variationProbability, 6);
+  assert.equal(setProbability(state, 'bassProbability', 6).bassProbability, 5);
+  assert.equal(probabilityMaxOf('variationProbability'), 6);
+  assert.equal(probabilityMaxOf('rotation'), 5);
 });
 
 test('inversions are an on/off switch, off by default, and not a probability', () => {

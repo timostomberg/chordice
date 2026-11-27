@@ -27,6 +27,14 @@ test('sanitizeState falls back to defaults for missing or broken input', () => {
   assert.deepEqual(sanitizeState('oops', LIBRARY, FIXED), defaults);
 });
 
+test('sanitizeState keeps 5+ for the chord variations, but not for the other probabilities', () => {
+  const state = sanitizeState({ variationProbability: 6, bassProbability: 6, rotation: 6 }, LIBRARY, FIXED);
+  const fallback = defaultState(LIBRARY, FIXED);
+  assert.equal(state.variationProbability, 6);
+  assert.equal(state.bassProbability, fallback.bassProbability);
+  assert.equal(state.rotation, fallback.rotation);
+});
+
 test('sanitizeState keeps valid values and repairs invalid ones', () => {
   const state = sanitizeState({
     key: 'D',
@@ -35,7 +43,7 @@ test('sanitizeState keeps valid values and repairs invalid ones', () => {
     rotation: 4,
     permutation: 2,
     variations: ['add9', 'nope'],
-    variationProbability: 6,
+    variationProbability: 7,
     bassProbability: 1,
     colour: 'yes',
     theme: 'dark',

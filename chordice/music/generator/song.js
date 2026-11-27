@@ -2,10 +2,12 @@
  * Generates the song: the practice rows from a validated progression library and bass patterns (see validate.js), which
  * the page shows on the right. Every decision is taken from the seeds in random.js, so the same settings always give the
  * same song.
- * The progressions and keys are chosen in progression.js, and each row is built there as well.
+ * The progressions and keys are chosen in progression.js, and each row is built there as well. The inversions are set
+ * once all rows are built (see inversion.js), since the melody runs from one row into the next.
  */
 
 import { NO_BASS_PATTERNS } from './bass.js';
+import { withInversions } from './inversion.js';
 import { buildRow, chooseProgressionAndKey, progressionPool } from './progression.js';
 
 /**
@@ -26,5 +28,5 @@ export function generateSong(settings) {
     const { progression, tonic } = chooseProgressionAndKey(pool, key, seeds, i, settings.circleOfFifths === true);
     rows.push(buildRow(progression, tonic, i, { ...settings, bassPatterns }));
   }
-  return rows;
+  return withInversions(rows, settings);
 }

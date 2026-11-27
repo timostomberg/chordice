@@ -49,6 +49,16 @@ test('renderOptions keeps the probability sliders, each with the fill set to its
   assert.ok(html.includes('data-option="bassProbability"'));
 });
 
+test('the amount of the chord variations runs from 0 to 5+, shown as "5+" on the slider and in the summary', () => {
+  const state = { ...defaultState(LIBRARY, () => 0.5), collapsed: [], variationProbability: 6 };
+  const open = renderOptions(state, LIBRARY);
+  assert.ok(open.includes('Amount <output>5+</output>'));
+  assert.ok(open.includes('min="0" max="6" step="1" value="6" data-option="variationProbability" style="--fill: 100%"'));
+  assert.ok(open.includes('max="5" step="1" value="' + state.bassProbability + '" data-option="bassProbability"'), 'the bass amount stops at 5');
+  const closed = renderOptions({ ...state, collapsed: ['variations'] }, LIBRARY);
+  assert.ok(closed.includes('<span class="summary-label">Amount</span>: <span class="summary-value">5+</span>'));
+});
+
 test('the options panel has no Keys section and no circle of fifths: the key is chosen on the circle beside the chords', () => {
   const html = renderOptions({ ...defaultState(LIBRARY, () => 0.5), collapsed: [] }, LIBRARY);
   assert.ok(!html.includes('Keys'));
@@ -451,7 +461,7 @@ test('every open section ends with one short note; a collapsed section shows its
   assert.deepEqual(notes, [
     'The rows are drawn from the progressions picked here.',
     'Rotations: how often a row starts on another chord. Permutations: how often its chords are shuffled.',
-    'Amount: how often a chord gets one of the variations picked here.',
+    'Amount: how often a chord gets one of the variations picked here; at 5+ always, without the plain chord.',
     'How often a chord gets another bass note.',
     'How far the melody may jump.',
     'An exercise fixes some options to practise one thing.',

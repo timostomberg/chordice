@@ -280,6 +280,12 @@ test('at melody amount 5 melody notes further away than the nearest are chosen a
   assert.ok(melodyLeaps(rows).some(({ chosen, nearest }) => chosen > nearest));
 });
 
+test('at melody amount 0 the melody runs through the whole song, from the end of one row into the next', () => {
+  const rows = generateSong(settings({ selection: [POP, MINOR], count: 8, variationProbability: 5, inversions: true, melodyAmount: 0 }));
+  const song = [{ index: 0, chords: rows.flatMap((row) => row.chords) }];
+  assert.ok(melodyLeaps(song).every(({ chosen, nearest }) => chosen === nearest));
+});
+
 test('changing the melody amount keeps the progression, variations and bass notes', () => {
   const base = { selection: [POP, MINOR], count: 8, inversions: true, variationProbability: 3, bassProbability: 3 };
   const outline = (rows) => rows.map((row) => row.chords.map((chord) => [chord.roman, chord.symbol, chord.bass]));
@@ -387,7 +393,7 @@ test('golden: fixed settings and seeds always give the same song, so saved songs
   assert.deepEqual(rows.map((row) => `${row.name}: ${row.chords.map((chord) => `${chord.displaySymbol}@${chord.inversion}`).join(' ')}`), [
     'Minor Cadence: Am@2 B@1 Em/G@0',
     'Pop Progression: Dsus4/G@2 Em@2 C6@3 G@1',
-    'Minor Cadence: Em@1 B/D#@0 Am@0',
+    'Minor Cadence: Em@2 B/D#@0 Am@0',
     'Minor Cadence: Em@1 B@1 Am@2',
   ]);
 });

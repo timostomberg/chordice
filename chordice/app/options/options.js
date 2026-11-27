@@ -6,10 +6,10 @@
  */
 
 import { VARIATION_NAMES } from '../../music/theory/chords.js';
-import { EXERCISE_SECTIONS, SECTIONS, SECTION_OPTIONS } from '../state/state.js';
+import { EXERCISE_SECTIONS, SECTIONS, SECTION_OPTIONS, probabilityMaxOf } from '../state/state.js';
 import { effectiveState, exerciseState, isUnavailable, isUnavailableForSettings } from '../state/availability.js';
 import { EXERCISES } from '../state/exercises.js';
-import { PROBABILITY_MAX } from '../../music/constants.js';
+import { PROBABILITY_MAX, VARIATIONS_ONLY } from '../../music/constants.js';
 import { escapeHtml } from '../escape.js';
 
 const SECTION_TITLES = {
@@ -33,7 +33,7 @@ const PROBABILITY_LABELS = {
 const SECTION_HINTS = {
   progressions: 'The rows are drawn from the progressions picked here.',
   progressionVariations: 'Rotations: how often a row starts on another chord. Permutations: how often its chords are shuffled.',
-  variations: 'Amount: how often a chord gets one of the variations picked here.',
+  variations: 'Amount: how often a chord gets one of the variations picked here; at 5+ always, without the plain chord.',
   bass: 'How often a chord gets another bass note.',
   melody: 'How far the melody may jump.',
   exercises: 'An exercise fixes some options to practise one thing.',
@@ -57,11 +57,20 @@ function shownValue(option, state) {
   return effectiveState(state)[option];
 }
 
-/** A slider from 0 to PROBABILITY_MAX, where PROBABILITY_MAX means 100%. The value is shown as the number on that scale. */
+/** A probability as it is shown: the number on its scale, and VARIATIONS_ONLY, the step after PROBABILITY_MAX, as "5+". */
+export function probabilityLabel(value) {
+  return value === VARIATIONS_ONLY ? `${PROBABILITY_MAX}+` : String(value);
+}
+
+/**
+ * A slider from 0 to the highest value of its option (see probabilityMaxOf), where PROBABILITY_MAX means 100%. The value
+ * is shown as the number on that scale.
+ */
 function probabilitySlider(option, value, disabled = false) {
-  const fill = (value / PROBABILITY_MAX) * 100;
-  return `<label class="slider"><span>${PROBABILITY_LABELS[option]} <output>${value}</output></span>` +
-    `<input type="range" min="0" max="${PROBABILITY_MAX}" step="1" value="${value}" data-option="${option}" style="--fill: ${fill}%"${disabled ? ' disabled' : ''}></label>`;
+  const max = probabilityMaxOf(option);
+  const fill = (value / max) * 100;
+  return `<label class="slider"><span>${PROBABILITY_LABELS[option]} <output>${probabilityLabel(value)}</output></span>` +
+    `<input type="range" min="0" max="${max}" step="1" value="${value}" data-option="${option}" style="--fill: ${fill}%"${disabled ? ' disabled' : ''}></label>`;
 }
 
 /** The progressions of the library, one list per genre, in library order. */
@@ -167,7 +176,7 @@ function sectionSummary(name, state, library) {
 /** One probability as a summary line, e.g. "Rotation: 2" with the label in blue. */
 function probabilitySummary(option, state) {
   return `<span class="summary-label">${escapeHtml(PROBABILITY_LABELS[option])}</span>: ` +
-    `<span class="summary-value">${shownValue(option, state)}</span>`;
+    `<span class="summary-value">${probabilityLabel(shownValue(option, state))}</span>`;
 }
 
 /**

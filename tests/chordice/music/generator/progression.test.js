@@ -8,7 +8,7 @@ import {
 } from '../../../../chordice/music/generator/progression.js';
 import { NO_BASS_PATTERNS } from '../../../../chordice/music/generator/bass.js';
 import { createSeeds } from '../../../../chordice/music/generator/random.js';
-import { BASE, PROBABILITY_MAX } from '../../../../chordice/music/constants.js';
+import { BASE, PROBABILITY_MAX, VARIATIONS_ONLY } from '../../../../chordice/music/constants.js';
 
 const PROGRESSION = { id: 'pop', name: 'Pop', group: 'Pop', progression: ['I', 'V'], chordVariations: {} };
 const OTHER = { id: 'jazz', name: 'Jazz', group: 'Jazz', progression: ['ii', 'V'], chordVariations: {} };
@@ -101,6 +101,26 @@ test('at full bass probability the chord takes its bass note, shown as a slash',
 test('at full variation probability a chord takes a selected variation', () => {
   const chord = chordEntry(CHORD_PROGRESSION, 'V', 'C', 0, chordSettings({ variations: ['7'], variationProbability: PROBABILITY_MAX }));
   assert.equal(chord.variation, '7');
+});
+
+test('at 5+ a chord never stays the base chord while it has a variation to take', () => {
+  // The base is far more common than the variation here, so without 5+ it would mostly be taken.
+  const progression = { chordVariations: { V: { [BASE]: 5, 7: 1 } } };
+  for (let slot = 0; slot < 50; slot += 1) {
+    const chord = chordEntry(progression, 'V', 'C', slot, chordSettings({ variations: ['7'], variationProbability: VARIATIONS_ONLY }));
+    assert.equal(chord.variation, '7');
+  }
+  const atFive = Array.from({ length: 50 }, (_, slot) =>
+    chordEntry(progression, 'V', 'C', slot, chordSettings({ variations: ['7'], variationProbability: PROBABILITY_MAX })).variation);
+  assert.ok(atFive.includes(null), 'at 5 the base chord is still taken');
+});
+
+test('at 5+ a chord without a variation to take stays the base chord', () => {
+  const progression = { chordVariations: { V: { [BASE]: 5, 7: 1 }, I: { [BASE]: 5 } } };
+  const settings = chordSettings({ variations: ['7'], variationProbability: VARIATIONS_ONLY });
+  assert.equal(chordEntry(progression, 'I', 'C', 0, settings).variation, null, 'no variation in the YAML');
+  assert.equal(chordEntry(progression, 'V', 'C', 0, { ...settings, variations: [] }).variation, null, 'no variation selected');
+  assert.equal(chordEntry({ chordVariations: {} }, 'V', 'C', 0, settings).variation, null, 'the numeral is not in the YAML');
 });
 
 test('a variation that is not selected is never taken', () => {

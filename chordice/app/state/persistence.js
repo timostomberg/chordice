@@ -6,18 +6,18 @@
 
 import { VARIATION_NAMES } from '../../music/theory/chords.js';
 import { isKeyName } from '../../music/theory/keys.js';
-import { PROBABILITY_MAX } from '../../music/constants.js';
 import { SEED_NAMES } from '../../music/generator/random.js';
 import { exerciseById } from './exercises.js';
-import { ALL_SECTIONS, COUNTS, INSTRUMENTS, PANELS, THEMES, defaultState } from './state.js';
+import { ALL_SECTIONS, COUNTS, INSTRUMENTS, PANELS, THEMES, defaultState, probabilityMaxOf } from './state.js';
 
 export const COOKIE_NAME = 'chordice_state';
 
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 const MAX_SEED = 4294967295;
 
-function toProbability(value, fallback) {
-  return Number.isInteger(value) && value >= 0 && value <= PROBABILITY_MAX ? value : fallback;
+/** The value of the probability option `option`: a whole number from 0 to its highest value (see probabilityMaxOf). */
+function toProbability(value, fallback, option) {
+  return Number.isInteger(value) && value >= 0 && value <= probabilityMaxOf(option) ? value : fallback;
 }
 
 function toSeed(value, fallback) {
@@ -60,12 +60,12 @@ export function sanitizeState(raw, library, random = Math.random) {
     key: isKeyName(raw.key) ? raw.key : fallback.key,
     selection: toSelection(raw.selection, library, fallback.selection),
     count: COUNTS.includes(raw.count) ? raw.count : fallback.count,
-    rotation: toProbability(raw.rotation, fallback.rotation),
-    permutation: toProbability(raw.permutation, fallback.permutation),
+    rotation: toProbability(raw.rotation, fallback.rotation, 'rotation'),
+    permutation: toProbability(raw.permutation, fallback.permutation, 'permutation'),
     variations,
-    variationProbability: toProbability(raw.variationProbability, fallback.variationProbability),
-    bassProbability: toProbability(raw.bassProbability, fallback.bassProbability),
-    melodyAmount: toProbability(raw.melodyAmount, fallback.melodyAmount),
+    variationProbability: toProbability(raw.variationProbability, fallback.variationProbability, 'variationProbability'),
+    bassProbability: toProbability(raw.bassProbability, fallback.bassProbability, 'bassProbability'),
+    melodyAmount: toProbability(raw.melodyAmount, fallback.melodyAmount, 'melodyAmount'),
     colour: toBoolean(raw.colour, fallback.colour),
     roman: toBoolean(raw.roman, fallback.roman),
     tones: toBoolean(raw.tones, fallback.tones),
